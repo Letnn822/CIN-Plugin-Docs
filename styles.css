@@ -126,7 +126,7 @@ body { position: relative; overflow-x: hidden; }
 .loading{color:var(--muted);font-style:italic}
 
 /* Background layers (parallax-friendly) */
-body::before, body::after{content:"";position:absolute;inset:0;pointer-events:none;will-change:transform}
+body::before, body::after{content:"";position:absolute;left:0;right:0;top:0;bottom:-500vh;pointer-events:none;will-change:transform}
 /* Layer A: soft nebula gradient */
 body::before{
   z-index:-2;
