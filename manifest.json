@@ -11,6 +11,7 @@
       {"title":"Overview","slug":"overview","path":"content/docs/overview.html","group":"Getting Started"},
       {"title":"Installation","slug":"installation","path":"content/docs/installation.html","group":"Getting Started"},
 
+      {"title":"Agents (Brain & Body)","slug":"agents","path":"content/docs/agents.html","group":"Core Concepts"},
       {"title":"Parameter Binding","slug":"parameter-binding","path":"content/docs/parameter-binding.html","group":"Core Concepts"},
       {"title":"GAS Integration","slug":"gas-integration","path":"content/docs/gas-integration.html","group":"Core Concepts"},
       {"title":"Perception","slug":"perception","path":"content/docs/perception.html","group":"Core Concepts"},

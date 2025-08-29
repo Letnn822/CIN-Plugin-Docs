@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agents in CIN</title>
+</head>
+<body>
+    <h1>Available Agents in the CIN Plugin</h1>
+    <p>The CIN Plugin provides a powerful, two-part agent architecture designed for creating realistic and intelligent characters. This architecture separates the agent's decision-making 'brain' from its physical, animated 'body', allowing for maximum flexibility and power.</p>
+
+    <hr>
+
+    <h2>1. ACINUnifiedAgentBP: The Brain</h2>
+    <p><code>ACINUnifiedAgentBP</code> is the core decision-making entity of the plugin. It's a sophisticated, high-level agent that integrates multiple AI paradigms into a single, flexible controller. Think of this as the agent's mind.</p>
+    <h4>Key Features:</h4>
+    <ul>
+        <li><strong>Hybrid AI Behavior:</strong> Can switch between or blend different AI modes:
+            <ul>
+                <li><strong>Utility-Based:</strong> Makes decisions based on the calculated utility of different goals.</li>
+                <li><strong>Reactive:</strong> Responds immediately to environmental stimuli, like threats.</li>
+                <li><strong>Predictive:</strong> Anticipates future events and plans accordingly.</li>
+                <li><strong>Social:</strong> Manages relationships and interactions with other agents.</li>
+                <li><strong>Learning:</strong> Adapts its behavior over time based on the outcomes of its actions.</li>
+            </ul>
+        </li>
+        <li><strong>Goal Management:</strong> Manages a list of available and active goals, driving the agent's long-term behavior.</li>
+        <li><strong>Component-Based:</strong> Comes equipped with essential components like <code>UCINBrain</code>, <code>UCINPerceptionComponent</code>, and <code>UCINCombatComponent</code>.</li>
+        <li><strong>Highly Configurable:</strong> Exposes dozens of properties to fine-tune every aspect of the agent's behavior, from reaction speed to social awareness.</li>
+    </ul>
+
+    <hr>
+
+    <h2>2. ACINAnimatedAgentBase: The Body</h2>
+    <p><code>ACINAnimatedAgentBase</code> is a base class focused on the physical representation and animation of an agent. It provides the framework for bringing a character to life visually. It's designed to be driven by a higher-level controller like <code>ACINUnifiedAgentBP</code>.</p>
+    <h4>Key Features:</h4>
+    <ul>
+        <li><strong>State-Driven Animation System:</strong> Manages a map of animation states (e.g., Idle, Walking, Alarmed) and blends between them smoothly.</li>
+        <li><strong>Dynamic Head & Eye Tracking:</strong> A built-in system to make the agent look at actors, specific locations, or in random directions to increase realism.</li>
+        <li><strong>Standardized Locomotion Interface:</strong> Provides a clean interface (<code>ICINLocomotionInterface</code>) for external systems to request movement, rotation, and stops. This decouples the AI's intent from the animation implementation.</li>
+        <li><strong>Gameplay Ability System (GAS) Ready:</strong> Implements <code>IAbilitySystemInterface</code>, making it ready for integration with Unreal's GAS.</li>
+    </ul>
+
+    <hr>
+
+    <h2>How They Work Together</h2>
+    <p>In a typical setup, you would create a Blueprint that inherits from <code>ACINAnimatedAgentBase</code> to set up your character's mesh and animations. You would then either add the <code>ACINUnifiedAgentBP</code> logic to it or have a separate <code>ACINUnifiedAgentBP</code> possess and control your animated character. The 'brain' (Unified Agent) makes a decision, such as 'investigate that sound', and sends a command to the 'body' (Animated Agent) through the locomotion interface to execute the movement and play the appropriate animation.</p>
+
+</body>
+</html>
