@@ -37,6 +37,11 @@
   --nebula-y: 0px;
   --grid-x: 0px;
   --grid-y: 0px;
+  --nebula-scroll: 0px;
+  --grid-scroll: 0px;
+  --grid-tilt: 64deg;
+  --grid-z: -260px;
+  --grid-scale: 2.2;
 
   /* Legacy aliases mapped to palette */
   --bg: var(--color-deep-space);
@@ -52,14 +57,9 @@
 }
 *{box-sizing:border-box}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:16px/1.6 var(--font-ui)}
-body { 
-  position: relative; 
-  overflow-x: hidden; 
-  /* Establish 3D context for parallax */
-  height: 100vh;
-  overflow-y: auto;
-  perspective: 1px;
-  transform-style: preserve-3d;
+body {
+  position: relative;
+  overflow-x: hidden;
 }
 
 .topbar{position:sticky;top:0;background:linear-gradient(90deg,var(--bg-soft),#12151f 60%,#0e111a);border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px;padding:12px 20px;z-index:10}
@@ -72,7 +72,7 @@ body {
   /* Move layout to its own layer */
   transform: translateZ(0);
   position: relative;
-  z-index: 1;
+  z-index: 0;
 }
 .sidebar{border-right:1px solid var(--border);background:var(--bg-soft);min-height:100%}
 .sidebar-header{padding:12px;border-bottom:1px solid var(--border)}
@@ -101,7 +101,7 @@ body {
 .callout{display:flex;gap:12px;align-items:flex-start}
 .callout .icon{color:var(--accent)}
 
-.footer{border-top:1px solid var(--border);padding:16px 20px;color:var(--muted);display:flex;justify-content:space-between;flex-wrap:wrap}
+.footer{border-top:1px solid var(--border);padding:16px 20px;color:var(--muted);display:flex;justify-content:space-between;flex-wrap:wrap;position:relative;z-index:1}
 
 /* Glossary tooltip */
 .glossary-term{border-bottom:1px dotted var(--muted);cursor:help}
@@ -133,25 +133,30 @@ body {
 .loading{color:var(--muted);font-style:italic}
 
 /* Background layers (parallax-friendly) */
-body::before, body::after{content:"";position:fixed;inset:0;pointer-events:none;will-change:transform}
+body::before, body::after{content:"";position:fixed;pointer-events:none;will-change:transform}
 /* Layer A: soft nebula gradient */
 body::before{
   z-index:-2;
+  top:0; left:0; right:0; bottom:0;
   background:
     radial-gradient(1200px 800px at 10% 20%, rgba(122,92,255,.12), transparent 60%),
     radial-gradient(800px 600px at 85% 15%, rgba(61,242,255,.10), transparent 55%),
     radial-gradient(900px 700px at 70% 85%, rgba(255,61,241,.08), transparent 60%),
     var(--bg);
-  transform: translate3d(calc(var(--nebula-x)), calc(var(--nebula-y)), 0);
+  transform: translate3d(calc(var(--nebula-x)), calc(var(--nebula-y) + var(--nebula-scroll)), 0);
 }
 /* Layer B: thin neon grid */
 body::after{
   z-index:-1;
   opacity:.08;
+  /* Large plane to ensure coverage when rotated in 3D */
+  left:-50vw; width:200vw; top:-80vh; bottom:auto; height:360vh;
+  transform-origin: bottom center;
   background-image:
     repeating-linear-gradient(0deg, transparent 0 31px, rgba(61,242,255,.8) 32px),
     repeating-linear-gradient(90deg, transparent 0 31px, rgba(122,92,255,.8) 32px);
-  transform: translate3d(var(--grid-x), var(--grid-y), 0);
+  backface-visibility: hidden;
+  transform: perspective(1000px) translateZ(var(--grid-z)) rotateX(var(--grid-tilt)) scale(var(--grid-scale)) translate3d(var(--grid-x), calc(var(--grid-y) + var(--grid-scroll)), 0);
 }
 
 /* Respect reduced motion */

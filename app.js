@@ -262,7 +262,7 @@
     navigate(section, slug);
   }
 
-  // Optional parallax background (pointer-based), respects reduced motion
+  // Optional parallax background (pointer + scroll), respects reduced motion
   function initParallax(){
     const root = document.documentElement;
     const mql = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -271,6 +271,8 @@
       root.style.setProperty('--nebula-y','0px');
       root.style.setProperty('--grid-x','0px');
       root.style.setProperty('--grid-y','0px');
+      root.style.setProperty('--nebula-scroll','0px');
+      root.style.setProperty('--grid-scroll','0px');
     };
     if (mql.matches) { disable(); return; }
 
@@ -280,6 +282,9 @@
     const cssStrength = parseFloat(getComputedStyle(root).getPropertyValue('--parallax-strength')) || 1;
     const nebulaAmp = 14 * cssStrength;
     const gridAmp = 8 * cssStrength;
+    // scroll multipliers (px of background shift per px of scroll)
+    const nebulaScrollAmp = 0.04; // slower, distant
+    const gridScrollAmp = 0.18;   // faster, closer grid plane
 
     const onPointer = (e) => {
       // center-based normalization
@@ -300,6 +305,11 @@
       root.style.setProperty('--nebula-y', `${(-y*nebulaAmp).toFixed(2)}px`);
       root.style.setProperty('--grid-x', `${(x*gridAmp).toFixed(2)}px`);
       root.style.setProperty('--grid-y', `${(y*gridAmp).toFixed(2)}px`);
+      // Scroll-driven shift (robust across browsers)
+      const se = document.scrollingElement || document.documentElement;
+      const st = se.scrollTop || 0;
+      root.style.setProperty('--nebula-scroll', `${(-st*nebulaScrollAmp).toFixed(2)}px`);
+      root.style.setProperty('--grid-scroll', `${(-st*gridScrollAmp).toFixed(2)}px`);
       requestAnimationFrame(step);
     };
     requestAnimationFrame(step);
