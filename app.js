@@ -280,15 +280,22 @@
     let tx = 0, ty = 0;     // target normalized [-1,1]
     let x = 0, y = 0;       // current normalized
     let stSmooth = 0;       // smoothed scrollTop
+    const readScroll = () => (
+      (typeof window.scrollY === 'number' ? window.scrollY : 0) ||
+      (document.scrollingElement && document.scrollingElement.scrollTop) ||
+      (document.documentElement && document.documentElement.scrollTop) ||
+      (document.body && document.body.scrollTop) || 0
+    );
+    let stTarget = readScroll();
     const cssStrength = parseFloat(getComputedStyle(root).getPropertyValue('--parallax-strength')) || 1;
     const nebulaAmp = 20 * cssStrength;
     const gridAmp = 14 * cssStrength;
     // scroll multipliers (px of background shift per px of scroll)
-    const nebulaScrollAmp = 0.08; // slower, distant
-    const gridScrollAmp = 0.35;   // faster, closer grid plane
+    const nebulaScrollAmp = 0.20; // slower, distant
+    const gridScrollAmp = 0.45;   // faster, closer grid plane
     // background-position parallax (crisper grid lines)
     const gridBGPointerAmp = 12 * cssStrength;
-    const gridBGScrollAmp = 0.30; // per px of scroll
+    const gridBGScrollAmp = 0.60; // per px of scroll
     const idleSpeed = 0.02;       // px per frame idle drift
 
     const onPointer = (e) => {
@@ -302,9 +309,12 @@
     // Fallback for environments without pointer events
     window.addEventListener('mousemove', onPointer, { passive: true });
     window.addEventListener('resize', ()=>{ vw = innerWidth; vh = innerHeight; }, { passive: true });
+    window.addEventListener('scroll', ()=>{ stTarget = readScroll(); }, { passive: true });
+    window.addEventListener('wheel', (e)=>{ pseudoScroll += e.deltaY * 0.5; }, { passive: true });
 
     const lerp = (a,b,t)=>a+(b-a)*t;
     let idlePhase = 0;
+    let pseudoScroll = 0; // wheel-induced virtual scroll for parallax
     const px = (n) => Math.round(n);
     const step = () => {
       x = lerp(x, tx, 0.12);
@@ -315,9 +325,10 @@
       root.style.setProperty('--grid-x', `${(x*gridAmp).toFixed(2)}px`);
       root.style.setProperty('--grid-y', `${(y*gridAmp).toFixed(2)}px`);
       // Scroll-driven shift (robust across browsers, with smoothing)
-      const se = document.scrollingElement || document.documentElement;
-      const st = se.scrollTop || 0;
-      stSmooth = lerp(stSmooth, st, 0.15);
+      stTarget = readScroll();
+      pseudoScroll = lerp(pseudoScroll, 0, 0.08);
+      const scrollValue = stTarget + pseudoScroll;
+      stSmooth = lerp(stSmooth, scrollValue, 0.18);
       root.style.setProperty('--nebula-scroll', `${(-stSmooth*nebulaScrollAmp).toFixed(2)}px`);
       root.style.setProperty('--grid-scroll', `${(-stSmooth*gridScrollAmp).toFixed(2)}px`);
 

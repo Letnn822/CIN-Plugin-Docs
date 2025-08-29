@@ -39,10 +39,10 @@
   --grid-y: 0px;
   --nebula-scroll: 0px;
   --grid-scroll: 0px;
-  --grid-tilt: 54deg;
-  --grid-z: -220px;
-  --grid-scale: 1.0;
-  --grid-size: 28px; /* grid cell size */
+  --grid-tilt: 62deg;
+  --grid-z: -160px;
+  --grid-scale: 1.08;
+  --grid-size: 32px; /* grid cell size */
   --grid-bg-x: 0px;  /* background-position X for grid */
   --grid-bg-y: 0px;  /* background-position Y for grid */
 
@@ -163,19 +163,19 @@ body::before{
 /* Layer B: thin neon grid */
 body::after{
   z-index:1; /* behind layout/footer (z>=3) */
-  opacity:.03;
+  opacity:.06;
   /* Large plane to ensure coverage when rotated in 3D */
   left:-10vw; width:120vw; top:-24vh; bottom:auto; height:200vh;
   transform-origin: bottom center;
   background-image:
-    linear-gradient(to right, rgba(61,242,255,.20) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(122,92,255,.20) 1px, transparent 1px);
+    linear-gradient(to right, rgba(61,242,255,.32) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(122,92,255,.32) 1px, transparent 1px);
   background-size: var(--grid-size) var(--grid-size), var(--grid-size) var(--grid-size);
   background-position:
-    calc(50% + var(--grid-bg-x)) calc(50% + var(--grid-bg-y)),
-    calc(50% + var(--grid-bg-x)) calc(50% + var(--grid-bg-y));
+    calc(50% + var(--grid-bg-x)) calc(50% + var(--grid-bg-y) + var(--grid-scroll)),
+    calc(50% + var(--grid-bg-x)) calc(50% + var(--grid-bg-y) + var(--grid-scroll));
   backface-visibility: hidden;
-  transform: perspective(1000px) translateZ(var(--grid-z)) rotateX(var(--grid-tilt)) scale(var(--grid-scale));
+  transform: perspective(1000px) translateZ(var(--grid-z)) rotateX(var(--grid-tilt)) scale(var(--grid-scale)) translate3d(var(--grid-x), calc(var(--grid-y) + var(--grid-scroll)), 0);
 }
 
 /* Respect reduced motion */
