@@ -39,9 +39,12 @@
   --grid-y: 0px;
   --nebula-scroll: 0px;
   --grid-scroll: 0px;
-  --grid-tilt: 60deg;
-  --grid-z: -140px;
-  --grid-scale: 1.2;
+  --grid-tilt: 54deg;
+  --grid-z: -220px;
+  --grid-scale: 1.0;
+  --grid-size: 28px; /* grid cell size */
+  --grid-bg-x: 0px;  /* background-position X for grid */
+  --grid-bg-y: 0px;  /* background-position Y for grid */
 
   /* Legacy aliases mapped to palette */
   --bg: var(--color-deep-space);
@@ -83,7 +86,19 @@ body {
 .link:hover{background:#121624}
 .link.active{border-left-color:transparent;background:linear-gradient(90deg,var(--color-holo-cyan),var(--color-electric-violet)) left/3px 100% no-repeat, #0f1525}
 
-.content{padding:var(--space-7) var(--space-8);max-width:980px;margin:0 auto}
+.content{
+  padding:var(--space-7) var(--space-8);
+  max-width:980px;
+  margin:0 auto;
+  position: relative;
+  z-index: 3;
+  background: rgba(11,16,28, .34);
+  -webkit-backdrop-filter: blur(8px) saturate(110%);
+  backdrop-filter: blur(8px) saturate(110%);
+  border: 1px solid rgba(255,255,255,.06);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.28);
+}
 .content h1,.content h2,.content h3{line-height:1.2;font-family:var(--font-head)}
 .content h1{font-size:30px;font-weight:800;margin:0 0 12px;text-transform:uppercase;letter-spacing:.02em}
 .content h2{font-size:22px;margin:28px 0 8px}
@@ -133,7 +148,7 @@ body {
 .loading{color:var(--muted);font-style:italic}
 
 /* Background layers (parallax-friendly) */
-body::before, body::after{content:"";position:fixed;pointer-events:none;will-change:transform}
+body::before, body::after{content:"";position:fixed;pointer-events:none;will-change:transform, background-position}
 /* Layer A: soft nebula gradient */
 body::before{
   z-index:0; /* behind all content */
@@ -148,15 +163,19 @@ body::before{
 /* Layer B: thin neon grid */
 body::after{
   z-index:1; /* behind layout/footer (z>=3) */
-  opacity:.06;
+  opacity:.03;
   /* Large plane to ensure coverage when rotated in 3D */
-  left:-15vw; width:130vw; top:-30vh; bottom:auto; height:220vh;
+  left:-10vw; width:120vw; top:-24vh; bottom:auto; height:200vh;
   transform-origin: bottom center;
   background-image:
-    repeating-linear-gradient(0deg, transparent 0 16px, rgba(61,242,255,.65) 17px),
-    repeating-linear-gradient(90deg, transparent 0 16px, rgba(122,92,255,.65) 17px);
+    linear-gradient(to right, rgba(61,242,255,.20) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(122,92,255,.20) 1px, transparent 1px);
+  background-size: var(--grid-size) var(--grid-size), var(--grid-size) var(--grid-size);
+  background-position:
+    calc(50% + var(--grid-bg-x)) calc(50% + var(--grid-bg-y)),
+    calc(50% + var(--grid-bg-x)) calc(50% + var(--grid-bg-y));
   backface-visibility: hidden;
-  transform: perspective(1000px) translateZ(var(--grid-z)) rotateX(var(--grid-tilt)) scale(var(--grid-scale)) translate3d(var(--grid-x), calc(var(--grid-y) + var(--grid-scroll)), 0);
+  transform: perspective(1000px) translateZ(var(--grid-z)) rotateX(var(--grid-tilt)) scale(var(--grid-scale));
 }
 
 /* Respect reduced motion */

@@ -279,12 +279,17 @@
     let vw = window.innerWidth, vh = window.innerHeight;
     let tx = 0, ty = 0;     // target normalized [-1,1]
     let x = 0, y = 0;       // current normalized
+    let stSmooth = 0;       // smoothed scrollTop
     const cssStrength = parseFloat(getComputedStyle(root).getPropertyValue('--parallax-strength')) || 1;
     const nebulaAmp = 20 * cssStrength;
     const gridAmp = 14 * cssStrength;
     // scroll multipliers (px of background shift per px of scroll)
     const nebulaScrollAmp = 0.08; // slower, distant
     const gridScrollAmp = 0.35;   // faster, closer grid plane
+    // background-position parallax (crisper grid lines)
+    const gridBGPointerAmp = 12 * cssStrength;
+    const gridBGScrollAmp = 0.30; // per px of scroll
+    const idleSpeed = 0.02;       // px per frame idle drift
 
     const onPointer = (e) => {
       // center-based normalization
@@ -299,6 +304,8 @@
     window.addEventListener('resize', ()=>{ vw = innerWidth; vh = innerHeight; }, { passive: true });
 
     const lerp = (a,b,t)=>a+(b-a)*t;
+    let idlePhase = 0;
+    const px = (n) => Math.round(n);
     const step = () => {
       x = lerp(x, tx, 0.12);
       y = lerp(y, ty, 0.12);
@@ -307,11 +314,21 @@
       root.style.setProperty('--nebula-y', `${(-y*nebulaAmp).toFixed(2)}px`);
       root.style.setProperty('--grid-x', `${(x*gridAmp).toFixed(2)}px`);
       root.style.setProperty('--grid-y', `${(y*gridAmp).toFixed(2)}px`);
-      // Scroll-driven shift (robust across browsers)
+      // Scroll-driven shift (robust across browsers, with smoothing)
       const se = document.scrollingElement || document.documentElement;
       const st = se.scrollTop || 0;
-      root.style.setProperty('--nebula-scroll', `${(-st*nebulaScrollAmp).toFixed(2)}px`);
-      root.style.setProperty('--grid-scroll', `${(-st*gridScrollAmp).toFixed(2)}px`);
+      stSmooth = lerp(stSmooth, st, 0.15);
+      root.style.setProperty('--nebula-scroll', `${(-stSmooth*nebulaScrollAmp).toFixed(2)}px`);
+      root.style.setProperty('--grid-scroll', `${(-stSmooth*gridScrollAmp).toFixed(2)}px`);
+
+      // Animate grid via background-position for crisp motion
+      idlePhase += idleSpeed;
+      const idleX = Math.sin(idlePhase) * 2; // subtle
+      const idleY = Math.cos(idlePhase*0.8) * 2;
+      const bgx = (x*gridBGPointerAmp) + (-stSmooth*gridBGScrollAmp) + idleX;
+      const bgy = (y*gridBGPointerAmp) + (-stSmooth*gridBGScrollAmp*0.5) + idleY;
+      root.style.setProperty('--grid-bg-x', `${px(bgx)}px`);
+      root.style.setProperty('--grid-bg-y', `${px(bgy)}px`);
       requestAnimationFrame(step);
     };
     requestAnimationFrame(step);
