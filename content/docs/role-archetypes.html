@@ -1,0 +1,102 @@
+<h1>Role Archetypes</h1>
+<p>This page documents archetype configuration and runtime accessors via <code>UCINRoleArchetypeDA_Base</code> in <code>Plugins/CINPlugin/Source/CINCore/Public/Types/UCINRoleArchetypeDA_Base.h</code>.</p>
+
+<h2>Beginner-friendly: What is this?</h2>
+<p>A <strong>Role Archetype</strong> is a simple profile that describes a type of character: their personality, how they usually act, and which default assets they use (perception profile, action pack). Instead of hardcoding behavior for each NPC, you pick an archetype and tune a few sliders.</p>
+
+<h2>Why it matters</h2>
+<ul>
+  <li><strong>Consistency</strong>: Guards feel like guards; Scouts feel like scouts.</li>
+  <li><strong>Fast iteration</strong>: Change personality/behavior without touching code.</li>
+  <li><strong>Team-friendly</strong>: Designers can author data assets; programmers extend systems.</li>
+</ul>
+
+<h2>Quick setup (Data Asset)</h2>
+<ol>
+  <li>Create a data asset of type <code>UCINRoleArchetypeDA_Base</code> (or subclass).</li>
+  <li>Fill <strong>PersonalityTraits</strong> and the <strong>BehavioralProfile</strong> sliders.</li>
+  <li>Add <strong>ArchetypeGoals</strong> with <strong>BasePriority</strong> and any <strong>ActivationConditions</strong>.</li>
+  <li>(Optional) Set <strong>DefaultPerceptionProfile</strong> and <strong>DefaultActionPack</strong> references.</li>
+  <li>(Optional) Set <strong>Faction</strong>, <strong>FactionRelationships</strong>, and <strong>LayerWeights</strong> for intelligence layers.</li>
+</ol>
+
+<h2>Tiny example</h2>
+<p>Create two archetypes: <em>Guard</em> with higher <strong>Loyalty</strong> and <strong>Cautiousness</strong>, and <em>Scout</em> with higher <strong>Curiosity</strong> and faster <strong>ResponseTimeModifier</strong>. The same level feels different just by assigning archetypes to NPCs.</p>
+
+<h2>Common mistakes</h2>
+<ul>
+  <li><strong>LayerWeights keys</strong>: Use layer names that exist in your setup (e.g., Utility, Reactive, etc.).</li>
+  <li><strong>DecisionThreshold too high</strong>: Agents may hesitate; try ~0.6 to start.</li>
+  <li><strong>Missing default assets</strong>: If you reference profiles/action packs, make sure they exist.</li>
+</ul>
+
+<h2>Personality Traits (<code>FCINPersonalityTrait</code>)</h2>
+<ul>
+  <li><strong>TraitName</strong></li>
+  <li><strong>TraitValue (-1.0–1.0)</strong>: negative/positive leaning, 0 = neutral</li>
+  <li><strong>TraitStrength (0.0–1.0)</strong>: influence scaling</li>
+  <li><strong>TraitDescription</strong></li>
+</ul>
+
+<h2>Behavioral Profile (<code>FCINBehavioralProfile</code>)</h2>
+<ul>
+  <li><strong>Aggressiveness (0.0–1.0)</strong></li>
+  <li><strong>Cautiousness (0.0–1.0)</strong></li>
+  <li><strong>Curiosity (0.0–1.0)</strong></li>
+  <li><strong>Sociability (0.0–1.0)</strong></li>
+  <li><strong>Loyalty (0.0–1.0)</strong></li>
+  <li><strong>ResponseTimeModifier (0.1–2.0)</strong>: higher = faster reactions</li>
+  <li><strong>DecisionThreshold (0.0–1.0)</strong>: certainty needed to act</li>
+</ul>
+
+<h2>Archetype Goals (<code>FCINArchetypeGoal</code>)</h2>
+<ul>
+  <li><strong>GoalClass</strong>: template class reference</li>
+  <li><strong>BasePriority</strong></li>
+  <li><strong>ConsiderationFrequency (0.1–10.0)</strong>: higher = considered more often</li>
+  <li><strong>ActivationConditions</strong>: map gating goal activation</li>
+</ul>
+
+<h2>Data Asset Fields (<code>UCINRoleArchetypeDA_Base</code>)</h2>
+<ul>
+  <li><strong>ArchetypeName</strong>, <strong>ArchetypeDescription</strong></li>
+  <li><strong>PersonalityTraits</strong>, <strong>BehavioralProfile</strong></li>
+  <li><strong>ArchetypeGoals</strong></li>
+  <li><strong>DefaultPerceptionProfile</strong>, <strong>DefaultActionPack</strong></li>
+  <li><strong>Faction</strong>, <strong>FactionRelationships</strong> (map)</li>
+  <li><strong>LayerWeights</strong> (map): intelligence layer influences</li>
+  <li><strong>LearningParameters</strong> (map)</li>
+</ul>
+
+<h2>Blueprint API</h2>
+<ul>
+  <li><code>GetPersonalityTrait(TraitName)</code> → float</li>
+  <li><code>HasPersonalityTrait(TraitName)</code> → bool</li>
+  <li><code>GetFactionRelationship(OtherFaction)</code> → float (-1.0–1.0)</li>
+  <li><code>CalculateCompatibility(OtherArchetype)</code> → float (0.0–1.0)</li>
+  <li><em>Event</em>: <code>OnArchetypeApplied(Agent)</code></li>
+</ul>
+<h2>How Layer Weights influence decisions</h2>
+<ul>
+  <li><strong>What they are</strong>: A map of intelligence layer name → weight [0..1].</li>
+  <li><strong>Effect</strong>: Higher weight increases that layer’s influence when combining decisions across <code>UCINCombatUtilityLayer</code>, <code>UCINCombatReactiveLayer</code>, and <code>UCINCombatPredictiveLayer</code>.</li>
+  <li><strong>Typical use</strong>: Make a "Scout" skew toward reactive/perception-driven choices; make a "Commander" skew toward predictive/utility planning.</li>
+  <li><strong>Tuning tip</strong>: Start balanced, adjust one weight at a time, and validate outcomes in PIE using your debug overlays.</li>
+  <li><strong>Per-archetype flavor</strong>: Use weights to differentiate roles without changing any AI logic or content.</li>
+  </ul>
+
+<h2>Default assets: practical impact</h2>
+<ul>
+  <li><strong>DefaultPerceptionProfile</strong>: Initializes sensors and stimulus filters for agents that use this archetype. Individual agents can still override.</li>
+  <li><strong>DefaultActionPack</strong>: Seeds the action set agents can consider. Gating/requirements still apply; utility scoring is unaffected by merely referencing the pack.</li>
+  <li><strong>Runtime flexibility</strong>: Treat these as starting points. Systems may extend or swap profiles/packs based on game events, goals, or designer logic.</li>
+  <li><strong>Good practice</strong>: Keep defaults lightweight and generic; specialize via additional packs or goal-triggered swaps.</li>
+</ul>
+
+<h2>Runtime Notes</h2>
+<ul>
+  <li><strong>LayerWeights</strong> and <strong>LearningParameters</strong> allow archetype-level tuning for intelligence and learning systems.</li>
+  <li>Default profiles (<strong>Perception</strong>, <strong>Action Pack</strong>) are references for initial agent setup.</li>
+</ul>
+
+<p>See also: <a href="#/docs/perception">Perception</a>, <a href="#/docs/parameter-binding">Parameter Binding</a>, <a href="#/docs/action-packs">Action Packs</a>, <a href="#/docs/goal-templates">Goal Templates</a>.</p>

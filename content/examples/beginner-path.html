@@ -1,0 +1,27 @@
+<h1>Beginner Learning Path</h1>
+<p>Build a working agent in minutes.</p>
+
+<h2>Step 1 — Create an Agent Blueprint</h2>
+<ol>
+  <li>Create a BP derived from <code>ACINAgentBase</code>. Name it <em>BP_CINAgent</em>.</li>
+  <li>Place it in a test level.</li>
+</ol>
+
+<h2>Step 2 — Bind a first parameter</h2>
+<pre><code>// Blueprint (BeginPlay)
+SetDirectParameter("Curiosity", 0.5)
+</code></pre>
+<p>Confirm in a debug print that <code>GetAgentParameter("Curiosity")</code> returns 0.5.</p>
+
+<h2>Step 3 — Bind Health</h2>
+<pre><code>// With a Health component (0..100)
+BindToObjectProperty("Health", HealthComponent, "CurrentHealth", true, (0, 100))
+</code></pre>
+
+<h2>Step 4 — Use parameters in logic</h2>
+<pre><code>// Pseudo Blueprint
+If (Health &lt; 0.25) -> SetCurrentGoal("Retreat")
+Else -> SetCurrentGoal("Advance")
+</code></pre>
+
+<div class="tip">Keep iterating with GAS attributes and perception once the basics work.</div>

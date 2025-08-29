@@ -1,0 +1,45 @@
+{
+  "docs": {
+    "title": "Documentation",
+    "groups": [
+      "Getting Started",
+      "Core Concepts",
+      "Advanced Guides",
+      "Troubleshooting"
+    ],
+    "pages": [
+      {"title":"Overview","slug":"overview","path":"content/docs/overview.html","group":"Getting Started"},
+      {"title":"Installation","slug":"installation","path":"content/docs/installation.html","group":"Getting Started"},
+
+      {"title":"Parameter Binding","slug":"parameter-binding","path":"content/docs/parameter-binding.html","group":"Core Concepts"},
+      {"title":"GAS Integration","slug":"gas-integration","path":"content/docs/gas-integration.html","group":"Core Concepts"},
+      {"title":"Perception","slug":"perception","path":"content/docs/perception.html","group":"Core Concepts"},
+      {"title":"Environment Semantics","slug":"environment-semantics","path":"content/docs/environment-semantics.html","group":"Core Concepts"},
+      {"title":"Role Archetypes","slug":"role-archetypes","path":"content/docs/role-archetypes.html","group":"Core Concepts"},
+      {"title":"Arbitration Strategy","slug":"arbitration-strategy","path":"content/docs/arbitration-strategy.html","group":"Core Concepts"},
+      {"title":"Brain","slug":"brain-runtime","path":"content/docs/brain-runtime.html","group":"Core Concepts"},
+      {"title":"Action Packs (Data Assets)","slug":"action-packs","path":"content/docs/action-packs.html","group":"Core Concepts"},
+      {"title":"Goal Templates (Data Assets)","slug":"goal-templates","path":"content/docs/goal-templates.html","group":"Core Concepts"},
+
+      {"title":"Animation (Best Practices)","slug":"animation","path":"content/docs/animation.html","group":"Advanced Guides"},
+      {"title":"Decision-Making Patterns","slug":"decision-making","path":"content/docs/decision-making.html","group":"Advanced Guides"},
+      {"title":"Curiosity Behaviors","slug":"curiosity-runtime","path":"content/docs/curiosity-runtime.html","group":"Advanced Guides"},
+      {"title":"Learning & Adaptation","slug":"learning","path":"content/docs/learning.html","group":"Advanced Guides"},
+      {"title":"LOD & Performance","slug":"lod-performance","path":"content/docs/lod-performance.html","group":"Advanced Guides"},
+      {"title":"Weapon-Aware Combat Agent","slug":"weapon-aware-combat-agent","path":"content/docs/weapon-aware-combat-agent.html","group":"Advanced Guides"},
+
+      {"title":"Troubleshooting & Validation","slug":"troubleshooting","path":"content/docs/troubleshooting.html","group":"Troubleshooting"}
+    ]
+  },
+  "examples": {
+    "title": "Guides",
+    "pages": [
+      {"title":"Beginner Learning Path","slug":"beginner-path","path":"content/examples/beginner-path.html"},
+      {"title":"End-to-End Setup","slug":"end-to-end-setup","path":"content/examples/end-to-end-setup.html"},
+      {"title":"Multi-Attribute Normalization","slug":"normalization","path":"content/examples/normalization.html"},
+      {"title":"Combat Integration (Project-side)","slug":"combat-integration","path":"content/examples/combat-integration.html"},
+      {"title":"Customization Tips","slug":"customization-tips","path":"content/examples/customization-tips.html"},
+      {"title":"FAQ","slug":"faq","path":"content/examples/faq.html"}
+    ]
+  }
+}

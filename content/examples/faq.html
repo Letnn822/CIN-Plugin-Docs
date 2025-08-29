@@ -1,0 +1,42 @@
+<h1>FAQ</h1>
+
+    <h3>Does the plugin include gameplay combat?</h3>
+    <p>No. The plugin provides generic AI and parameter binding. The combat helpers are project-side samples showing how to integrate external systems.</p>
+
+    <h3>Is GAS required?</h3>
+    <p>No, but it’s supported. You can bind to any <code>UObject</code> property or Blueprint function returning a float.</p>
+
+    <h3>How do I debug values?</h3>
+    <p>Print <code>GetAgentParameter(Name)</code> in Blueprint, add on-screen debug, or log periodically. Use <em>Validation &amp; Troubleshooting</em> for a checklist.</p>
+
+    <h3>What is the fastest way to bind parameters?</h3>
+    <pre><code>// Blueprints on ACINAgentBase
+BindToObjectProperty("Health",  HealthComponent,  "CurrentHealth",  true, (0, 100))
+BindToGameplayAttributeByHandle("Health",  HealthAttribute,  true, (0, 100))
+BindToBlueprintFunction("DistanceToPlayer", "GetDistanceToPlayer")
+SetDirectParameter("Aggression", 0.35) // temporary manual value for testing
+    </code></pre>
+    <ul>
+      <li>Prefer <code>BindToGameplayAttributeByHandle</code> when you have a <code>FGameplayAttribute</code>.</li>
+      <li>Pick stable parameter names (e.g., <em>Health</em>, <em>Stamina</em>, <em>Mana</em>) and stay consistent across your project.</li>
+    </ul>
+
+    <h3>How do I validate my setup?</h3>
+    <ul>
+      <li>Call <code>ValidateParameterBindings()</code> on the agent to detect missing/invalid references.</li>
+      <li>Call <code>RefreshParameterBindings()</code> after swapping components or changing attributes at runtime.</li>
+      <li>Decision debugging: <code>PrintActionQueueToLog()</code> and <code>GetActionQueueDebugInfo()</code>.</li>
+      <li>Perception updates: listen to <code>UCINPerceptionComponent.OnPerceptionUpdated</code>.</li>
+    </ul>
+
+    <h3>Multiplayer considerations</h3>
+    <p>Bind and evaluate parameters on the authoritative side. Replicate source values (or derived parameters) to clients if needed. Keep bindings deterministic.</p>
+
+    <h3>Performance tips</h3>
+    <ul>
+      <li>Enable LOD-driven logic via <code>bEnableLODScaling</code> and reduce your decision tick for distant agents.</li>
+      <li>Bind to cheap sources (cached attributes or simple functions). Avoid heavy computations in bound Blueprint functions.</li>
+    </ul>
+
+    <h3>Can I use Behavior Trees or State Machines?</h3>
+    <p>Yes. Treat the agent’s <em>Goal</em> as semantic intent. Use <code>OnGoalChanged</code> to drive BT/SM transitions or selectors.</p>

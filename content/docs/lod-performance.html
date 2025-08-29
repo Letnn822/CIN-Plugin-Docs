@@ -1,0 +1,24 @@
+<h1>LOD & Performance</h1>
+<p>Scale AI and animation cost based on agent importance and distance.</p>
+
+<h2>Key hooks on ACINAgentBase</h2>
+<ul>
+  <li><code>GetIntelligenceLOD()</code>, <code>SetIntelligenceLOD(NewLOD)</code></li>
+  <li>Event: <code>OnLODChanged</code></li>
+  <li>Settings: <code>ContextUpdateFrequency</code>, <code>AgentImportanceRadius</code>, <code>bEnableLODScaling</code>, <code>bEnableDebugVisualization</code></li>
+</ul>
+
+<h2>Patterns</h2>
+<ul>
+  <li>Throttle expensive queries (perception scans, line traces) when <code>LOD</code> is low.</li>
+  <li>Reduce AnimBP complexity and IK at distance or low importance.</li>
+  <li>Skip non-critical updates when off-screen and far from the player.</li>
+</ul>
+
+<h2>Example</h2>
+<pre><code>// Blueprint
+OnLODChanged -> Switch on ECINIntelligenceLOD
+Low:    Disable complex perception
+Medium: Enable minimal set
+High:   Enable full feature set
+</code></pre>

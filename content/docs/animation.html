@@ -1,0 +1,19 @@
+<h1>Animation Best Practices</h1>
+<p>Drive Anim Blueprints with normalized parameters for smooth, game-feel‑friendly motion.</p>
+
+<h2>Patterns</h2>
+<ul>
+  <li><strong>Expose parameters to AnimBP:</strong> From AnimBP, read values via the owning pawn or a cached agent reference and <code>GetAgentParameter()</code>.</li>
+  <li><strong>Layered blending:</strong> Use upper-body overlays that respond to <em>Alertness</em>, <em>AimStability</em>, or <em>Fatigue</em> (0..1).</li>
+  <li><strong>IK & foot placement:</strong> Gate costlier features with an <em>Importance</em> parameter or LOD checks.</li>
+  <li><strong>Natural variation:</strong> Add subtle noise via curves based on <em>Curiosity</em> or <em>Nervousness</em>.</li>
+</ul>
+
+<h2>Example</h2>
+<pre><code>// AnimBP Event Graph
+Agent = TryGetPawnOwner()
+SpeedNorm = MapRangeClamped(Speed, 0, 600, 0, 1)
+AimSway = GetAgentParameter("AimStability", 0.5)
+</code></pre>
+
+<div class="note"><strong>Note:</strong> Keep your AnimBP logic data-driven and free of gameplay rules; respond to parameters instead.</div>

@@ -1,0 +1,29 @@
+<h1>Perception</h1>
+<p>Use <code>UCINPerceptionComponent</code> to manage multiple senses, track stimuli, and react via events.</p>
+
+<h2>Setup</h2>
+<pre><code>// Blueprint
+// Add UCINPerceptionComponent to your agent actor
+InitializePerception(PerceptionConfig)</code></pre>
+<ul>
+  <li><code>FCINPerceptionComponentConfig</code>: <em>UpdateFrequency</em>, <em>MaxTrackedStimuli</em>, <em>StimulusMemoryDuration</em>, <em>MinDetectionConfidence</em>, etc.</li>
+</ul>
+
+<h2>Register senses</h2>
+<p>Register a sense via interface <code>ICINPerceptionSense</code> and a unique ID:</p>
+<pre><code>// Blueprint
+RegisterSense("Vision.Main", VisionSense, VisionConfig)
+SetSenseEnabled("Vision.Main", true)</code></pre>
+
+<h2>Queries and events</h2>
+<ul>
+  <li><code>GetDetectedStimuli()</code>, <code>GetStimuliOfType(Type)</code>, <code>GetNearestStimulus(Location)</code>, <code>GetStimuliInRange(Location, Range)</code></li>
+  <li>Events: <code>OnStimulusDetected</code>, <code>OnStimulusLost</code>, <code>OnPerceptionUpdated</code></li>
+</ul>
+
+<div class="callout tip">
+  <span class="icon">🎯</span>
+  <div>
+    <strong>Real-life example:</strong> When <code>OnStimulusDetected</code> for <em>Enemy</em> fires, increase an <code>Alertness</code> parameter via <code>SetDirectParameter</code> or drive a curve that decays over time.
+  </div>
+</div>

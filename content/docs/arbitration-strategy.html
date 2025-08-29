@@ -1,0 +1,86 @@
+<h1>Arbitration Strategy</h1>
+<p>This page documents arbitration configuration and runtime behavior via <code>UCINArbitrationStrategyDA_Base</code> in <code>Plugins/CINPlugin/Source/CINCore/Public/Types/UCINArbitrationStrategyDA_Base.h</code>.</p>
+
+<h2>Intelligence Layers (<code>ECINIntelligenceLayer</code>)</h2>
+<ul>
+  <li><strong>Reactive</strong>: ≤5ms reflexes</li>
+  <li><strong>Utility</strong>: adaptive priority scoring</li>
+  <li><strong>Predictive</strong>: short-term simulation</li>
+  <li><strong>Social</strong>: group coordination</li>
+  <li><strong>Learning</strong>: runtime adaptation</li>
+</ul>
+
+<h2>Layer Weights (<code>FCINLayerWeight</code>)</h2>
+<ul>
+  <li><strong>Layer</strong>: target <code>ECINIntelligenceLayer</code></li>
+  <li><strong>BaseWeight (0.0–5.0)</strong></li>
+  <li><strong>MinWeight (0.0–1.0)</strong>, <strong>MaxWeight (1.0–10.0)</strong></li>
+  <li><strong>AdaptationRate (0.1–10.0)</strong>: rate of change per second</li>
+  <li><strong>bIsEnabled</strong></li>
+  <li><strong>Priority (0–10)</strong>: ordering in hierarchical methods</li>
+</ul>
+
+<h2>Context Modifiers (<code>FCINContextWeightModifier</code>)</h2>
+<ul>
+  <li><strong>ModifierName</strong></li>
+  <li><strong>TargetLayer</strong></li>
+  <li><strong>ContextParameter</strong>: name of context key</li>
+  <li><strong>ThresholdValue</strong></li>
+  <li><strong>ComparisonType</strong>: e.g., "Greater", "Less", "Equal"</li>
+  <li><strong>WeightMultiplier (0.0–5.0)</strong></li>
+  <li><strong>Duration (sec ≥0)</strong>, <strong>Cooldown (sec ≥0)</strong></li>
+  <li><strong>bIsActive</strong></li>
+</ul>
+
+<h2>Arbitration Methods (<code>ECINArbitrationMethod</code>)</h2>
+<ul>
+  <li><strong>WeightedSum</strong></li>
+  <li><strong>HighestWeight</strong></li>
+  <li><strong>Majority</strong></li>
+  <li><strong>Hierarchical</strong></li>
+  <li><strong>Fuzzy</strong></li>
+  <li><strong>Neural</strong></li>
+  <li><strong>Custom</strong></li>
+</ul>
+
+<h2>Conflict Resolution (<code>FCINConflictResolution</code>)</h2>
+<ul>
+  <li><strong>ResolutionMethod</strong>: e.g., HighestConfidence</li>
+  <li><strong>ConfidenceThreshold (0.0–1.0)</strong></li>
+  <li><strong>MaxResolutionTime (ms, 1–100)</strong></li>
+  <li><strong>FallbackLayer</strong>: <code>ECINIntelligenceLayer</code></li>
+  <li><strong>ResolutionParameters</strong>: map</li>
+</ul>
+
+<h2>Data Asset Fields (<code>UCINArbitrationStrategyDA_Base</code>)</h2>
+<ul>
+  <li><strong>StrategyName</strong></li>
+  <li><strong>ArbitrationMethod</strong></li>
+  <li><strong>LayerWeights</strong> (array)</li>
+  <li><strong>WeightModifiers</strong> (array)</li>
+  <li><strong>ConflictResolution</strong></li>
+  <li><strong>UpdateFrequency (1–60 Hz)</strong></li>
+  <li><strong>MaxDecisionTime (ms, 1–50)</strong></li>
+  <li><strong>bEnableAdaptiveWeights</strong></li>
+  <li><strong>bEnableDebugLogging</strong></li>
+  <li><strong>StrategyParameters</strong>: map</li>
+</ul>
+
+<h2>Blueprint API</h2>
+<ul>
+  <li><code>GetLayerWeight(Layer)</code> → <code>FCINLayerWeight</code></li>
+  <li><code>GetEnabledLayers(OutLayers)</code> → int32 count</li>
+  <li><code>CalculateEffectiveWeight(Layer, Context)</code> → float</li>
+  <li><code>GetActiveModifiers(Layer, Context, OutModifiers)</code> → int32 count</li>
+  <li><code>IsLayerEnabled(Layer)</code> → bool</li>
+  <li><code>GetTotalWeight(Context)</code> → float</li>
+  <li><code>NormalizeLayerWeights(InLayerWeights)</code></li>
+  <li><em>Events</em>: <code>OnArbitrationStrategyApplied(Agent)</code>, <code>OnLayerWeightChanged(Layer, NewWeight, OldWeight)</code></li>
+</ul>
+
+<h2>Runtime Notes</h2>
+<ul>
+  <li>Effective weight = clamped/adapted layer weight with any active <strong>Context Modifiers</strong> applied.</li>
+  <li>Decision combining follows the selected <strong>ArbitrationMethod</strong> with fallback via <strong>ConflictResolution</strong>.</li>
+  <li><strong>UpdateFrequency</strong> governs how often adaptive weights/modifiers are re-evaluated.</li>
+</ul>

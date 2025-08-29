@@ -1,0 +1,31 @@
+<h1>Installation</h1>
+<p>These steps assume an Unreal Engine 5.6+ project on Windows.</p>
+
+<h2>1) Verify plugin</h2>
+<ul>
+  <li>Plugin is located at <code>Plugins/CINPlugin/</code> in your project.</li>
+  <li>Open your project. In <em>Edit → Plugins</em>, ensure <strong>CINPlugin</strong> is enabled. Modules include <code>CINCore</code> and (optionally) <code>CINPerception</code>.</li>
+</ul>
+
+<h2>2) Build</h2>
+<ul>
+  <li>Regenerate project files if needed and build the project (Development Editor / Win64).</li>
+  <li>Confirm the editor loads without errors.</li>
+</ul>
+
+<h2>3) Quick verification</h2>
+<ul>
+  <li>Create a Blueprint derived from <code>ACINAgentBase</code>.</li>
+  <li>Place it in a level. Press Play. The agent will tick and maintain a context even before you bind parameters.</li>
+</ul>
+
+<div class="tip">
+  <strong>Optional:</strong> Word-based DOCX/PDF export scripts are in <code>Intermediate/DocGen/</code> (<code>ExportDocx.ps1</code>, <code>DocxToPdf.ps1</code>). These are not required for runtime.
+</div>
+
+<h2>4) Next steps</h2>
+<ul>
+  <li>Bind your first parameter: <a href="#/docs/parameter-binding">Parameter Binding</a></li>
+  <li>Integrate attributes via GAS: <a href="#/docs/gas-integration">GAS Integration</a></li>
+  <li>Explore perception events: <a href="#/docs/perception">Perception</a></li>
+</ul>

@@ -1,0 +1,74 @@
+<h1>Welcome to the CIN Plugin</h1>
+<p class="note">CIN is a designer-friendly AI framework for Unreal Engine 5.6+. It focuses on normalized, data-driven parameters and modular systems that you can wire into existing gameplay without hardcoding logic.</p>
+
+<h2>What is CIN? (Beginner‑friendly)</h2>
+<p>Think of CIN as a set of simple knobs (numbers from 0 to 1) that describe your game at any moment: Health, Stamina, DistanceToPlayer, Alertness, etc. CIN reads those knobs and helps your AI make smart choices without you writing custom C++ for each case. You connect your existing systems to CIN with a few Blueprint nodes.</p>
+<div class="callout tip">
+  <span class="icon">💡</span>
+  <div>
+    <strong>Hover glossary</strong>: Hover underlined terms to see quick definitions. Click to jump to the full page.
+  </div>
+ </div>
+
+<h2>How it works in simple terms</h2>
+<ol>
+  <li><strong>You expose game signals</strong> (like Health) to CIN using <em>Parameter Binding</em>.</li>
+  <li><strong>The Brain</strong> gathers signals and context (world, self, social).</li>
+  <li><strong>Intelligence layers</strong> each give an opinion (reactive, utility, predictive, social, learning).</li>
+  <li><strong>Arbitration Strategy</strong> mixes those opinions into one decision.</li>
+  <li><strong>Your game executes</strong> the chosen action however you like (C++, Blueprint, Ability System).</li>
+  <li><strong>Learning</strong> can adjust priorities over time (optional).</li>
+  </ol>
+
+<h2>5‑minute Quick Start</h2>
+<ol>
+  <li>Create or use an agent based on <code>ACINAgentBase</code> (your AI pawn/character).</li>
+  <li>In its Blueprint, bind one parameter (e.g., Health) using the nodes from <a href="#/docs/parameter-binding">Parameter Binding</a>. Start with a simple Direct Value if needed.</li>
+  <li>Pick defaults: a <a href="#/docs/role-archetypes">Role Archetype</a> (personality) and an <a href="#/docs/arbitration-strategy">Arbitration Strategy</a> (how layers are mixed). Optional: add <a href="#/docs/environment-semantics">Environment Semantics</a>.</li>
+  <li>Press Play. As Health or Distance changes, the Brain updates decisions smoothly.</li>
+</ol>
+
+<div class="callout note">
+  <span class="icon">ℹ️</span>
+  <div>
+    <strong>Where does gameplay live?</strong> CIN is generic AI logic. Any combat, abilities, or animations are yours. Our sample combat wrappers live in your project at <code>Source/CIN/Combat/</code> and just show how to bind external systems using the same parameter binding API.
+  </div>
+</div>
+
+<h2>What you can do</h2>
+<ul>
+  <li><strong>Drive AI with real game signals</strong> using parameter bindings. Examples: Health, Stamina, Alertness, DistanceToPlayer.</li>
+  <li><strong>Integrate with GAS</strong> in a few Blueprint calls via <code>ACINAgentBase</code> binding utilities.</li>
+  <li><strong>Perceive the world</strong> with <code>UCINPerceptionComponent</code> and react to stimuli.</li>
+  <li><strong>Scale performance</strong> with Intelligence LOD controls and context-aware updates.</li>
+  <li><strong>Keep your project code separate</strong>: the plugin ships generic AI; project modules can add game-specific wrappers (e.g., combat helpers).</li>
+</ul>
+
+<h2>Core building blocks</h2>
+<ul>
+  <li><code>ACINAgentBase</code> — Your AI pawn base. Exposes Blueprint-callable functions for parameter binding and state.</li>
+  <li><code>FCINParameterBinding</code>, <code>FCINParameterBindingSet</code>, <code>ECINParameterBindingType</code> — The parameter system.</li>
+  <li><code>UCINPerceptionComponent</code> — Unified perception with configurable senses and events.</li>
+  <li><code>UCINBrain</code> — Internal brain class that maintains context and supports goal-driven behavior.</li>
+  <li><a href="#/docs/action-packs">Action Packs</a> — Data assets listing available actions with animations and requirements.</li>
+  <li><a href="#/docs/goal-templates">Goal Templates</a> — Data assets for runtime goal generation, priorities, and completion rules.</li>
+</ul>
+
+<div class="callout note">
+  <span class="icon">ℹ️</span>
+  <div>
+    <strong>Project-side combat helpers:</strong> The <code>UCINCombatBlueprintLibrary</code> and related combat components are in your project module under <code>Source/CIN/Combat/</code>, not inside the plugin. They demonstrate how to integrate external systems using the parameter bindings.
+  </div>
+</div>
+
+<h2>Real-life example</h2>
+<p>Bind your agent's <em>Health</em>, <em>Stamina</em>, and <em>DistanceToPlayer</em> as normalized parameters (0–1). Use them to switch goals between "Advance", "Retreat", and "CallForHelp". As the player approaches or your health drops, the agent updates behavior smoothly without any hardwired gameplay logic.</p>
+
+<h2>Where to start</h2>
+<ul>
+  <li>Read <a href="#/docs/installation">Installation</a></li>
+  <li>Follow <a href="#/examples/beginner-path">Beginner Learning Path</a></li>
+  <li>Bind your first signal in <a href="#/docs/parameter-binding">Parameter Binding</a></li>
+  <li>Pick actions in <a href="#/docs/action-packs">Action Packs</a></li>
+  <li>Author goals in <a href="#/docs/goal-templates">Goal Templates</a></li>
+</ul>

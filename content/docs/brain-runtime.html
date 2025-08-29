@@ -1,0 +1,83 @@
+<h1>Brain</h1>
+<p>This page documents the core brain runtime API and state for <code>UCINBrain</code> in <code>Plugins/CINPlugin/Source/CINCore/Public/Core/CINBrain.h</code>. The brain coordinates intelligence layers, goals, decision-making, learning, and context processing.</p>
+
+<h2>Lifecycle</h2>
+<ul>
+  <li><code>Initialize()</code> / <code>Shutdown()</code></li>
+  <li><code>Tick(DeltaTime)</code></li>
+  <li><code>IsActive()</code> / <code>SetActive(bActive)</code></li>
+  <li><code>SetOwningAgent(Agent)</code> / <code>GetOwningAgent()</code></li>
+</ul>
+
+<h2>State Serialization</h2>
+<ul>
+  <li><code>GetBrainStateData()</code> → map of key/value strings</li>
+  <li><code>SetBrainStateData(StateData)</code> → restore serialized state</li>
+</ul>
+
+<h2>Intelligence Layers</h2>
+<ul>
+  <li><code>InitializeIntelligenceLayers()</code> / <code>ShutdownIntelligenceLayers()</code></li>
+  <li><code>ProcessIntelligenceLayers(DeltaTime)</code></li>
+  <li><code>RegisterIntelligenceLayer(LayerType)</code> / <code>UnregisterIntelligenceLayer(LayerType)</code></li>
+  <li><code>GetActiveIntelligenceLayerTypes()</code> → array of strings</li>
+  <li><code>SetIntelligenceLayerActive(LayerType, bActive)</code> / <code>IsIntelligenceLayerActive(LayerType)</code></li>
+  <li><code>SetIntelligenceLayerPriority(LayerType, Priority)</code> / <code>GetIntelligenceLayerPriority(LayerType)</code></li>
+  <li><code>GetIntelligenceLayerDebugInfo()</code> → map for diagnostics</li>
+</ul>
+
+<h3>Configuration Fields</h3>
+<ul>
+  <li><strong>EnabledLayerTypes</strong> (array): selectable at edit time</li>
+  <li><strong>bAutoInitializeDefaultLayers</strong> (bool)</li>
+  <li><strong>IntelligenceLayerProcessingTimeSlice</strong> (sec): per-layer budget</li>
+</ul>
+
+<h2>Goals</h2>
+<ul>
+  <li><code>AddGoal(GoalID, Priority, GoalData)</code></li>
+  <li><code>RemoveGoal(GoalID)</code></li>
+  <li><code>GetCurrentPrimaryGoal()</code> → string</li>
+  <li><code>GetActiveGoals()</code> → array of strings</li>
+</ul>
+
+<h2>Decision Making</h2>
+<ul>
+  <li><code>SelectBestAction(AvailableActions)</code> → ActionID</li>
+  <li><code>EvaluateActionUtility(ActionID, Context)</code> → float</li>
+</ul>
+
+<h2>Learning & Adaptation</h2>
+<ul>
+  <li><code>RecordExperience(ActionID, Reward, Context)</code></li>
+  <li><code>UpdateBehaviorWeights(BehaviorID, ReinforcementValue)</code></li>
+</ul>
+
+<h2>Context Processing</h2>
+<ul>
+  <li><code>ProcessContextualInformation()</code> → <code>FCINContextualEmbedding</code></li>
+  <li><code>UpdateWorldContext(WorldData)</code></li>
+  <li><code>UpdateSelfContext(SelfData)</code></li>
+  <li><code>UpdateSocialContext(SocialData)</code></li>
+</ul>
+
+<h2>Internal Runtime State (selected fields)</h2>
+<ul>
+  <li><strong>ActionUtilityCache</strong> (map) and <strong>LastSelectedAction</strong></li>
+  <li><strong>ActiveGoalPriorities</strong> (map) and <strong>CurrentPrimaryGoal</strong></li>
+  <li><strong>ExperienceHistory</strong> (array) and <strong>BehaviorReinforcementValues</strong> (map)</li>
+  <li><strong>CurrentContext</strong> (<code>FCINContextualEmbedding</code>) and update cadence</li>
+  <li><strong>ProcessingTimeSlice</strong> / <strong>LastDecisionTime</strong></li>
+</ul>
+
+<h2>Typical Runtime Loop</h2>
+<ol>
+  <li>Update contexts via <code>UpdateWorldContext</code>, <code>UpdateSelfContext</code>, <code>UpdateSocialContext</code>.</li>
+  <li><code>ProcessIntelligenceLayers</code> to gather layer outputs.</li>
+  <li>Use arbitration strategy (see <a href="#/docs/arbitration-strategy">Arbitration Strategy</a>) to combine layer influences.</li>
+  <li><code>EvaluateActionUtility</code> and <code>SelectBestAction</code> from available actions.</li>
+  <li>Execute selection externally; call <code>RecordExperience</code> with resulting reward.</li>
+  <li>Adjust behavior via <code>UpdateBehaviorWeights</code>; cache state for continuity.</li>
+</ol>
+
+<p>See also: <a href="#/docs/perception">Perception</a>, <a href="#/docs/role-archetypes">Role Archetypes</a>, <a href="#/docs/arbitration-strategy">Arbitration Strategy</a>.</p>
