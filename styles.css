@@ -52,6 +52,7 @@
 }
 *{box-sizing:border-box}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:16px/1.6 var(--font-ui)}
+body { position: relative; overflow-x: hidden; }
 
 .topbar{position:sticky;top:0;background:linear-gradient(90deg,var(--bg-soft),#12151f 60%,#0e111a);border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px;padding:12px 20px;z-index:10}
 .brand{display:flex;align-items:center;gap:12px}
@@ -125,7 +126,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:16px/
 .loading{color:var(--muted);font-style:italic}
 
 /* Background layers (parallax-friendly) */
-body::before, body::after{content:"";position:fixed;inset:0;pointer-events:none;will-change:transform}
+body::before, body::after{content:"";position:absolute;inset:0;pointer-events:none;will-change:transform}
 /* Layer A: soft nebula gradient */
 body::before{
   z-index:-2;
