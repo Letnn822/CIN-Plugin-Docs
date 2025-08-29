@@ -280,11 +280,11 @@
     let tx = 0, ty = 0;     // target normalized [-1,1]
     let x = 0, y = 0;       // current normalized
     const cssStrength = parseFloat(getComputedStyle(root).getPropertyValue('--parallax-strength')) || 1;
-    const nebulaAmp = 14 * cssStrength;
-    const gridAmp = 8 * cssStrength;
+    const nebulaAmp = 20 * cssStrength;
+    const gridAmp = 14 * cssStrength;
     // scroll multipliers (px of background shift per px of scroll)
-    const nebulaScrollAmp = 0.04; // slower, distant
-    const gridScrollAmp = 0.18;   // faster, closer grid plane
+    const nebulaScrollAmp = 0.08; // slower, distant
+    const gridScrollAmp = 0.35;   // faster, closer grid plane
 
     const onPointer = (e) => {
       // center-based normalization
@@ -294,12 +294,14 @@
       ty = Math.max(-1, Math.min(1, ny));
     };
     window.addEventListener('pointermove', onPointer, { passive: true });
+    // Fallback for environments without pointer events
+    window.addEventListener('mousemove', onPointer, { passive: true });
     window.addEventListener('resize', ()=>{ vw = innerWidth; vh = innerHeight; }, { passive: true });
 
     const lerp = (a,b,t)=>a+(b-a)*t;
     const step = () => {
-      x = lerp(x, tx, 0.06);
-      y = lerp(y, ty, 0.06);
+      x = lerp(x, tx, 0.12);
+      y = lerp(y, ty, 0.12);
       // Opposing directions for parallax depth
       root.style.setProperty('--nebula-x', `${(-x*nebulaAmp).toFixed(2)}px`);
       root.style.setProperty('--nebula-y', `${(-y*nebulaAmp).toFixed(2)}px`);

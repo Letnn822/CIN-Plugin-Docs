@@ -39,9 +39,9 @@
   --grid-y: 0px;
   --nebula-scroll: 0px;
   --grid-scroll: 0px;
-  --grid-tilt: 64deg;
-  --grid-z: -260px;
-  --grid-scale: 2.2;
+  --grid-tilt: 60deg;
+  --grid-z: -140px;
+  --grid-scale: 1.2;
 
   /* Legacy aliases mapped to palette */
   --bg: var(--color-deep-space);
@@ -72,7 +72,7 @@ body {
   /* Move layout to its own layer */
   transform: translateZ(0);
   position: relative;
-  z-index: 0;
+  z-index: 3;
 }
 .sidebar{border-right:1px solid var(--border);background:var(--bg-soft);min-height:100%}
 .sidebar-header{padding:12px;border-bottom:1px solid var(--border)}
@@ -101,7 +101,7 @@ body {
 .callout{display:flex;gap:12px;align-items:flex-start}
 .callout .icon{color:var(--accent)}
 
-.footer{border-top:1px solid var(--border);padding:16px 20px;color:var(--muted);display:flex;justify-content:space-between;flex-wrap:wrap;position:relative;z-index:1}
+.footer{border-top:1px solid var(--border);padding:16px 20px;color:var(--muted);display:flex;justify-content:space-between;flex-wrap:wrap;position:relative;z-index:3}
 
 /* Glossary tooltip */
 .glossary-term{border-bottom:1px dotted var(--muted);cursor:help}
@@ -136,7 +136,7 @@ body {
 body::before, body::after{content:"";position:fixed;pointer-events:none;will-change:transform}
 /* Layer A: soft nebula gradient */
 body::before{
-  z-index:-2;
+  z-index:0; /* behind all content */
   top:0; left:0; right:0; bottom:0;
   background:
     radial-gradient(1200px 800px at 10% 20%, rgba(122,92,255,.12), transparent 60%),
@@ -147,14 +147,14 @@ body::before{
 }
 /* Layer B: thin neon grid */
 body::after{
-  z-index:-1;
-  opacity:.08;
+  z-index:1; /* behind layout/footer (z>=3) */
+  opacity:.06;
   /* Large plane to ensure coverage when rotated in 3D */
-  left:-50vw; width:200vw; top:-80vh; bottom:auto; height:360vh;
+  left:-15vw; width:130vw; top:-30vh; bottom:auto; height:220vh;
   transform-origin: bottom center;
   background-image:
-    repeating-linear-gradient(0deg, transparent 0 31px, rgba(61,242,255,.8) 32px),
-    repeating-linear-gradient(90deg, transparent 0 31px, rgba(122,92,255,.8) 32px);
+    repeating-linear-gradient(0deg, transparent 0 16px, rgba(61,242,255,.65) 17px),
+    repeating-linear-gradient(90deg, transparent 0 16px, rgba(122,92,255,.65) 17px);
   backface-visibility: hidden;
   transform: perspective(1000px) translateZ(var(--grid-z)) rotateX(var(--grid-tilt)) scale(var(--grid-scale)) translate3d(var(--grid-x), calc(var(--grid-y) + var(--grid-scroll)), 0);
 }
