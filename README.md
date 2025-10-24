@@ -59,7 +59,7 @@ Or use any static file server.
 ## 📄 License
 
 Documentation: CC BY 4.0  
-Plugin: MIT License
+Plugin: Commercial License (Available on FAB Marketplace)
 
 ## ✨ Status
 
