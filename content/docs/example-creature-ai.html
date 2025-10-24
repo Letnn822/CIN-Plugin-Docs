@@ -1,0 +1,673 @@
+<h1>Example: Creature/Animal AI</h1>
+<p class="note">Complete working example of creature AI using BaseCreature archetype. Includes roaming, hunting, territorial defense, fleeing when injured, and environmental awareness.</p>
+
+<div class="page-meta">
+  <span class="time"><i data-lucide="clock"></i> 30 minutes</span>
+  <span class="difficulty"><i data-lucide="code"></i> Example</span>
+</div>
+
+<div class="callout tip">
+  <span class="icon"><i data-lucide="lightbulb"></i></span>
+  <div>
+    <strong>What You'll Build:</strong> A natural creature AI that roams its territory, hunts prey, defends against intruders, flees when injured, and exhibits realistic animal behaviors. Perfect for wildlife, monsters, or ambient creatures.
+  </div>
+</div>
+
+<h2>Final Result</h2>
+
+<pre><code>Creature AI Behaviors:
+├─ Roam: Wander within territory
+├─ Hunt: Pursue and attack prey
+├─ Territorial: Defend territory from intruders
+├─ Flee: Escape when critically injured
+├─ Rest: Idle/sleep when safe and healthy
+└─ Alert: Investigate suspicious activity
+
+Features:
+✓ Territory boundaries
+✓ Prey detection
+✓ Health-based behavior
+✓ Stamina management
+✓ Pack awareness (optional)
+✓ Day/night cycles (optional)
+✓ Ambient animations</code></pre>
+
+<h2>Step 1: Create Creature Pawn</h2>
+
+<h3>Blueprint: BP_WolfCreature</h3>
+
+<pre><code>Parent Class: Character
+
+Components:
+  + Skeletal Mesh (wolf model)
+  + AIPerception
+    Senses:
+      - AISight (2000 radius, 180° FOV)
+      - AIHearing (1500 radius)
+      - AIDamage
+  + CINQuickSetup
+    AgentType: BaseCreature
+    bAutoInitialize: true
+
+Variables:
+  + MaxHealth (float): 150.0
+  + CurrentHealth (float): 150.0
+  + Stamina (float): 100.0
+  + MaxStamina (float): 100.0
+  + TerritoryCenter (FVector): Zero
+  + TerritoryRadius (float): 3000.0
+  + bIsPackMember (bool): false
+  + PackLeader (AActor*): nullptr
+  + CurrentPrey (AActor*): nullptr
+  + bIsHungry (bool): true
+  + HungerLevel (float): 0.5 // 0=Full, 1=Starving
+  
+Enums:
+  ECreatureState:
+    - Calm
+    - Alert
+    - Hunting
+    - Fleeing
+    - Resting</code></pre>
+
+<h3>Territory Setup</h3>
+
+<pre><code>// On BeginPlay
+void ACreaturePawn::BeginPlay()
+{
+    Super::BeginPlay();
+    
+    // Set territory center to spawn location
+    TerritoryCenter = GetActorLocation();
+    
+    // Optional: Use nav volume bounds
+    if (HomeNavVolume)
+    {
+        TerritoryCenter = HomeNavVolume->GetActorLocation();
+        TerritoryRadius = HomeNavVolume->GetBoundsRadius();
+    }
+}
+
+// Check if in territory
+bool IsInTerritory(FVector Location)
+{
+    float Distance = FVector::Dist(Location, TerritoryCenter);
+    return Distance <= TerritoryRadius;
+}
+
+// Publish territory inputs
+Brain->SetNamedInputValue(TEXT("IsInTerritory"), IsInTerritory(GetActorLocation()) ? 1.0f : 0.0f);
+Brain->SetNamedInputValue(TEXT("DistanceFromTerritory"), 
+    FVector::Dist(GetActorLocation(), TerritoryCenter) / TerritoryRadius);</code></pre>
+
+<h2>Step 2: Roaming Behavior</h2>
+
+<h3>Action: DA_Creature_Roam</h3>
+
+<pre><code>ActionName: "Roam"
+DisplayName: "Roam Territory"
+BaseScore: 50.0
+Priority: 30 (low priority, fallback)
+
+Considerations:
+  1. IsInTerritory
+     InputName: "IsInTerritory"
+     ResponseCurve: (0,0) → (1,100)
+     Weight: 1.2
+     Comment: Only roam in territory
+     
+  2. HasPrey
+     InputName: "HasPrey"
+     ResponseCurve: (0,100) → (1,0)
+     bInvertCurve: true
+     Weight: 1.0
+     Comment: Don't roam if hunting
+     
+  3. Health
+     InputName: "Health"
+     ResponseCurve: (0,0) → (0.5,100) → (1,100)
+     Weight: 0.8
+     Comment: Roam when healthy enough
+     
+  4. CreatureState_Calm
+     InputName: "State_Calm"
+     ResponseCurve: (0,0) → (1,100)
+     Weight: 1.0
+
+Momentum:
+  MaxMomentum: 2.0
+  MomentumDecayTime: 3.0
+
+Replace Resistance: 1.0
+bInterruptible: true
+UnlockTime: 0.0
+
+Executor: BT_Creature_Roam</code></pre>
+
+<h3>Roam Behavior Tree</h3>
+
+<pre><code>BT_Creature_Roam:
+
+Root
+└─ Sequence
+   ├─ Get Random Point in Territory
+   │  → Use nav mesh
+   │  → Within territory radius
+   │  → Store as RoamTarget
+   ├─ Move To RoamTarget
+   │  AcceptanceRadius: 200
+   │  Speed: Walk
+   ├─ Play Ambient Animation
+   │  → Sniff ground
+   │  → Look around
+   │  → Scratch
+   ├─ Wait (3-8 seconds)
+   ├─ Check if still safe
+   └─ Loop
+
+Random Territory Point:
+  FVector RandomDirection = FMath::VRand();
+  RandomDirection.Z = 0; // Keep on ground plane
+  float RandomDistance = FMath::FRandRange(300.0f, TerritoryRadius * 0.8f);
+  FVector TargetLocation = TerritoryCenter + RandomDirection * RandomDistance;
+  
+  // Project to nav mesh
+  FNavLocation NavLoc;
+  NavSystem->ProjectPointToNavigation(TargetLocation, NavLoc);
+  return NavLoc.Location;</code></pre>
+
+<h2>Step 3: Hunting Behavior</h2>
+
+<h3>Prey Detection Service</h3>
+
+<pre><code>// Custom service: UService_PreyDetection
+void UService_PreyDetection::TickService(float DeltaTime)
+{
+    Super::TickService(DeltaTime);
+    
+    ACreaturePawn* Creature = GetCreaturePawn();
+    
+    // Get all perceived actors
+    TArray<AActor*> PerceivedActors = GetPerceivedActors();
+    
+    AActor* BestPrey = nullptr;
+    float BestScore = 0.0f;
+    
+    for (AActor* Actor : PerceivedActors)
+    {
+        // Check if valid prey
+        if (!IsValidPrey(Actor)) continue;
+        
+        // Score based on distance, health, threat
+        float Distance = FVector::Dist(Creature->GetActorLocation(), Actor->GetActorLocation());
+        float HealthPercent = GetActorHealth(Actor);
+        
+        // Prefer close, weak targets
+        float Score = (1.0f - Distance / 5000.0f) * 0.6f +
+                      (1.0f - HealthPercent) * 0.4f;
+        
+        if (Score > BestScore)
+        {
+            BestScore = Score;
+            BestPrey = Actor;
+        }
+    }
+    
+    // Update current prey
+    Creature->CurrentPrey = BestPrey;
+    
+    // Publish inputs
+    bool bHasPrey = BestPrey != nullptr;
+    Brain->SetNamedInputValue(TEXT("HasPrey"), bHasPrey ? 1.0f : 0.0f);
+    
+    if (bHasPrey)
+    {
+        float Distance = FVector::Dist(Creature->GetActorLocation(), BestPrey->GetActorLocation());
+        Brain->SetNamedInputValue(TEXT("DistanceToPrey"), Distance / 5000.0f);
+    }
+}
+
+bool IsValidPrey(AActor* Actor)
+{
+    // Check if actor is prey type
+    if (!Actor->Tags.Contains("Prey")) return false;
+    
+    // Check if alive
+    if (IsDead(Actor)) return false;
+    
+    // Check team affiliation
+    if (IsSameTeam(Actor)) return false;
+    
+    return true;
+}</code></pre>
+
+<h3>Action: DA_Creature_Hunt</h3>
+
+<pre><code>ActionName: "Hunt"
+DisplayName: "Hunt Prey"
+BaseScore: 70.0
+Priority: 60
+
+Considerations:
+  1. HasPrey
+     InputName: "HasPrey"
+     ResponseCurve: (0,0) → (1,100)
+     Weight: 1.5
+     
+  2. HungerLevel
+     InputName: "HungerLevel"
+     ResponseCurve: (0,20) → (0.5,80) → (1,100)
+     Weight: 1.2
+     Comment: More hungry = more motivation
+     
+  3. DistanceToPrey
+     InputName: "DistanceToPrey"
+     ResponseCurve: (0,100) → (0.3,100) → (0.7,50) → (1,0)
+     Weight: 1.0
+     Comment: Optimal hunting range
+     
+  4. Stamina
+     InputName: "Stamina"
+     ResponseCurve: (0,10) → (0.3,100) → (1,100)
+     Weight: 0.8
+     Comment: Need stamina to hunt
+
+Momentum: None (reactive)
+Replace Resistance: 1.5
+bInterruptible: true
+UnlockTime: 2.0
+
+Executor: BT_Creature_Hunt</code></pre>
+
+<h3>Hunt Behavior Tree</h3>
+
+<pre><code>BT_Creature_Hunt:
+
+Root
+└─ Sequence
+   ├─ Set Speed (Sprint)
+   ├─ Play Hunt Animation
+   ├─ Loop (Chase)
+   │  ├─ Get Prey Location
+   │  ├─ Move To Prey
+   │  │  AcceptanceRadius: 150 (attack range)
+   │  │  bUsePathfinding: true
+   │  ├─ If In Range
+   │  │  → Attack Prey
+   │  │  → Consume stamina
+   │  └─ If Lost Prey
+   │     → Exit hunt
+   ├─ If Kill Successful
+   │  → Reduce hunger
+   │  → Rest
+   └─ Finish
+
+Attack Sequence:
+  → Play attack animation
+  → Deal damage to prey
+  → Consume 10 stamina
+  → Cooldown 1.5s
+
+Stamina Consumption:
+  Sprint: -15/second
+  Attack: -10 per attack
+  Regeneration: +5/second when walking/idle</code></pre>
+
+<h2>Step 4: Territorial Defense</h2>
+
+<h3>Action: DA_Creature_Defend</h3>
+
+<pre><code>ActionName: "Defend"
+DisplayName: "Defend Territory"
+BaseScore: 75.0
+Priority: 65
+
+Considerations:
+  1. HasIntruder
+     InputName: "HasIntruder"
+     ResponseCurve: (0,0) → (1,100)
+     Weight: 1.5
+     Comment: Detect intruders
+     
+  2. IsInTerritory
+     InputName: "IsInTerritory"
+     ResponseCurve: (0,0) → (1,100)
+     Weight: 1.2
+     Comment: Defend own territory
+     
+  3. Health
+     InputName: "Health"
+     ResponseCurve: (0,20) → (0.4,100) → (1,100)
+     Weight: 1.0
+     Comment: Don't defend if critically hurt
+     
+  4. IntruderThreat
+     InputName: "IntruderThreatLevel"
+     ResponseCurve: (0,50) → (0.5,80) → (1,100)
+     Weight: 1.0
+
+Momentum: None
+Replace Resistance: 1.8
+bInterruptible: true
+UnlockTime: 3.0
+
+Executor: BT_Creature_Defend</code></pre>
+
+<h3>Intruder Detection</h3>
+
+<pre><code>// Service: Detect intruders in territory
+void DetectIntruders()
+{
+    TArray<AActor*> PerceivedActors = GetPerceivedActors();
+    AActor* MostThreateningIntruder = nullptr;
+    float HighestThreat = 0.0f;
+    
+    for (AActor* Actor : PerceivedActors)
+    {
+        // Skip if not a threat
+        if (IsFriendly(Actor)) continue;
+        
+        FVector ActorLocation = Actor->GetActorLocation();
+        
+        // Check if in territory
+        if (!IsInTerritory(ActorLocation)) continue;
+        
+        // Calculate threat level
+        float Distance = FVector::Dist(GetActorLocation(), ActorLocation);
+        float ThreatLevel = 1.0f - (Distance / TerritoryRadius);
+        
+        // Increase threat if actor is aggressive
+        if (IsActorAggressive(Actor))
+            ThreatLevel *= 1.5f;
+        
+        if (ThreatLevel > HighestThreat)
+        {
+            HighestThreat = ThreatLevel;
+            MostThreateningIntruder = Actor;
+        }
+    }
+    
+    // Publish
+    bool bHasIntruder = MostThreateningIntruder != nullptr;
+    Brain->SetNamedInputValue(TEXT("HasIntruder"), bHasIntruder ? 1.0f : 0.0f);
+    Brain->SetNamedInputValue(TEXT("IntruderThreatLevel"), HighestThreat);
+}</code></pre>
+
+<h2>Step 5: Fleeing Behavior</h2>
+
+<h3>Action: DA_Creature_Flee</h3>
+
+<pre><code>ActionName: "Flee"
+DisplayName: "Flee from Danger"
+BaseScore: 85.0
+Priority: 80 (high priority survival)
+
+Considerations:
+  1. Health
+     InputName: "Health"
+     ResponseCurve: (0,100) → (0.3,100) → (0.5,50) → (1,0)
+     bInvertCurve: true
+     Weight: 2.0
+     Comment: Critical health triggers flee
+     
+  2. ThreatLevel
+     InputName: "ThreatLevel"
+     ResponseCurve: (0,0) → (0.7,50) → (1,100)
+     Weight: 1.5
+     
+  3. Stamina
+     InputName: "Stamina"
+     ResponseCurve: (0,0) → (0.2,100) → (1,100)
+     Weight: 0.8
+     Comment: Need some stamina to flee
+
+Momentum: None (survival)
+Replace Resistance: 2.5 (very hard to interrupt)
+bInterruptible: false
+UnlockTime: 5.0
+
+Executor: BT_Creature_Flee</code></pre>
+
+<h3>Flee Behavior Tree</h3>
+
+<pre><code>BT_Creature_Flee:
+
+Root
+└─ Sequence
+   ├─ Play Flee Animation/Sound
+   ├─ Set Speed (Sprint)
+   ├─ Get Flee Direction
+   │  → Away from threats
+   │  → Toward territory center or safe spot
+   ├─ Loop (Flee)
+   │  ├─ Calculate Flee Position
+   │  │  → 2000 units away from threat
+   │  │  → Use nav mesh
+   │  ├─ Move To Flee Position
+   │  │  Speed: Sprint
+   │  │  bUsePathfinding: true
+   │  ├─ Check if Safe
+   │  │  → No threats nearby
+   │  │  → Sufficient distance
+   │  └─ If Safe
+   │     → Exit flee
+   │     → Enter Rest
+   └─ Success
+
+Flee Direction Calculation:
+  FVector ToThreat = (ThreatLocation - MyLocation).GetSafeNormal();
+  FVector FleeDirection = -ToThreat; // Opposite direction
+  
+  // Bias toward territory center if outside
+  if (!IsInTerritory(MyLocation))
+  {
+      FVector ToTerritory = (TerritoryCenter - MyLocation).GetSafeNormal();
+      FleeDirection = (FleeDirection + ToTerritory * 0.5f).GetSafeNormal();
+  }
+  
+  FVector FleePosition = MyLocation + FleeDirection * 2000.0f;</code></pre>
+
+<h2>Step 6: Rest/Idle Behavior</h2>
+
+<h3>Action: DA_Creature_Rest</h3>
+
+<pre><code>ActionName: "Rest"
+DisplayName: "Rest and Recover"
+BaseScore: 55.0
+Priority: 35
+
+Considerations:
+  1. Stamina
+     InputName: "Stamina"
+     ResponseCurve: (0,100) → (0.5,50) → (1,0)
+     bInvertCurve: true
+     Weight: 1.5
+     Comment: Rest when tired
+     
+  2. Health
+     InputName: "Health"
+     ResponseCurve: (0,100) → (0.7,50) → (1,0)
+     bInvertCurve: true
+     Weight: 1.2
+     Comment: Rest when hurt
+     
+  3. ThreatLevel
+     InputName: "ThreatLevel"
+     ResponseCurve: (0,100) → (0.3,50) → (1,0)
+     bInvertCurve: true
+     Weight: 1.8
+     Comment: Only rest when safe
+     
+  4. IsInTerritory
+     InputName: "IsInTerritory"
+     ResponseCurve: (0,0) → (1,100)
+     Weight: 1.0
+     Comment: Rest in safe territory
+
+Momentum:
+  MaxMomentum: 3.0
+  MomentumDecayTime: 5.0
+
+Replace Resistance: 1.2
+bInterruptible: true
+UnlockTime: 0.0
+
+Executor: BT_Creature_Rest</code></pre>
+
+<h3>Rest Behavior Tree</h3>
+
+<pre><code>BT_Creature_Rest:
+
+Root
+└─ Sequence
+   ├─ Find Resting Spot
+   │  → Quiet area in territory
+   │  → Away from threats
+   │  → Near cover if possible
+   ├─ Move To Resting Spot
+   ├─ Lie Down Animation
+   ├─ Loop (Rest)
+   │  ├─ Play Idle/Sleep Animation
+   │  ├─ Regenerate Stamina (+10/second)
+   │  ├─ Regenerate Health (+2/second if >30%)
+   │  ├─ Wait (2 seconds)
+   │  ├─ Check for Threats
+   │  │  → If threat → Exit rest
+   │  └─ Check if Recovered
+   │     → Stamina > 70%
+   │     → Health > 50%
+   │     → Exit rest
+   └─ Stand Up Animation
+
+Recovery Rates:
+  Stamina: +10/second (fast recovery)
+  Health: +2/second (slow natural regen)
+  Hunger: +0.05/second (increases slowly)</code></pre>
+
+<h2>Step 7: Hunger System</h2>
+
+<pre><code>// Service: UService_HungerManager
+void UService_HungerManager::TickService(float DeltaTime)
+{
+    ACreaturePawn* Creature = GetCreaturePawn();
+    
+    // Increase hunger over time
+    Creature->HungerLevel += DeltaTime * HungerIncreaseRate;
+    Creature->HungerLevel = FMath::Clamp(Creature->HungerLevel, 0.0f, 1.0f);
+    
+    // Starving effects
+    if (Creature->HungerLevel > 0.8f)
+    {
+        // Lose health when starving
+        Creature->CurrentHealth -= DeltaTime * StarvationDamageRate;
+    }
+    
+    // Publish hunger inputs
+    Brain->SetNamedInputValue(TEXT("HungerLevel"), Creature->HungerLevel);
+    Brain->SetNamedInputValue(TEXT("IsStarving"), Creature->HungerLevel > 0.8f ? 1.0f : 0.0f);
+    Brain->SetNamedInputValue(TEXT("IsHungry"), Creature->HungerLevel > 0.5f ? 1.0f : 0.0f);
+}
+
+// When prey is killed and eaten
+void OnPreyConsumed()
+{
+    HungerLevel = FMath::Max(0.0f, HungerLevel - 0.4f);
+    UE_LOG(LogAI, Log, TEXT("Creature ate prey, hunger reduced to %.2f"), HungerLevel);
+}</code></pre>
+
+<h2>Step 8: Pack Behavior (Optional)</h2>
+
+<pre><code>// For pack animals
+void UService_PackAwareness::TickService(float DeltaTime)
+{
+    if (!bIsPackMember) return;
+    
+    // Find nearby pack members
+    TArray<ACreaturePawn*> PackMembers = FindNearbyPackMembers(1500.0f);
+    
+    // Publish pack inputs
+    Brain->SetNamedInputValue(TEXT("PackMemberCount"), PackMembers.Num() / 5.0f);
+    Brain->SetNamedInputValue(TEXT("IsAlone"), PackMembers.Num() == 0 ? 1.0f : 0.0f);
+    
+    // Follow pack leader if not leader
+    if (PackLeader && PackLeader != GetOwningPawn())
+    {
+        FVector ToLeader = PackLeader->GetActorLocation() - GetOwningPawn()->GetActorLocation();
+        float Distance = ToLeader.Size();
+        Brain->SetNamedInputValue(TEXT("DistanceToPackLeader"), Distance / 5000.0f);
+    }
+    
+    // Coordinate hunting
+    if (IsHunting())
+    {
+        SharePreyInformation(PackMembers);
+    }
+}
+
+// Pack hunting bonus
+float GetPackHuntingBonus()
+{
+    int32 PackSize = GetNearbyPackMembers(1000.0f).Num();
+    return FMath::Min(PackSize * 0.2f, 0.6f); // Max 60% bonus
+}</code></pre>
+
+<h2>Complete Configuration Summary</h2>
+
+<pre><code>Creature Pawn: BP_WolfCreature
+  MaxHealth: 150
+  Stamina: 100
+  TerritoryRadius: 3000
+  HungerLevel: 0.5
+  bIsPackMember: false
+  
+Services:
+  [0] PerceptionMonitor (short memory: 5s)
+  [1] PreyDetection (custom)
+  [2] HungerManager (custom)
+  [3] PackAwareness (custom, optional)
+
+Actions (6 total):
+  Roam (P:30, default behavior)
+  Hunt (P:60, when hungry + prey detected)
+  Defend (P:65, intruders in territory)
+  Flee (P:80, critical health)
+  Rest (P:35, tired/hurt + safe)
+  Alert (P:45, suspicious activity)
+
+Behavior States:
+  Calm: Roam, Rest
+  Alert: Investigate sounds
+  Hunting: Chase and attack prey
+  Defending: Attack intruders
+  Fleeing: Escape to safety
+
+Survival Systems:
+  Health: 0-150, regenerates slowly while resting
+  Stamina: 0-100, used for sprint/attack, regens while idle
+  Hunger: 0-1, increases over time, reduced by eating
+  Territory: 3000 radius, defends from intruders
+
+Result: Realistic, believable creature AI</code></pre>
+
+<h2>Next Steps</h2>
+
+<div class="next-steps">
+  <a class="button primary" href="#/docs/archetype-guide">
+    <i data-lucide="layers"></i>
+    Archetype Guide
+  </a>
+  <a class="button" href="#/docs/example-combat-soldier">
+    <i data-lucide="crosshair"></i>
+    Combat Soldier Example
+  </a>
+</div>
+
+<h3>Related Examples</h3>
+<ul>
+  <li><a href="#/docs/example-boss-multiphase"><i data-lucide="skull"></i> Boss AI</a> - Complex AI patterns</li>
+  <li><a href="#/docs/example-companion-ai"><i data-lucide="heart"></i> Companion AI</a> - Follower behaviors</li>
+  <li><a href="#/docs/perception-setup"><i data-lucide="eye"></i> Perception Setup</a> - Configure senses</li>
+  <li><a href="#/docs/tuning"><i data-lucide="sliders"></i> Tuning Guide</a> - Balance creature difficulty</li>
+</ul>
+
+<script>lucide.createIcons();</script>

@@ -1,0 +1,381 @@
+<h1>Brain Preset API</h1>
+<p class="note">Complete reference for UUtilityBrainPreset. Learn how to create reusable brain configurations with pre-configured actions, services, and input providers.</p>
+
+<div class="page-meta">
+  <span class="time"><i data-lucide="clock"></i> 12 minutes</span>
+  <span class="difficulty"><i data-lucide="bar-chart-2"></i> Reference</span>
+</div>
+
+<h2>Class Overview</h2>
+
+<pre><code>Class: UUtilityBrainPreset
+Parent: UDataAsset
+Module: CINAI
+Header: Public/UtilityBrainPreset.h
+
+Purpose:
+  Reusable brain configuration asset containing:
+  - Array of actions
+  - Array of services
+  - Input providers
+  - Performance settings
+  
+  Allows designers to create brain templates that can
+  be applied to multiple agents.</code></pre>
+
+<h2>Core Properties</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>Actions</code></td>
+      <td>TArray&lt;UUtilityActionAsset*&gt;</td>
+      <td>Action assets for brain to evaluate</td>
+    </tr>
+    <tr>
+      <td><code>ServiceClasses</code></td>
+      <td>TArray&lt;TSubclassOf&lt;UUtilityService&gt;&gt;</td>
+      <td>Service classes to instantiate</td>
+    </tr>
+    <tr>
+      <td><code>InputProviders</code></td>
+      <td>TArray&lt;TSubclassOf&lt;UActorComponent&gt;&gt;</td>
+      <td>Input provider components</td>
+    </tr>
+    <tr>
+      <td><code>TickInterval</code></td>
+      <td>float</td>
+      <td>Brain evaluation frequency (default 0.2s)</td>
+    </tr>
+    <tr>
+      <td><code>bAutoStartBrain</code></td>
+      <td>bool</td>
+      <td>Start brain automatically</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Creating Brain Presets</h2>
+
+<h3>In Editor</h3>
+
+<pre><code>1. Content Browser → Right-Click
+2. CIN Plugin → Brain Preset
+3. Name: DA_BrainPreset_Soldier
+4. Open asset
+5. Configure:
+   Actions: 
+     [0] DA_Action_Attack
+     [1] DA_Action_TakeCover
+     [2] DA_Action_Reload
+     [3] DA_Action_Retreat
+   ServiceClasses:
+     [0] Service_PerceptionMonitor
+   TickInterval: 0.2
+   bAutoStartBrain: true
+6. Save</code></pre>
+
+<h3>Using Presets</h3>
+
+<pre><code>// Method 1: Direct assignment
+UUtilityBrainComponent* Brain = Pawn->FindComponentByClass<UUtilityBrainComponent>();
+Brain->ApplyPreset(BrainPreset);
+
+// Method 2: Via Agent Preset
+UCIN_AgentPreset:
+  BrainOverride: DA_BrainPreset_Soldier
+
+// Method 3: Blueprint
+Event BeginPlay
+  → Get Component By Class (UtilityBrain)
+  → Apply Preset
+    Preset: DA_BrainPreset_Soldier</code></pre>
+
+<h2>Public Functions</h2>
+
+<h3>ApplyToB rain</h3>
+
+<pre><code>void ApplyToBrain(UUtilityBrainComponent* Brain) const;
+
+Parameters:
+  Brain - Target brain component
+
+Description:
+  Applies this preset configuration to a brain component.
+  Adds actions, creates services, sets tick interval.
+  Called internally by Brain->ApplyPreset(Preset).
+
+Usage:
+  // Typically called via Brain component
+  Brain->ApplyPreset(MyPreset);
+  
+  // Or directly
+  MyPreset->ApplyToBrain(Brain);</code></pre>
+
+<h2>Preset Examples</h2>
+
+<h3>Example 1: Combat Brain</h3>
+
+<pre><code>Asset: DA_BrainPreset_Combat
+
+Actions:
+  [0] DA_Action_Attack
+      BaseScore: 60
+      Priority: 50
+  [1] DA_Action_TakeCover
+      BaseScore: 70
+      Priority: 80
+  [2] DA_Action_Reload
+      BaseScore: 55
+      Priority: 60
+  [3] DA_Action_Retreat
+      BaseScore: 65
+      Priority: 90
+
+ServiceClasses:
+  [0] UService_PerceptionMonitor
+
+TickInterval: 0.2
+bAutoStartBrain: true
+
+Use Case: Standard combat AI</code></pre>
+
+<h3>Example 2: Stealth Brain</h3>
+
+<pre><code>Asset: DA_BrainPreset_Stealth
+
+Actions:
+  [0] DA_Action_Patrol
+      BaseScore: 40
+  [1] DA_Action_Investigate
+      BaseScore: 60
+  [2] DA_Action_Alert
+      BaseScore: 80
+  [3] DA_Action_Search
+      BaseScore: 70
+
+ServiceClasses:
+  [0] UService_PerceptionMonitor
+      StimulusMemoryDuration: 30.0 (long memory)
+  [1] UService_EnvironmentalMemory
+
+TickInterval: 0.3
+bAutoStartBrain: true
+
+Use Case: Patrol guards, investigation AI</code></pre>
+
+<h3>Example 3: Squad Leader Brain</h3>
+
+<pre><code>Asset: DA_BrainPreset_SquadLeader
+
+Actions:
+  [0] DA_Action_Attack
+  [1] DA_Action_TakeCover
+  [2] DA_Action_DirectSquad
+  [3] DA_Action_CallRetreat
+  [4] DA_Action_Reload
+
+ServiceClasses:
+  [0] UService_PerceptionMonitor
+  [1] UService_TacticalSense
+  [2] UService_TacticalStrategy
+
+InputProviders:
+  [0] UTacticalSquadInputProviderComponent
+
+TickInterval: 0.15 (faster for leaders)
+bAutoStartBrain: true
+
+Use Case: Squad leader with tactical awareness</code></pre>
+
+<h2>Inheritance Pattern</h2>
+
+<h3>Base + Specialized Presets</h3>
+
+<pre><code>DA_BrainPreset_Base:
+  Actions:
+    - Attack
+    - TakeCover
+    - Reload
+  Services:
+    - PerceptionMonitor
+  TickInterval: 0.2
+
+DA_BrainPreset_Elite (Base + additions):
+  Actions:
+    - Attack (from base)
+    - TakeCover (from base)
+    - Reload (from base)
+    + ThrowGrenade (new)
+    + TacticalMove (new)
+  Services:
+    - PerceptionMonitor (from base)
+  TickInterval: 0.15 (faster)
+
+Note: No automatic inheritance - copy and customize</code></pre>
+
+<h2>Integration with Archetypes</h2>
+
+<h3>Overriding Archetype Defaults</h3>
+
+<pre><code>// Agent Preset with Brain Override
+UCIN_AgentPreset:
+  AgentType: BaseCombat (has default brain)
+  BrainOverride: DA_BrainPreset_Elite (overrides default)
+
+Result:
+  - BaseCombat archetype setup runs
+  - Then BrainOverride replaces brain configuration
+  - Elite preset actions/services used instead</code></pre>
+
+<h2>Performance Configuration</h2>
+
+<h3>Tick Interval Guidelines</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Interval</th>
+      <th>Hz</th>
+      <th>Use Case</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>0.1</td>
+      <td>10 Hz</td>
+      <td>Boss AI, important enemies</td>
+    </tr>
+    <tr>
+      <td>0.2</td>
+      <td>5 Hz</td>
+      <td>Standard enemies (default)</td>
+    </tr>
+    <tr>
+      <td>0.3</td>
+      <td>3.3 Hz</td>
+      <td>Background AI, patrols</td>
+    </tr>
+    <tr>
+      <td>0.5</td>
+      <td>2 Hz</td>
+      <td>Distant AI, low priority</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Best Practices</h2>
+
+<div class="callout tip">
+  <span class="icon"><i data-lucide="check-square"></i></span>
+  <div>
+    <strong>Brain Preset Best Practices:</strong>
+    <ul class="compact">
+      <li>✅ Create base presets for common patterns</li>
+      <li>✅ Use descriptive names (DA_BrainPreset_[Role])</li>
+      <li>✅ Include all required actions for behavior</li>
+      <li>✅ Add necessary services for data gathering</li>
+      <li>✅ Set appropriate TickInterval for agent type</li>
+      <li>✅ Keep bAutoStartBrain true for standard cases</li>
+      <li>✅ Test presets in isolation before production</li>
+      <li>❌ Don't create too many similar presets</li>
+      <li>❌ Don't forget to add services</li>
+      <li>❌ Don't set TickInterval too low (<0.1 for many agents)</li>
+    </ul>
+  </div>
+</div>
+
+<h2>Troubleshooting</h2>
+
+<pre><code>Problem: Actions not working
+Solution:
+  - Check Actions array is populated
+  - Verify action assets are valid
+  - Ensure action executors are configured
+
+Problem: No inputs available
+Solution:
+  - Add ServiceClasses to gather inputs
+  - Check services are enabled
+  - Verify services publish expected inputs
+
+Problem: Performance issues
+Solution:
+  - Increase TickInterval (0.2-0.3 for standard AI)
+  - Reduce number of actions evaluated
+  - Optimize service update rates
+
+Problem: Brain doesn't start
+Solution:
+  - Check bAutoStartBrain is true, OR
+  - Call Brain->StartBrain() manually
+  - Verify preset is applied before starting</code></pre>
+
+<h2>Comparison: Preset vs Manual</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Feature</th>
+      <th>Brain Preset</th>
+      <th>Manual Setup</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Reusability</strong></td>
+      <td>High (use across agents)</td>
+      <td>Low (per-agent setup)</td>
+    </tr>
+    <tr>
+      <td><strong>Designer-Friendly</strong></td>
+      <td>Yes (data asset)</td>
+      <td>No (code/BP required)</td>
+    </tr>
+    <tr>
+      <td><strong>Flexibility</strong></td>
+      <td>Medium (preset-based)</td>
+      <td>High (full control)</td>
+    </tr>
+    <tr>
+      <td><strong>Maintenance</strong></td>
+      <td>Easy (single asset)</td>
+      <td>Hard (scattered logic)</td>
+    </tr>
+    <tr>
+      <td><strong>Best For</strong></td>
+      <td>Standard AI roles</td>
+      <td>Unique one-off AI</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Next Steps</h2>
+
+<div class="next-steps">
+  <a class="button primary" href="#/docs/preset-api">
+    <i data-lucide="package"></i>
+    Agent Preset API
+  </a>
+  <a class="button" href="#/docs/action-api">
+    <i data-lucide="target"></i>
+    Action Asset API
+  </a>
+</div>
+
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="#/docs/preset-api"><i data-lucide="package"></i> Agent Preset API</a> - Higher-level presets</li>
+  <li><a href="#/docs/brain-api"><i data-lucide="cpu"></i> Brain Component API</a> - Brain functions</li>
+  <li><a href="#/docs/action-api"><i data-lucide="target"></i> Action Asset API</a> - Configure actions</li>
+  <li><a href="#/docs/service-api"><i data-lucide="cog"></i> Service API</a> - Create services</li>
+</ul>
+
+<script>lucide.createIcons();</script>

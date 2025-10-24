@@ -1,0 +1,84 @@
+<h1>Decision-Making Patterns</h1>
+<p>Use normalized parameters and events to select goals and actions with minimal hardcoding.</p>
+
+<h2>Event-driven</h2>
+<ul>
+  <li>Listen to <code>OnGoalChanged</code> on <code>ACINAgentBase</code> for cross-UI/state sync.</li>
+  <li>React to perception or attribute changes by recomputing a simple utility score.</li>
+</ul>
+
+<h2>Periodic</h2>
+<ul>
+  <li>On a timer (e.g., 5–10 Hz), read inputs like <code>Health</code>, <code>Stamina</code>, <code>DistanceToPlayer</code>, and pick the highest-scoring behavior.</li>
+</ul>
+
+<h2>Example utility snippet</h2>
+<pre><code>// Blueprint pseudo-logic
+ScoreAdvance = (1 - DistanceToPlayer) * Stamina
+ScoreRetreat  = (1 - Health)
+ScoreCallHelp = ThreatLevel * (1 - TeamConfidence)
+
+NewGoal = MaxOf(Advance, Retreat, CallHelp)
+SetCurrentGoal(NewGoal)</code></pre>
+
+<div class="tip">Normalize all inputs first; score functions become clean and predictable.</div>
+
+<h2>Recommended inputs and signals</h2>
+<ul>
+  <li><strong>Normalized attributes:</strong> <code>Health</code>, <code>Stamina</code>, <code>Mana</code>, <code>Morale</code>, <code>ThreatLevel</code>.</li>
+  <li><strong>Spatial:</strong> <code>DistanceToPlayer</code> via <code>ACINAgentBase.GetDistanceToPlayer()</code> bound as a Blueprint function parameter.</li>
+  <li><strong>Perception:</strong> aggregate booleans or confidences from <code>UCINPerceptionComponent</code> (e.g., "HasVisibleEnemy", "NearestStimulusDistance").</li>
+  <li><strong>Context:</strong> <code>CurrentLOD</code> and performance signals to scale update frequency.</li>
+</ul>
+
+<h2>Utility design patterns</h2>
+<ul>
+  <li><strong>Weighted sum:</strong> <code>Score = w1*A + w2*B + w3*C</code>. Easy to tune, good first pass.</li>
+  <li><strong>Max-of:</strong> compute score per candidate behavior; pick the max.</li>
+  <li><strong>Rule gates:</strong> apply boolean gates before scoring (e.g., if <code>Stamina &lt; 0.2</code> then disable "Sprint").</li>
+  <li><strong>Hysteresis:</strong> add small bias to the current goal to avoid flip-flopping.</li>
+  <li><strong>Softmax (advanced):</strong> convert scores to probabilities to randomize between close options.</li>
+</ul>
+
+<h2>Goal arbitration</h2>
+<ul>
+  <li>Call <code>SetCurrentGoal(Name)</code> when a new top candidate emerges.</li>
+  <li>Use the multicast delegate <code>OnGoalChanged</code> (BlueprintAssignable) to notify UI or behavior trees.</li>
+  <li>Optionally implement <code>OnAgentGoalChanged(OldGoal, NewGoal)</code> (BlueprintImplementableEvent) to perform per-goal transitions.</li>
+</ul>
+
+<h2>Event hooks you can use</h2>
+<ul>
+  <li><code>ACINAgentBase.OnContextUpdated</code>: recompute if your scores depend on context.</li>
+  <li><code>ACINAgentBase.OnGoalChanged</code>: update visuals, VO, or queued actions.</li>
+  <li><code>UCINPerceptionComponent.OnPerceptionUpdated</code>: recompute when stimuli change.</li>
+</ul>
+
+<h2>Periodic scheduling</h2>
+<ul>
+  <li>Use a Blueprint Timer (e.g., 5–10 Hz) to run the scoring tick.</li>
+  <li>Scale with LOD: lower frequency for distant/irrelevant agents. See <em>LOD &amp; Performance</em>.</li>
+  <li>Use <code>ContextUpdateFrequency</code> (agent setting) for context updates; keep decision tick decoupled if needed.</li>
+</ul>
+
+<h2>Reading inputs</h2>
+<ul>
+  <li>Call <code>GetAgentParameter("Health")</code>, etc., after binding in <code>ParameterBindings</code>.</li>
+  <li>Prefer <code>BindToGameplayAttributeByHandle</code> over name when available.</li>
+  <li>For engine functions returning float (e.g., distance), use <code>BindToBlueprintFunction</code> to wire directly.</li>
+</ul>
+
+<h2>Queueing actions after goal changes</h2>
+<ul>
+  <li>On goal switch, queue an appropriate action via <code>QueueAction(...)</code> with a priority.</li>
+  <li>Inspect with <code>PrintActionQueueToLog()</code> and <code>GetActionQueueDebugInfo()</code>.</li>
+</ul>
+
+<h2>Anti-patterns</h2>
+<ul>
+  <li>Using raw, unnormalized inputs in scoring (leads to brittle thresholds).</li>
+  <li>Changing goals every frame without hysteresis.</li>
+  <li>Embedding heavy logic in perception callbacks without rate limiting.</li>
+</ul>
+
+<div class="note">Keep goals semantic (e.g., <em>Advance</em>, <em>Retreat</em>, <em>CallHelp</em>). Let actions realize the goal; parameters remain normalized and reusable.</div>

@@ -1,0 +1,375 @@
+<h1>Debug & Visualization Tools</h1>
+<p>Comprehensive debugging tools for visualizing AI decisions, scores, inputs, and behavior in real-time.</p>
+
+<h2>Debug Components</h2>
+
+<h3>1. CIN Debug Component</h3>
+<p>Overhead widget showing live AI state for individual agents.</p>
+
+<pre><code>// Add to AI Controller
+Add Component: UCINDebugComponent
+
+Properties:
+  bShowCurrentAction: true
+  bShowActionScores: true
+  bShowNamedInputs: true
+  bShowServices: true
+  bShowSquadInfo: true
+  UpdateInterval: 0.1s
+  MaxScoresToShow: 5
+  MaxInputsToShow: 8
+
+Display:
+  ┌─────────────────────────┐
+  │     Soldier_01          │
+  ├─────────────────────────┤
+  │ Action: Attack (150)    │
+  │                         │
+  │ Scores:                 │
+  │   Attack:     150 ←     │
+  │   Reload:     120       │
+  │   TakeCover:   85       │
+  │                         │
+  │ Inputs:                 │
+  │   Health: 0.6           │
+  │   AmmoCount: 0.4        │
+  │   HasKnownEnemy: 1.0    │
+  │                         │
+  │ Squad: Alpha (Leader)   │
+  └─────────────────────────┘</code></pre>
+
+<h3>2. Player Debug Tool</h3>
+<p>Player-side component for selecting and viewing AI agents.</p>
+
+<pre><code>// Add to Player Controller
+Add Component: UCINPlayerDebugTool
+
+Features:
+  - Raycast selection (look at agent + press key)
+  - HUD display of selected agent
+  - Toggle all overhead labels
+  - Cycle through nearby agents
+  - Distance filtering
+
+Controls:
+  F1: Toggle debug mode
+  F2: Select agent under crosshair
+  F3: Toggle all overhead labels
+  F4: Cycle to next agent</code></pre>
+
+<h2>Gameplay Debugger Integration</h2>
+
+<p>CIN Plugin adds a custom Gameplay Debugger category.</p>
+
+<h3>Activation</h3>
+<pre><code>// In-game
+1. Press ' (apostrophe) to open Gameplay Debugger
+2. Press 5 (or assigned number) to enable Utility AI category
+3. Look at AI agent to select it
+4. Data displays on-screen
+
+// Alternative: Console command
+ShowDebug UtilityAI</code></pre>
+
+<h3>Display Sections</h3>
+
+<h4>Brain State</h4>
+<pre><code>═══ UTILITY BRAIN ═══
+Status: Active
+Update Rate: 10 Hz (0.1s)
+Paused: No
+Current Action: Attack
+Current Score: 150.0
+Actions: 5
+Services: 3</code></pre>
+
+<h4>All Action Scores</h4>
+<pre><code>═══ ACTION SCORES ═══
+→ Attack:        150.0  ← EXECUTING
+  Reload:        120.0
+  TakeCover:      85.0
+  Patrol:         20.0  (LOCKED 1.5s)
+  Investigate:    15.0</code></pre>
+
+<h4>Momentum & Locking</h4>
+<pre><code>═══ MOMENTUM ═══
+Attack:     2.1 (Penalty: -52 pts, Decay: 1.2s)
+TakeCover:  0.5 (Penalty: -12 pts, Decay: 2.8s)
+Reload:     0.0
+
+═══ LOCKED ACTIONS ═══
+Patrol (unlocks in 1.5s)
+Investigate (unlocks in 0.3s)</code></pre>
+
+<h4>Named Inputs</h4>
+<pre><code>═══ NAMED INPUTS ═══
+HasKnownEnemy:          1.0
+EnemyCount:             0.4
+NearestEnemyDistance:   0.3
+ThreatLevel:            0.8
+Health:                 0.6
+AmmoCount:              0.4
+InCover:                0.0
+IsSquadLeader:          1.0
+SquadStrategy:          0.25 (Assault)
+SquadMemberCount:       0.5</code></pre>
+
+<h4>Services</h4>
+<pre><code>═══ SERVICES ═══
+✓ Service_PerceptionMonitor (0.1s)
+  └─ Published: 12 inputs
+✓ Service_TacticalSense (0.15s)
+  └─ Published: 5 inputs
+✓ Service_TacticalStrategy (0.2s)
+  └─ Published: 4 inputs (Leader only)</code></pre>
+
+<h4>Squad Info</h4>
+<pre><code>═══ SQUAD ═══
+Name: Alpha
+Members: 4
+Leader: Soldier_01 (THIS AGENT)
+Strategy: Assault
+Confidence: 0.8
+Known Enemies: 3
+
+Members:
+  [L] Soldier_01 (0.9 HP)
+  [ ] Soldier_02 (0.7 HP)
+  [ ] Soldier_03 (0.8 HP)
+  [ ] Soldier_04 (0.6 HP)</code></pre>
+
+<h2>Blueprint Debugging Functions</h2>
+
+<h3>Print Debug Info</h3>
+<pre><code>// Simple console logging
+Brain->PrintDebugInfo()
+
+Output:
+[UtilityBrain] Agent: Soldier_01
+[UtilityBrain] Current: Attack (150.0)
+[UtilityBrain] Top 3: Attack=150, Reload=120, Cover=85
+[UtilityBrain] Inputs: 12, Services: 3
+[UtilityBrain] Momentum: Attack=2.1, Cover=0.5
+[UtilityBrain] Locked: Patrol, Investigate</code></pre>
+
+<h3>Get Debug String</h3>
+<pre><code>// Get formatted string for custom UI
+String DebugText = Brain->GetDebugString()
+
+// Use in custom widget, log file, etc.
+MyWidget->SetText(DebugText)</code></pre>
+
+<h3>Query Specific Data</h3>
+<pre><code>// Blueprint functions for custom debug UI
+CurrentActionName = Brain->GetCurrentActionName()
+CurrentScore = Brain->GetCurrentActionScore()
+AllScores = Brain->GetAllActionScores()  // Map
+AllInputs = Brain->GetAllNamedInputs()  // Map
+IsLocked = Brain->IsActionLocked(DA_Attack)
+Momentum = Brain->GetActionMomentum(DA_Attack)</code></pre>
+
+<h2>Visual Debug Rendering</h2>
+
+<h3>Perception Debug</h3>
+<pre><code>// Service_PerceptionMonitor
+Properties:
+  bDebugVisualize: true
+
+Draws:
+  Red Sphere: Visible enemies
+  Orange Sphere: Last known enemy positions
+  Yellow Line: To nearest enemy
+  Green Sphere: Visible allies
+  Blue Sphere: Heard sounds
+  Purple Cone: Vision cone (FOV)</code></pre>
+
+<h3>Environmental Memory Debug</h3>
+<pre><code>// UEnvironmentalMemoryComponent
+Properties:
+  bDebugDraw: true
+
+Draws:
+  Green Sphere: Memorized objects (normal state)
+  Yellow Sphere: Changed state (doors/containers)
+  Red Sphere: Displaced objects
+  Blue Line: To nearest suspicious change
+  White Text: Object type + change info</code></pre>
+
+<h3>Squad Debug</h3>
+<pre><code>// UTacticalMemberComponent
+Properties:
+  bDebugDraw: true
+
+Draws:
+  Green Lines: Connections to squad members
+  Yellow Star: Squad leader
+  Blue Text: Current strategy
+  Red Markers: Shared enemy positions
+  Purple Zone: Formation shape</code></pre>
+
+<h2>Custom Debug Widget</h2>
+
+<p>Create a custom UMG widget for tailored debug display:</p>
+
+<pre><code>// Widget Blueprint: WBP_AIDebug
+Components:
+  - Text: Agent Name
+  - Text: Current Action
+  - Progress Bar: Health
+  - Progress Bar: Ammo
+  - Vertical Box: Top 5 Actions (with scores)
+  - Vertical Box: Key Inputs
+  
+// Update in Tick
+Event Tick
+  ├─ Get Utility Brain
+  ├─ Update Agent Name
+  ├─ Update Current Action
+  ├─ Update Health Bar (from input "Health")
+  ├─ Update Ammo Bar (from input "AmmoCount")
+  ├─ Get All Scores → Update action list
+  └─ Get Key Inputs → Update input list</code></pre>
+
+<h2>Performance Profiling</h2>
+
+<h3>Console Commands</h3>
+<pre><code>// Show Utility AI stats
+stat UtilityAI
+
+Display:
+  Brain Ticks: 156 (10 agents * ~15 Hz)
+  Service Ticks: 45
+  Action Evaluations: 780 (156 * 5 actions)
+  Average Brain Time: 0.12ms
+  Peak Brain Time: 0.35ms
+  
+// Profile specific systems
+stat AI
+stat Game
+stat Unit</code></pre>
+
+<h3>CPU Profiling</h3>
+<pre><code>// Unreal Insights integration
+Trace.Start cpu,loadtime
+// Run game, observe AI behavior
+Trace.Stop
+
+// In Unreal Insights:
+  → GameThread
+    → UtilityBrain::TickComponent
+      → GatherInputs
+      → EvaluateAndRunBestAction
+        → ComputeActionScore
+        → FindBestAction</code></pre>
+
+<h2>Logging Configuration</h2>
+
+<h3>Log Categories</h3>
+<pre><code>// DefaultEngine.ini
+[Core.Log]
+LogUtilityAI=Verbose
+LogCINPerception=Verbose
+LogCINSquad=Log
+LogCINMemory=Warning
+
+Log Levels:
+  Fatal:   Critical errors only
+  Error:   Errors
+  Warning: Warnings + Errors
+  Display: Important info
+  Log:     General logging
+  Verbose: Detailed logging
+  VeryVerbose: Everything</code></pre>
+
+<h3>Runtime Log Control</h3>
+<pre><code>// Console commands
+Log LogUtilityAI Verbose  // Enable verbose
+Log LogUtilityAI Warning  // Reduce to warnings only
+Log LogUtilityAI Off      // Disable completely
+
+// Blueprint
+Set Log Level(LogUtilityAI, Verbose)</code></pre>
+
+<h2>Debug Workflows</h2>
+
+<h3>Debugging Action Selection</h3>
+<pre><code>1. Enable Gameplay Debugger (')
+2. Select agent
+3. Watch "ACTION SCORES" section
+4. Identify why action is/isn't executing:
+   - Score too low? → Adjust curves
+   - Locked? → Check failure conditions
+   - High momentum? → Reduce penalty
+   - Wrong inputs? → Check service publishing</code></pre>
+
+<h3>Debugging Thrashing</h3>
+<pre><code>1. Enable overhead debug widget
+2. Watch current action
+3. If rapidly switching:
+   - Check momentum values (too low?)
+   - Check replace resistance (too low?)
+   - Check score differences (too small?)
+4. Adjust anti-thrashing properties</code></pre>
+
+<h3>Debugging Missing Inputs</h3>
+<pre><code>1. Gameplay Debugger → Named Inputs
+2. Check if input exists
+3. If missing:
+   - Is service running? (check Services section)
+   - Is service publishing it? (check service code)
+   - Typo in input name? (case-sensitive!)
+4. If value wrong:
+   - Check normalization (0-1?)
+   - Check source data (perception, component)</code></pre>
+
+<h2>Best Practices</h2>
+
+<div class="callout tip">
+  <span class="icon" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
+    </svg>
+  </span>
+  <div>
+    <strong>Debug Guidelines:</strong>
+    <ul>
+      <li><strong>Use Debug Early:</strong> Add debug components during development, remove in shipping</li>
+      <li><strong>Selective Logging:</strong> Use Warning level normally, Verbose only when debugging</li>
+      <li><strong>Profile Regularly:</strong> Check stat UtilityAI every build to catch performance regressions</li>
+      <li><strong>Visual Debug:</strong> Enable draw debug during development, disable in builds</li>
+      <li><strong>Name Everything:</strong> Clear action/input names make debugging much easier</li>
+      <li><strong>Document Curves:</strong> Add comments explaining scoring logic</li>
+    </ul>
+  </div>
+</div>
+
+<h2>Shipping Configuration</h2>
+
+<pre><code>// Disable debug features for shipping
+#if !UE_BUILD_SHIPPING
+    bDebugVisualize = true;
+    bDebugDraw = true;
+#else
+    bDebugVisualize = false;
+    bDebugDraw = false;
+#endif
+
+// Remove debug components in packaged builds
+DefaultEngine.ini:
+[/Script/Engine.Engine]
++ExcludeComponentClassesFromCook=UCINDebugComponent
++ExcludeComponentClassesFromCook=UCINPlayerDebugTool</code></pre>
+
+<h2>Next Steps</h2>
+<div class="hero-cta">
+  <a class="button primary" href="#/docs/performance">Performance Optimization</a>
+  <a class="button" href="#/docs/troubleshooting">Troubleshooting</a>
+  <a class="button" href="#/docs/brain">Brain Component</a>
+</div>
+
+<h3>Related Documentation</h3>
+<ul>
+  <li><a href="#/docs/utility-ai">Utility AI</a> - Understanding scoring</li>
+  <li><a href="#/docs/momentum-locking">Momentum & Locking</a> - Anti-thrashing debug</li>
+  <li><a href="#/docs/core-concepts">Core Concepts</a> - System overview</li>
+</ul>

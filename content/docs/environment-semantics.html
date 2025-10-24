@@ -1,0 +1,138 @@
+<h1>Environment Semantics</h1>
+<p>This page documents how environment semantics are defined and evaluated at runtime via <code>UCINEnvironmentSemanticsDA_Base</code> in <code>Plugins/CINPlugin/Source/CINCore/Public/Types/UCINEnvironmentSemanticsDA_Base.h</code>.</p>
+
+<h2>Beginner-friendly: What is this?</h2>
+<p>Environment Semantics let you give simple meanings to things in the world. For example: “this rock is <em>Cover</em>”, “that pool is <em>Danger</em>”, “this crate is a <em>Resource</em>”. CIN turns those meanings into numbers (0.0–1.0) that the AI can use to make decisions.</p>
+
+<div class="callout tip">
+  <span class="icon" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="9"></circle>
+      <path d="M12 10v6"></path>
+      <path d="M12 8h.01"></path>
+    </svg>
+  </span>
+  <div>
+    <strong>At a glance</strong>
+    <ul>
+      <li><strong>What you make</strong>: a Data Asset mapping world objects/areas to semantic values (0–1).</li>
+      <li><strong>You need</strong>: target classes/tags and ranges so queries can find and score things.</li>
+      <li><strong>Who uses it</strong>: Perception/Brain query these values when evaluating actions/goals.</li>
+      <li><strong>Typical flow</strong>: tag world → set base values/ranges → (optional) add modifiers → query from AI logic.</li>
+    </ul>
+    <div style="margin-top:6px">
+      <strong>Related</strong>: <a href="#/docs/perception">Perception</a> · <a href="#/docs/parameter-binding">Parameter Binding</a> · <a href="#/docs/decision-making">Decision-Making Patterns</a>
+    </div>
+  </div>
+</div>
+
+<h2>Why it matters</h2>
+<ul>
+  <li><strong>Less hardcoding</strong>: Tag the world once, reuse everywhere.</li>
+  <li><strong>Designer-friendly</strong>: Tune ranges and values without C++.</li>
+  <li><strong>Context-aware</strong>: Modifiers can react to time of day, weather, etc.</li>
+  <li><strong>Works with Blueprints</strong>: Query values with BlueprintCallable functions.</li>
+  </ul>
+
+<h2>Quick setup (Data Asset)</h2>
+<ol>
+  <li>Create a data asset of type <code>UCINEnvironmentSemanticsDA_Base</code> (or subclass).</li>
+  <li>Under <strong>ObjectSemantics</strong>, add entries: set <strong>SemanticType</strong>, <strong>BaseValue</strong>, <strong>InfluenceRange</strong>, and optional <strong>TargetClasses</strong>/<strong>Tags</strong>.</li>
+  <li>(Optional) Add <strong>AreaSemantics</strong> with <strong>AreaCenter</strong> and <strong>AreaRadius</strong> (or <strong>BoxExtent</strong> with <strong>bUseBoxBounds</strong>).</li>
+  <li>(Optional) Add <strong>GlobalModifiers</strong> to change values based on context.</li>
+  <li>From Blueprints, call <code>CalculateSemanticValue</code>, <code>GetApplicableSemantics</code>, or <code>FindNearestSemantic</code> to use these values at runtime.</li>
+</ol>
+
+<h2>Tiny example</h2>
+<p>Mark all <em>Crate</em> actors as <strong>Resource</strong> with <strong>BaseValue = 0.8</strong> and <strong>InfluenceRange = 600</strong>. When the player is nearby, the AI “sees” higher resource value and prefers looting actions.</p>
+
+<h2>Common mistakes</h2>
+<ul>
+  <li><strong>No TargetClasses/Tags</strong>: Your rule never matches. Add at least one.</li>
+  <li><strong>Range too small</strong>: Increase <strong>InfluenceRange</strong> if values always read as zero.</li>
+  <li><strong>Units mismatch</strong>: Distances are in Unreal units (uu).</li>
+  <li><strong>Area checks</strong>: <code>IsLocationInSemanticArea</code> expects world-space locations.</li>
+</ul>
+
+<h2>Semantic Types (<code>ECINSemanticType</code>)</h2>
+<ul>
+  <li><strong>Cover</strong> — protection/concealment</li>
+  <li><strong>Danger</strong> — hazards</li>
+  <li><strong>Resource</strong> — useful items/resources</li>
+  <li><strong>Navigation</strong> — landmarks/aid</li>
+  <li><strong>Social</strong> — gathering points</li>
+  <li><strong>Comfort</strong> — rest areas</li>
+  <li><strong>Strategic</strong> — tactically important</li>
+  <li><strong>Neutral</strong> — no special meaning</li>
+  <li><strong>Custom</strong> — project-defined</li>
+</ul>
+
+<h2>Object Semantics (<code>FCINSemanticDefinition</code>)</h2>
+<ul>
+  <li><strong>SemanticID</strong>, <strong>SemanticName</strong></li>
+  <li><strong>SemanticType</strong>: one of <code>ECINSemanticType</code></li>
+  <li><strong>BaseValue (0.0–1.0)</strong>: significance</li>
+  <li><strong>InfluenceRange (uu, 0–10000)</strong>: range of effect</li>
+  <li><strong>DistanceDecay (0.0–2.0)</strong>: 0=no decay, 1=linear</li>
+  <li><strong>TargetClasses</strong>: actor classes this applies to</li>
+  <li><strong>RequiredTags</strong> / <strong>ExclusionTags</strong></li>
+  <li><strong>Modifiers</strong>: array of <code>FCINSemanticModifier</code></li>
+  <li><strong>SemanticParameters</strong>: map</li>
+  <li><strong>bIsEnabled</strong></li>
+  <li><strong>Priority (0–10)</strong>: application order</li>
+</ul>
+
+<h2>Area Semantics (<code>FCINAreaSemantics</code>)</h2>
+<ul>
+  <li><strong>AreaName</strong>, <strong>AreaCenter</strong></li>
+  <li><strong>AreaRadius (uu ≥0)</strong> or <strong>BoxExtent</strong> with <strong>bUseBoxBounds</strong></li>
+  <li><strong>AreaSemantics</strong>: array of <code>FCINSemanticDefinition</code></li>
+  <li><strong>AreaPriorityModifier (0.1–5.0)</strong></li>
+  <li><strong>bIsActive</strong></li>
+</ul>
+
+<h2>Modifiers (<code>FCINSemanticModifier</code>)</h2>
+<ul>
+  <li><strong>ModifierName</strong>, <strong>ModifierType</strong> (e.g., Context)</li>
+  <li><strong>Conditions</strong>: map of contextual checks</li>
+  <li><strong>EffectStrength (-1.0–1.0)</strong>: adjust semantic value</li>
+  <li><strong>Priority (0–10)</strong>: higher applied later</li>
+  <li><strong>bIsActive</strong></li>
+</ul>
+
+<h2>Data Asset Fields (<code>UCINEnvironmentSemanticsDA_Base</code>)</h2>
+<ul>
+  <li><strong>SemanticCollectionName</strong></li>
+  <li><strong>ObjectSemantics</strong>, <strong>AreaSemantics</strong></li>
+  <li><strong>GlobalModifiers</strong></li>
+  <li><strong>DefaultSemanticValue (0.0–1.0)</strong></li>
+  <li><strong>MaxSemanticRange (100–50000)</strong></li>
+  <li><strong>bEnableDebugVisualization</strong></li>
+</ul>
+
+<h2>Runtime Evaluation Flow</h2>
+<ul>
+  <li>Query objects/areas and filter by <strong>TargetClasses</strong>, <strong>RequiredTags</strong>, <strong>ExclusionTags</strong>.</li>
+  <li>Compute base value and apply distance effect via <code>CalculateDistanceDecay(Distance, Range, DecayFactor)</code>.</li>
+  <li>Apply <strong>GlobalModifiers</strong> then per-definition <strong>Modifiers</strong> using <code>ApplySemanticModifiers(BaseValue, Modifiers, Context)</code>.</li>
+  <li>For areas, multiply by <strong>AreaPriorityModifier</strong> if inside.</li>
+  <li>Fallback to <strong>DefaultSemanticValue</strong> when no matches.</li>
+</ul>
+
+<h2>Blueprint API</h2>
+<ul>
+  <li><code>GetSemanticDefinition(SemanticID)</code></li>
+  <li><code>GetSemanticsByType(SemanticType, OutSemantics)</code></li>
+  <li><code>CalculateSemanticValue(Actor, Location, Context)</code></li>
+  <li><code>GetApplicableSemantics(Actor, OutSemantics)</code></li>
+  <li><code>FindNearestSemantic(Location, SemanticType, MaxSearchRange)</code></li>
+  <li><code>IsLocationInSemanticArea(Location, AreaName)</code></li>
+  <li><code>GetAreasContainingLocation(Location, OutAreas)</code></li>
+  <li><em>Event</em>: <code>OnSemanticsApplied(Agent)</code></li>
+</ul>
+
+<h2>Debug & Editor</h2>
+<ul>
+  <li><strong>bEnableDebugVisualization</strong> to visualize semantic influence.</li>
+  <li>Editor changes handled via <code>PostEditChangeProperty</code>.</li>
+</ul>

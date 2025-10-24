@@ -1,0 +1,388 @@
+<h1>Example: Flying/Aerial AI</h1>
+<p class="note">Complete working example of flying AI for drones, aircraft, or creatures. Includes 3D pathfinding, altitude management, aerial maneuvers, and formation flying.</p>
+
+<div class="page-meta">
+  <span class="time"><i data-lucide="clock"></i> 25 minutes</span>
+  <span class="difficulty"><i data-lucide="code"></i> Example</span>
+</div>
+
+<div class="callout tip">
+  <span class="icon"><i data-lucide="lightbulb"></i></span>
+  <div>
+    <strong>What You'll Build:</strong> A 3D flying AI that navigates airspace, performs combat maneuvers, maintains altitude, flies in formation, and responds to aerial threats. Adaptable for drones, dragons, or aircraft.
+  </div>
+</div>
+
+<h2>Final Result</h2>
+
+<pre><code>Flying AI Behaviors:
+├─ Patrol: Follow 3D waypoint routes
+├─ Pursue: Chase aerial targets
+├─ Attack: Aerial combat
+├─ Evade: Barrel rolls and dives
+├─ Formation: V-formation or box
+├─ Altitude Control: Maintain flight level
+└─ Landing: Safe touchdown
+
+Features:
+✓ 3D navigation
+✓ Altitude management
+✓ Aerial maneuvers
+✓ Formation flying
+✓ Stall prevention
+✓ Collision avoidance</code></pre>
+
+<h2>Step 1: Create Flying Pawn</h2>
+
+<h3>Blueprint: BP_CombatDrone</h3>
+
+<pre><code>Parent Class: Pawn (with Flying Movement)
+
+Components:
+  + Static Mesh (drone/aircraft model)
+  + Floating Pawn Movement
+    Max Speed: 2000
+    Acceleration: 500
+    Deceleration: 500
+  + Weapon Component
+  + AIPerception
+    Senses:
+      - AISight (6000 radius, 120° FOV)
+  + CINQuickSetup
+    AgentType: Custom
+    bAutoInitialize: true
+
+Variables:
+  + CurrentAltitude (float): 0.0
+  + TargetAltitude (float): 1000.0
+  + MinAltitude (float): 300.0
+  + MaxAltitude (float): 3000.0
+  + CurrentSpeed (float): 0.0
+  + StallSpeed (float): 500.0</code></pre>
+
+<h2>Step 2: Altitude Management</h2>
+
+<h3>Service: UService_AltitudeControl</h3>
+
+<pre><code>void UService_AltitudeControl::TickService(float DeltaTime)
+{
+    AFlyingPawn* Flyer = GetFlyingPawn();
+    
+    // Current altitude
+    float CurrentAlt = Flyer->GetActorLocation().Z;
+    Flyer->CurrentAltitude = CurrentAlt;
+    
+    // Normalize altitude (0-1 based on min/max)
+    float NormalizedAlt = (CurrentAlt - Flyer->MinAltitude) / 
+                          (Flyer->MaxAltitude - Flyer->MinAltitude);
+    NormalizedAlt = FMath::Clamp(NormalizedAlt, 0.0f, 1.0f);
+    
+    // Publish altitude inputs
+    Brain->SetNamedInputValue(TEXT("Altitude"), NormalizedAlt);
+    Brain->SetNamedInputValue(TEXT("TooLow"), CurrentAlt < Flyer->MinAltitude ? 1.0f : 0.0f);
+    Brain->SetNamedInputValue(TEXT("TooHigh"), CurrentAlt > Flyer->MaxAltitude ? 1.0f : 0.0f);
+    
+    // Stall detection
+    bool bStalling = Flyer->CurrentSpeed < Flyer->StallSpeed;
+    Brain->SetNamedInputValue(TEXT("Stalling"), bStalling ? 1.0f : 0.0f);
+}</code></pre>
+
+<h2>Step 3: 3D Patrol</h2>
+
+<h3>Action: DA_Flying_Patrol</h3>
+
+<pre><code>ActionName: "Patrol"
+DisplayName: "Aerial Patrol"
+BaseScore: 55.0
+Priority: 35
+
+Considerations:
+  1. NoThreats
+     InputName: "HasKnownEnemy"
+     ResponseCurve: (0,100) → (1,0)
+     bInvertCurve: true
+     Weight: 1.5
+     
+  2. AltitudeOK
+     InputName: "Altitude"
+     ResponseCurve: (0,50) → (0.5,100) → (1,50)
+     Weight: 1.0
+     Comment: Prefer mid-altitude
+
+Executor: BT_Flying_Patrol
+
+3D Waypoint Navigation:
+  FVector CurrentPos = GetActorLocation();
+  FVector TargetWaypoint = PatrolRoute[WaypointIndex];
+  
+  // 3D direction
+  FVector Direction = (TargetWaypoint - CurrentPos).GetSafeNormal();
+  
+  // Move in 3D space
+  AddMovementInput(Direction, 1.0f);</code></pre>
+
+<h2>Step 4: Aerial Combat</h2>
+
+<h3>Action: DA_Flying_Attack</h3>
+
+<pre><code>ActionName: "Attack"
+DisplayName: "Aerial Attack"
+BaseScore: 80.0
+Priority: 65
+
+Considerations:
+  1. HasTarget
+     InputName: "HasVisibleEnemy"
+     ResponseCurve: (0,0) → (1,100)
+     Weight: 1.5
+     
+  2. GoodAttackAngle
+     InputName: "AttackAngle"
+     ResponseCurve: (0,0) → (0.7,50) → (1,100)
+     Weight: 1.3
+     Comment: Behind or above target
+     
+  3. InWeaponRange
+     InputName: "DistanceToEnemy"
+     ResponseCurve: (0,30) → (0.3,100) → (0.7,100) → (1,0)
+     Weight: 1.2
+
+Executor: BT_Flying_Attack
+
+Attack Maneuvers:
+  1. Boom and Zoom:
+     → Dive from above
+     → Fire during dive
+     → Climb away
+     
+  2. Tail Chase:
+     → Get behind target
+     → Match speed
+     → Fire when aligned
+     
+  3. Head-On:
+     → Face target
+     → Fire burst
+     → Break away</code></pre>
+
+<h2>Step 5: Evasive Maneuvers</h2>
+
+<h3>Action: DA_Flying_Evade</h3>
+
+<pre><code>ActionName: "Evade"
+DisplayName: "Evasive Maneuvers"
+BaseScore: 85.0
+Priority: 75
+
+Considerations:
+  1. UnderFire
+     InputName: "UnderFire"
+     ResponseCurve: (0,0) → (1,100)
+     Weight: 2.0
+     
+  2. EnemyBehind
+     InputName: "EnemyBehindMe"
+     ResponseCurve: (0,0) → (1,100)
+     Weight: 1.5
+
+Executor: BT_Flying_Evade
+
+Evasive Patterns:
+
+1. Barrel Roll:
+   float RollAngle = FMath::Sin(Time * 2.0f) * 360.0f;
+   AddControllerRollInput(RollAngle);
+   
+2. Immelmann Turn:
+   → Pull up into vertical climb
+   → Roll 180° at top
+   → Dive away in opposite direction
+   
+3. Split-S:
+   → Roll inverted
+   → Pull down into dive
+   → Level out at lower altitude
+   
+4. Jinking:
+   → Random directional changes
+   → Unpredictable movement
+   → Make hard to hit</code></pre>
+
+<h2>Step 6: Formation Flying</h2>
+
+<h3>Action: DA_Flying_Formation</h3>
+
+<pre><code>ActionName: "Formation"
+DisplayName: "Formation Flying"
+BaseScore: 65.0
+Priority: 50
+
+Considerations:
+  1. InSquad
+     InputName: "IsInSquad"
+     ResponseCurve: (0,0) → (1,100)
+     Weight: 1.5
+     
+  2. FormationDistance
+     InputName: "DistanceFromFormation"
+     ResponseCurve: (0,20) → (0.2,100) → (1,100)
+     Weight: 1.2
+
+Executor: BT_Flying_Formation
+
+Formation Calculations:
+
+V-Formation:
+  FVector LeaderPos = Leader->GetActorLocation();
+  FVector LeaderForward = Leader->GetActorForwardVector();
+  FVector LeaderRight = Leader->GetActorRightVector();
+  
+  float LateralOffset = (MemberIndex % 2 == 0 ? 1 : -1) * 
+                        ((MemberIndex + 1) / 2) * 300.0f;
+  float RearOffset = ((MemberIndex + 1) / 2) * 400.0f;
+  float VerticalOffset = ((MemberIndex + 1) / 2) * -50.0f; // Slight down
+  
+  FVector FormationPos = LeaderPos + 
+                         LeaderRight * LateralOffset -
+                         LeaderForward * RearOffset +
+                         FVector::UpVector * VerticalOffset;
+
+Box Formation:
+  float Angle = (360.0f / SquadSize) * MemberIndex;
+  FVector Offset = LeaderForward.RotateAngleAxis(Angle, FVector::UpVector) * 500.0f;
+  FVector FormationPos = LeaderPos + Offset;</code></pre>
+
+<h2>Step 7: Landing & Takeoff</h2>
+
+<h3>Action: DA_Flying_Land</h3>
+
+<pre><code>ActionName: "Land"
+DisplayName: "Land Safely"
+BaseScore: 70.0
+Priority: 60
+
+Considerations:
+  1. LandingRequested
+     InputName: "NeedToLand"
+     ResponseCurve: (0,0) → (1,100)
+     Weight: 1.5
+     
+  2. LowFuel OR Damaged
+     InputName: "Fuel"
+     ResponseCurve: (0,100) → (0.2,100) → (1,0)
+     bInvertCurve: true
+     Weight: 1.3
+
+Executor: BT_Flying_Land
+
+Landing Sequence:
+
+1. Approach Pattern:
+   → Circle landing zone
+   → Reduce altitude gradually
+   → Align with landing pad
+   
+2. Final Approach:
+   → Line up with pad
+   → Reduce speed
+   → Maintain glide slope
+   
+3. Touchdown:
+   → Slow vertical descent
+   → Touch down gently
+   → Cut engines
+   
+4. Taxi:
+   → Move to parking position
+   → Shutdown
+
+Code:
+  // Approach
+  FVector LandingPad = GetLandingPadLocation();
+  FVector ApproachPoint = LandingPad + FVector(0, 0, 500); // 500 above
+  
+  // Descend
+  float DescentRate = -100.0f; // 100 units/sec down
+  FVector Velocity = GetVelocity();
+  Velocity.Z = DescentRate;
+  
+  // Touchdown check
+  if (GetActorLocation().Z < LandingPad.Z + 10.0f)
+  {
+      // Landed
+      SetActorEnableCollision(true);
+      GetMovementComponent()->StopMovement();
+  }</code></pre>
+
+<h2>Step 8: Stall Recovery</h2>
+
+<pre><code>// Emergency stall recovery
+void UService_StallPrevention::TickService(float DeltaTime)
+{
+    if (CurrentSpeed < StallSpeed)
+    {
+        // Stalling! Nose down to gain speed
+        FVector Down = -FVector::UpVector;
+        AddMovementInput(Down, 1.0f);
+        
+        // Increase throttle
+        TargetSpeed = MaxSpeed;
+        
+        // Publish emergency state
+        Brain->SetNamedInputValue(TEXT("EmergencyDive"), 1.0f);
+    }
+}
+
+Stall Prevention:
+  - Monitor speed continuously
+  - Keep above stall speed (500 units/sec)
+  - Dive to regain speed if needed
+  - Avoid steep climbs when slow</code></pre>
+
+<h2>Complete Configuration Summary</h2>
+
+<pre><code>Flying Pawn: BP_CombatDrone
+  Max Speed: 2000
+  Stall Speed: 500
+  Min Altitude: 300
+  Max Altitude: 3000
+  Cruise Altitude: 1000
+  
+Services:
+  [0] PerceptionMonitor
+  [1] AltitudeControl (custom)
+  [2] StallPrevention (custom)
+  [3] FormationManager (if squad)
+
+Actions (8 total):
+  Patrol (P:35, 3D waypoints)
+  Pursue (P:60, chase)
+  Attack (P:65, aerial combat)
+  Evade (P:75, maneuvers)
+  Formation (P:50, squad flying)
+  Land (P:60, safe landing)
+  Takeoff (P:55, departure)
+  Climb (P:40, altitude gain)
+
+Flight Modes:
+  Cruise: 1000 speed, 1000 altitude
+  Combat: 1500 speed, 800 altitude
+  Evasive: 2000 speed, variable altitude
+  Landing: 500 speed, descending
+
+Result: Dynamic, realistic flying AI</code></pre>
+
+<h2>Next Steps</h2>
+
+<div class="next-steps">
+  <a class="button primary" href="#/docs/example-vehicle-ai">
+    <i data-lucide="truck"></i>
+    Vehicle Example
+  </a>
+  <a class="button" href="#/docs/archetype-guide">
+    <i data-lucide="layers"></i>
+    Archetype Guide
+  </a>
+</div>
+
+<script>lucide.createIcons();</script>

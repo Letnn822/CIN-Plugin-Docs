@@ -1,0 +1,14 @@
+# Exclude documentation about documentation
+DOCUMENTATION_*.md
+ICON_REFERENCE.md
+IMPLEMENTATION_PROGRESS.md
+WEBSITE_FINAL_SUMMARY.md
+DEPLOYMENT.md
+
+# Local server script (not needed for deployment)
+Serve-Website.ps1
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini

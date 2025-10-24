@@ -1,0 +1,481 @@
+<h1>Performance Profiling & Optimization</h1>
+<p class="note">Complete guide to profiling and optimizing Utility AI performance. Learn measurement techniques, bottleneck identification, and optimization strategies for 100+ agents.</p>
+
+<div class="page-meta">
+  <span class="time"><i data-lucide="clock"></i> 25 minutes</span>
+  <span class="difficulty"><i data-lucide="bar-chart-3"></i> Advanced</span>
+</div>
+
+<h2>Performance Overview</h2>
+
+<pre><code>Utility AI Performance Budget:
+├─ Brain Evaluation: 0.1-0.5ms per agent
+├─ Service Execution: 0.05-0.2ms per agent
+├─ Action Scoring: 0.02-0.1ms per action
+├─ Input Publishing: 0.01-0.05ms per service
+└─ Behavior Tree: Variable (depends on complexity)
+
+Target: <0.5ms per agent at 10 Hz evaluation
+100 agents @ 10 Hz = 50ms total budget (acceptable)</code></pre>
+
+<h2>Profiling Tools</h2>
+
+<h3>1. Unreal Insights</h3>
+
+<pre><code>Enable tracing:
+1. Launch with -trace=cpu,frame
+2. Run UnrealInsights.exe
+3. Connect to session
+4. Filter for "UtilityAI" traces
+
+Key Traces to Watch:
+  - UtilityBrainComponent::TickComponent
+  - UtilityBrainComponent::EvaluateAndRunBestAction
+  - UtilityService::TickService
+  - UtilityActionAsset::ComputeScore
+
+Analysis:
+  → Time per agent evaluation
+  → Service overhead
+  → Action scoring cost
+  → Identify hot paths</code></pre>
+
+<h3>2. Stat Commands</h3>
+
+<pre><code>In-Game Console Commands:
+
+stat game
+  → Shows game thread performance
+  → Look for "Utility AI" category
+  
+stat ai
+  → AI-specific stats
+  → Brain evaluation times
+  → Behavior Tree overhead
+  
+stat unit
+  → Overall frame breakdown
+  → Game/Render/GPU times
+  
+stat startfile / stat stopfile
+  → Record stats to file
+  → Analyze offline
+
+Custom Stat Category:
+DECLARE_STATS_GROUP(TEXT("Utility AI"), STATGROUP_UtilityAI, STATCAT_Advanced);
+DECLARE_CYCLE_STAT(TEXT("Brain Tick"), STAT_BrainTick, STATGROUP_UtilityAI);</code></pre>
+
+<h3>3. Gameplay Debugger</h3>
+
+<pre><code>Press ' (apostrophe) → Category 5
+
+Real-time Display:
+  - Current action score
+  - All action scores
+  - Active services count
+  - Evaluation frequency
+  - Named inputs count
+
+Performance Indicators:
+  → High score count = expensive evaluation
+  → Many services = potential overhead
+  → Low evaluation Hz = may be throttled</code></pre>
+
+<h3>4. Visual Logger</h3>
+
+<pre><code>Console: vislog start
+
+Logs per frame:
+  - Action selection
+  - Score calculations
+  - Service execution
+  - Input changes
+
+Analysis:
+  → Visualization of decision timeline
+  → Identify thrashing
+  → See action switches</code></pre>
+
+<h2>Performance Metrics</h2>
+
+<h3>Target Benchmarks</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Component</th>
+      <th>Target (ms)</th>
+      <th>Acceptable (ms)</th>
+      <th>Poor (ms)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Brain Tick (10 Hz)</strong></td>
+      <td>&lt; 0.3</td>
+      <td>&lt; 0.5</td>
+      <td>&gt; 1.0</td>
+    </tr>
+    <tr>
+      <td><strong>Action Scoring (each)</strong></td>
+      <td>&lt; 0.05</td>
+      <td>&lt; 0.1</td>
+      <td>&gt; 0.2</td>
+    </tr>
+    <tr>
+      <td><strong>Service Tick (each)</strong></td>
+      <td>&lt; 0.1</td>
+      <td>&lt; 0.2</td>
+      <td>&gt; 0.5</td>
+    </tr>
+    <tr>
+      <td><strong>Input Publishing</strong></td>
+      <td>&lt; 0.05</td>
+      <td>&lt; 0.1</td>
+      <td>&gt; 0.2</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Scalability Targets</h3>
+
+<pre><code>Agent Count Performance:
+
+10 agents @ 10 Hz:
+  Total: ~3ms/frame
+  Per-agent: 0.3ms
+  Status: ✅ Excellent
+
+50 agents @ 10 Hz:
+  Total: ~15ms/frame
+  Per-agent: 0.3ms
+  Status: ✅ Good
+
+100 agents @ 10 Hz:
+  Total: ~30ms/frame
+  Per-agent: 0.3ms
+  Status: ✅ Acceptable
+
+200 agents @ 5 Hz:
+  Total: ~30ms/frame
+  Per-agent: 0.3ms
+  Status: ✅ Acceptable (with LOD)
+
+500+ agents:
+  Requires aggressive LOD
+  Status: ⚠️ Optimization required</code></pre>
+
+<h2>Bottleneck Identification</h2>
+
+<h3>Common Bottlenecks</h3>
+
+<pre><code>1. Too Many Actions
+   Symptom: Evaluation >1.0ms
+   Solution: Reduce action count to 5-8 per agent
+   
+2. Complex Considerations
+   Symptom: Action scoring >0.2ms
+   Solution: Simplify curves, reduce consideration count
+   
+3. Expensive Services
+   Symptom: Service tick >0.5ms
+   Solution: Reduce update frequency, optimize queries
+   
+4. Perception Overhead
+   Symptom: PerceptionMonitor >0.3ms
+   Solution: Reduce sense ranges, limit actor count
+   
+5. Too Frequent Evaluation
+   Symptom: Overall high CPU
+   Solution: Increase TickInterval (0.2s → 0.3s)
+   
+6. Behavior Tree Complexity
+   Symptom: Variable frame spikes
+   Solution: Simplify BTs, use async tasks</code></pre>
+
+<h3>Profiling Workflow</h3>
+
+<pre><code>Step 1: Identify Hot Agent
+  → stat ai
+  → Find agent with highest cost
+  → Select in Gameplay Debugger
+
+Step 2: Analyze Components
+  → Check action count (should be 5-8)
+  → Check service count (should be 2-4)
+  → Check consideration count (should be 2-5 per action)
+  
+Step 3: Measure Services
+  → Unreal Insights: Filter by service name
+  → Identify most expensive service
+  → Check update frequency
+  
+Step 4: Measure Actions
+  → Unreal Insights: ComputeScore traces
+  → Find action with highest cost
+  → Check consideration complexity
+  
+Step 5: Optimize
+  → Apply optimizations (see below)
+  → Re-measure
+  → Repeat until acceptable</code></pre>
+
+<h2>Optimization Strategies</h2>
+
+<h3>Strategy 1: LOD System</h3>
+
+<pre><code>Distance-Based LOD:
+
+Close Range (<20m):
+  TickInterval: 0.1s (10 Hz)
+  Full perception
+  All actions enabled
+  
+Medium Range (20-50m):
+  TickInterval: 0.2s (5 Hz)
+  Reduced perception range
+  Core actions only
+  
+Far Range (>50m):
+  TickInterval: 0.5s (2 Hz)
+  Minimal perception
+  Essential actions only
+  
+Very Far (>100m):
+  Paused
+  No evaluation
+  Resumed when player approaches
+
+Implementation:
+void AMyAIController::UpdateLOD(float DistanceToPlayer)
+{
+    UUtilityBrainComponent* Brain = GetBrain();
+    
+    if (DistanceToPlayer < 2000.0f)
+        Brain->SetTickInterval(0.1f);
+    else if (DistanceToPlayer < 5000.0f)
+        Brain->SetTickInterval(0.2f);
+    else if (DistanceToPlayer < 10000.0f)
+        Brain->SetTickInterval(0.5f);
+    else
+        Brain->PauseBrain();
+}</code></pre>
+
+<h3>Strategy 2: Action Reduction</h3>
+
+<pre><code>Reduce action count from 12 → 6:
+
+Before (12 actions):
+  Patrol, Investigate, Alert, Search,
+  Attack, TakeCover, Reload, Retreat,
+  ThrowGrenade, MeleeAttack, CallBackup, Heal
+
+After (6 actions):
+  Patrol (combines Investigation + Search)
+  Combat (combines Attack + TakeCover)
+  Reload (keep separate - critical)
+  Retreat (combines Retreat + CallBackup)
+  SpecialAbility (combines Grenade + Melee)
+  Heal (keep if needed)
+
+Result: ~50% reduction in evaluation cost</code></pre>
+
+<h3>Strategy 3: Service Optimization</h3>
+
+<pre><code>Optimize Service Update Rates:
+
+Perception Service:
+  Before: Every tick (60 Hz)
+  After: MinInterval = 0.1s (10 Hz)
+  Savings: 83% reduction
+  
+Tactical Sense:
+  Before: Every tick (60 Hz)
+  After: MinInterval = 0.2s (5 Hz)
+  Savings: 92% reduction
+  
+Squad Strategy (Leader only):
+  Before: Every brain tick (5 Hz)
+  After: MinInterval = 1.0s (1 Hz)
+  Savings: 80% reduction
+
+Implementation:
+UService_PerceptionMonitor:
+  MinInterval: 0.1f
+  MaxInterval: 0.2f // Adaptive
+  
+UService_TacticalSense:
+  MinInterval: 0.2f</code></pre>
+
+<h3>Strategy 4: Consideration Simplification</h3>
+
+<pre><code>Reduce consideration complexity:
+
+Before (5 considerations):
+  1. Health (complex curve)
+  2. Ammo (complex curve)
+  3. Distance (bell curve)
+  4. Threat Level (exponential)
+  5. Time Since Last (decay curve)
+
+After (3 considerations):
+  1. Health (linear)
+  2. Ammo (linear)
+  3. Combat Readiness (combines Distance + Threat + Time)
+
+Result: 40% reduction in scoring cost
+
+Pre-compute combined inputs:
+void CalculateCombinedInputs()
+{
+    float Distance = GetNamedInput("DistanceToEnemy");
+    float Threat = GetNamedInput("ThreatLevel");
+    float TimeSince = GetNamedInput("TimeSinceLastSawEnemy");
+    
+    float CombatReadiness = 
+        (1.0f - Distance) * 0.4f +
+        Threat * 0.4f +
+        (1.0f - TimeSince) * 0.2f;
+    
+    SetNamedInputValue("CombatReadiness", CombatReadiness);
+}</code></pre>
+
+<h3>Strategy 5: Perception Optimization</h3>
+
+<pre><code>Reduce perception cost:
+
+Sight Sense:
+  Before: Radius 5000, PeripheralAngle 180°
+  After: Radius 3000, PeripheralAngle 90°
+  Savings: ~60% fewer checks
+  
+Hearing Sense:
+  Before: Radius 3000, all sounds
+  After: Radius 2000, LOUD sounds only
+  Savings: ~50% fewer sounds processed
+  
+Damage Sense:
+  Keep (low cost, critical info)
+  
+Update Rate:
+  Before: Every frame
+  After: 0.1s intervals
+  Savings: 83% reduction
+
+Configuration:
+AISightConfig->SightRadius = 3000.0f;
+AISightConfig->PeripheralVisionAngleDegrees = 90.0f;
+AISightConfig->SetMaxAge(5.0f); // Forget after 5s
+
+AIHearingConfig->HearingRange = 2000.0f;
+AIHearingConfig->DetectionByAffiliation.bDetectEnemies = true;
+AIHearingConfig->DetectionByAffiliation.bDetectNeutrals = false;</code></pre>
+
+<h3>Strategy 6: Staggered Updates</h3>
+
+<pre><code>Spread evaluation across frames:
+
+Without Staggering:
+  Frame 0: All 100 agents evaluate (30ms spike)
+  Frame 1-4: No evaluation
+  Frame 5: All 100 agents evaluate (30ms spike)
+
+With Staggering:
+  Frame 0: Agents 0-19 evaluate (6ms)
+  Frame 1: Agents 20-39 evaluate (6ms)
+  Frame 2: Agents 40-59 evaluate (6ms)
+  Frame 3: Agents 60-79 evaluate (6ms)
+  Frame 4: Agents 80-99 evaluate (6ms)
+
+Result: Smooth 6ms per frame instead of 30ms spikes
+
+Implementation:
+void AMyGameMode::InitializeAIStaggering()
+{
+    TArray<AActor*> AIAgents;
+    UGameplayStatics::GetAllActorsOfClass(GetWorld(), AMyAIPawn::StaticClass(), AIAgents);
+    
+    for (int32 i = 0; i < AIAgents.Num(); ++i)
+    {
+        UUtilityBrainComponent* Brain = Cast<AMyAIPawn>(AIAgents[i])->GetBrain();
+        float StaggerOffset = (i % 5) * 0.033f; // 5 groups, ~33ms apart
+        Brain->SetInitialDelay(StaggerOffset);
+    }
+}</code></pre>
+
+<h2>Best Practices Checklist</h2>
+
+<div class="callout tip">
+  <span class="icon"><i data-lucide="check-square"></i></span>
+  <div>
+    <strong>Performance Optimization Checklist:</strong>
+    <ul class="compact">
+      <li>✅ Limit actions to 5-8 per agent</li>
+      <li>✅ Limit considerations to 2-5 per action</li>
+      <li>✅ Set service MinInterval to 0.1s+</li>
+      <li>✅ Use brain TickInterval 0.2s for standard AI</li>
+      <li>✅ Implement distance-based LOD</li>
+      <li>✅ Reduce perception ranges appropriately</li>
+      <li>✅ Stagger agent updates across frames</li>
+      <li>✅ Pre-compute complex inputs</li>
+      <li>✅ Profile regularly with Unreal Insights</li>
+      <li>✅ Use stat ai to identify hot agents</li>
+      <li>❌ Don't evaluate every frame (too expensive)</li>
+      <li>❌ Don't use complex curves when simple works</li>
+      <li>❌ Don't forget to pause distant agents</li>
+    </ul>
+  </div>
+</div>
+
+<h2>Real-World Example</h2>
+
+<pre><code>Optimization Case Study: 100-Agent Combat Scene
+
+Before Optimization:
+  Frame time: 45ms (22 FPS)
+  AI cost: 35ms
+  Per-agent: 0.35ms @ 60Hz evaluation
+
+Problems:
+  - All agents evaluating every frame
+  - 10-12 actions per agent
+  - Complex perception (5000 radius)
+  - No LOD system
+
+After Optimization:
+  Frame time: 16ms (60 FPS)
+  AI cost: 8ms
+  Per-agent: 0.32ms @ 5Hz evaluation (distant), 10Hz (close)
+
+Changes Made:
+  1. LOD system (2Hz/5Hz/10Hz based on distance)
+  2. Reduced actions (12 → 6)
+  3. Service intervals (0.1s minimum)
+  4. Staggered updates (5 groups)
+  5. Perception optimization (3000 radius, 90° FOV)
+  6. Pre-computed combat readiness input
+
+Result: 77% reduction in AI cost, 60 FPS achieved</code></pre>
+
+<h2>Next Steps</h2>
+
+<div class="next-steps">
+  <a class="button primary" href="#/docs/optimization">
+    <i data-lucide="zap"></i>
+    Optimization Guide
+  </a>
+  <a class="button" href="#/docs/brain-api">
+    <i data-lucide="cpu"></i>
+    Brain Component API
+  </a>
+</div>
+
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="#/docs/optimization"><i data-lucide="zap"></i> Optimization</a> - General optimization guide</li>
+  <li><a href="#/docs/brain-api"><i data-lucide="cpu"></i> Brain API</a> - TickInterval and performance settings</li>
+  <li><a href="#/docs/service-api"><i data-lucide="cog"></i> Service API</a> - Service update rates</li>
+  <li><a href="#/docs/perception-setup"><i data-lucide="eye"></i> Perception</a> - Optimize perception</li>
+</ul>
+
+<script>lucide.createIcons();</script>

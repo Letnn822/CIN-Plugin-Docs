@@ -1,0 +1,64 @@
+<h1>Multi-Attribute Normalization</h1>
+    <p>Normalize at the source so downstream logic is trivial.</p>
+
+    <h2>Example</h2>
+    <pre><code>// Health/Stamina/Mana are 0..100 in gameplay systems
+BindToGameplayAttribute("Health",  "Attributes.Health",  true, (0, 100))
+BindToGameplayAttribute("Stamina", "Attributes.Stamina", true, (0, 100))
+BindToGameplayAttribute("Mana",    "Attributes.Mana",    true, (0, 100))
+</code></pre>
+
+    <h2>Using normalized values</h2>
+    <pre><code>// 0..1 everywhere
+If (Health &lt; 0.25) -&gt; Retreat
+If (Stamina &lt; 0.2) -&gt; ConserveEffort
+If (Mana &lt; 0.15) -&gt; AvoidSpellcasting
+</code></pre>
+
+    <div class="note">If any attribute has different natural ranges, map it there instead of mixing scales in logic.</div>
+
+    <h2>Why normalization?</h2>
+    <ul>
+      <li><strong>Simplicity:</strong> thresholds like <code>0.25</code> mean the same thing for all agents and attributes.</li>
+      <li><strong>Reusability:</strong> decision/animation graphs can be reused across characters and factions.</li>
+      <li><strong>Tuning speed:</strong> designers tweak fewer numbers and reason about behavior faster.</li>
+    </ul>
+
+    <h2>Where to normalize</h2>
+    <ul>
+      <li><strong>GameplayAttribute/ObjectProperty binds:</strong> pass <code>true</code> and <code>(Min,Max)</code> to normalize at the binding layer.</li>
+      <li><strong>BlueprintFunction binds:</strong> ensure your function returns 0..1 already (recommended), or apply scaling in your scoring formula.</li>
+      <li><strong>Curves:</strong> shape the response in your AnimBP or functions after normalization (e.g., ease-in, dead zones).</li>
+    </ul>
+
+    <h2>Distance normalization</h2>
+    <pre><code>// Blueprint function example (returns 0..1)
+DistanceToPlayer01 = 1.0 - Clamp(D / MaxRange, 0.0, 1.0)
+return DistanceToPlayer01
+// Bind:
+BindToBlueprintFunction("DistanceToPlayer", "GetDistanceToPlayer01")
+// Use:
+// ScoreAdvance = DistanceToPlayer * Stamina
+    </code></pre>
+
+    <h2>Common mappings</h2>
+    <ul>
+      <li><strong>Min-Max:</strong> <code>(X - Min) / (Max - Min)</code>, clamped to 0..1.</li>
+      <li><strong>Inverse:</strong> <code>1 - f(X)</code> for "closer is better" or "lower is riskier" signals.</li>
+      <li><strong>Ratio:</strong> <code>Current / Capacity</code> for ammo, charge, or shield.</li>
+      <li><strong>Dead zone:</strong> zero-out small noise: <code>Max(0, (X - ε) / (1 - ε))</code>.</li>
+    </ul>
+
+    <h2>Smoothing &amp; hysteresis</h2>
+    <ul>
+      <li>Apply simple EMA smoothing in your function if inputs are noisy.</li>
+      <li>Use goal hysteresis (small bias toward current goal) to prevent flip-flops around thresholds.</li>
+    </ul>
+
+    <h2>Pitfalls</h2>
+    <ul>
+      <li>Mixing raw and 0..1 values in the same formula (keep everything normalized).</li>
+      <li>For <code>BindToBlueprintFunction</code>, forgetting to return 0..1 from the function.</li>
+      <li>Interpreting <code>0</code> as "unknown"—if you need "no data", use a separate boolean flag.</li>
+      <li>Not clamping; always clamp to 0..1 after division.</li>
+    </ul>

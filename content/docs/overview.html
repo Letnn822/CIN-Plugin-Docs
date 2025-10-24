@@ -1,0 +1,279 @@
+<section class="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-content">
+    <div class="hero-badges">
+      <span class="badge">UE 5.5-5.6</span>
+      <span class="badge">Utility AI</span>
+      <span class="badge">Production Ready</span>
+    </div>
+    <h1>Advanced Utility AI for Unreal Engine</h1>
+    <p class="hero-sub">CIN Plugin delivers production-grade Utility AI with dynamic action scoring, squad coordination, advanced perception, and environmental memory. Build intelligent, adaptive agents without the complexity.</p>
+    <div class="hero-cta">
+      <a class="button primary" href="#/docs/setup-workflow">
+        <i data-lucide="zap"></i> 15-Minute Setup
+      </a>
+      <a class="button" href="#/docs/archetype-guide">
+        <i data-lucide="layers"></i> Choose Archetype
+      </a>
+    </div>
+    <ul class="hero-highlights">
+      <li><i data-lucide="target"></i> Dynamic utility scoring with momentum, locking, and service conditions</li>
+      <li><i data-lucide="eye"></i> Advanced perception with stimulus memory and threat assessment</li>
+      <li><i data-lucide="users"></i> Squad tactics with shared intelligence and coordinated behavior</li>
+      <li><i data-lucide="map"></i> Environmental memory for investigation and situational awareness</li>
+    </ul>
+  </div>
+</section>
+<h1>Welcome to CIN Plugin</h1>
+<p class="note">CIN (Contextual Intelligence Network) is a professional Utility AI framework for Unreal Engine 5.5+. Built for AAA-quality game AI with Blueprint and C++ support, competitive features, and comprehensive debugging tools.</p>
+
+<h2>What is Utility AI?</h2>
+<p>Utility AI is a decision-making pattern where agents score multiple possible actions based on context, then execute the highest-scoring action. Unlike behavior trees or finite state machines, Utility AI gracefully handles complex situations with many variables by reducing them to simple numeric scores.</p>
+<p><strong>CIN Plugin implements Utility AI with:</strong></p>
+<ul>
+  <li><strong>Named Inputs</strong>: Normalized 0-1 values representing game state (Health, AmmoCount, EnemyDistance, etc.)</li>
+  <li><strong>Actions</strong>: Discrete behaviors (Attack, TakeCover, Reload, Investigate) with scoring curves</li>
+  <li><strong>Services</strong>: Automatic input providers that publish perception, memory, and squad data</li>
+  <li><strong>Brain Component</strong>: Evaluates actions every tick and executes the best choice</li>
+</ul>
+<div class="callout tip">
+  <span class="icon" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="9"></circle>
+      <path d="M12 10v6"></path>
+      <path d="M12 8h.01"></path>
+    </svg>
+  </span>
+  <div>
+    <strong>Hover glossary</strong>: Hover underlined terms to see quick definitions. Click to jump to the full page.
+  </div>
+ </div>
+
+<h2>How CIN Works</h2>
+<ol>
+  <li><strong>Services Gather Inputs</strong>: Perception, memory, squad data auto-publish to Named Inputs</li>
+  <li><strong>Brain Evaluates Actions</strong>: Every action scores itself based on current inputs</li>
+  <li><strong>Momentum & Locking</strong>: Prevents action thrashing with score penalties and temporary locks</li>
+  <li><strong>Best Action Executes</strong>: Highest-scoring action runs (Behavior Tree, Animation, Blueprint logic)</li>
+  <li><strong>Continuous Re-evaluation</strong>: Brain constantly checks if a better action is available</li>
+  <li><strong>Debug Visualization</strong>: Overhead widgets show current action, scores, and inputs in real-time</li>
+</ol>
+
+<h2>5-Minute Quick Start</h2>
+<ol>
+  <li>Add <code>UUtilityBrainComponent</code> to your AI Controller</li>
+  <li>Create a <code>UCIN_AgentPreset</code> Data Asset and assign an archetype (BaseCombat, BaseStealth, etc.)</li>
+  <li>Create <code>UUtilityActionAsset</code> data assets for your AI's actions (Attack, Patrol, Investigate)</li>
+  <li>Use <code>UCINQuickSetupComponent</code> for one-click initialization, or call <code>ApplyAgentPresetToPawn</code></li>
+  <li>Press Play—the Brain evaluates actions and debug widgets show the decision process</li>
+</ol>
+<p><a class="button primary" href="#/docs/quick-start">Full Quick Start Guide →</a></p>
+
+<div class="callout tip">
+  <span class="icon" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="9"></circle>
+      <path d="M12 10v6"></path>
+      <path d="M12 8h.01"></path>
+    </svg>
+  </span>
+  <div>
+    <strong>Editor Tools:</strong> One-click AI setup via <em>Tools → CIN → Build Demo Hub</em> creates demo scenarios with AI trees and blackboards. See <a href="#/docs/editor-tools">Editor Tools</a> for details.
+  </div>
+</div>
+
+<h2>Key Features</h2>
+<h3>Core Utility AI</h3>
+<ul>
+  <li><strong>Dynamic Action Scoring</strong>: Actions score themselves based on Named Inputs (0-1 normalized)</li>
+  <li><strong>Task Momentum</strong>: Reduces scores of recently-used actions to prevent repetition</li>
+  <li><strong>Replace Resistance</strong>: New actions must score significantly higher to interrupt current action</li>
+  <li><strong>Task Locking</strong>: Failed actions lock temporarily, preventing repeated failures</li>
+  <li><strong>Service Conditions</strong>: Services start/stop automatically based on input thresholds</li>
+</ul>
+
+<h3>Advanced Perception</h3>
+<ul>
+  <li><strong>Stimulus Memory</strong>: Tracks last known positions and visibility status of enemies</li>
+  <li><strong>Threat Assessment</strong>: Automatic 0-1 threat levels based on distance, visibility, and recency</li>
+  <li><strong>20+ Auto-Published Inputs</strong>: EnemyCount, NearestEnemyDistance, ThreatLevel, TimeSinceLastSawEnemy, etc.</li>
+  <li><strong>Team Affiliation</strong>: Uses GenericTeamId to distinguish allies from enemies</li>
+</ul>
+
+<h3>Squad Coordination</h3>
+<ul>
+  <li><strong>Tactical Squad Component</strong>: Agents auto-join squads by name and elect leaders</li>
+  <li><strong>Shared Strategy</strong>: Leader synthesizes squad strategy (Search/Assault/Flank/Hold/Retreat)</li>
+  <li><strong>Coordinated Inputs</strong>: Squad data published as NamedInputs (IsLeader, SquadStrategy, MemberIndex)</li>
+  <li><strong>Deterministic Roles</strong>: Squad members get consistent roles for flanking maneuvers</li>
+</ul>
+
+<h3>Environmental Memory</h3>
+<ul>
+  <li><strong>Object State Tracking</strong>: Remembers doors, containers, displaced objects</li>
+  <li><strong>Investigation Actions</strong>: Pre-built actions for investigating suspicious changes</li>
+  <li><strong>Subsystem Integration</strong>: Global tracking of all memorizable objects in the level</li>
+  <li><strong>GameplayTag Integration</strong>: Uses tags for object classification and state changes</li>
+</ul>
+
+<h2>Comparison with Other AI Systems</h2>
+<table class="comparison">
+  <thead>
+    <tr>
+      <th>Feature</th>
+      <th>CIN Plugin</th>
+      <th>Behavior Trees</th>
+      <th>Basic Utility AI</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Decision Pattern</td>
+      <td>Utility AI with momentum & locking</td>
+      <td>Tree traversal</td>
+      <td>Score & execute</td>
+    </tr>
+    <tr>
+      <td>Action Thrashing Prevention</td>
+      <td>Built-in (momentum, resistance, locking)</td>
+      <td>Manual state management</td>
+      <td>Often missing</td>
+    </tr>
+    <tr>
+      <td>Perception Integration</td>
+      <td>Auto-publishes 20+ inputs with memory</td>
+      <td>Manual blackboard updates</td>
+      <td>Manual integration</td>
+    </tr>
+    <tr>
+      <td>Squad Coordination</td>
+      <td>Built-in with shared strategy</td>
+      <td>Custom blackboard setup</td>
+      <td>Not included</td>
+    </tr>
+    <tr>
+      <td>Debug Visualization</td>
+      <td>Real-time overhead widgets & debugger</td>
+      <td>Gameplay Debugger</td>
+      <td>Often missing</td>
+    </tr>
+    <tr>
+      <td>Setup Complexity</td>
+      <td>One-click with QuickSetup or Presets</td>
+      <td>Manual tree construction</td>
+      <td>Varies</td>
+    </tr>
+  </tbody>
+</table>
+<div class="note callout">
+  <span class="icon" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="9"></circle>
+      <path d="M12 10v6"></path>
+      <path d="M12 8h.01"></path>
+    </svg>
+  </span>
+  <div>
+    <strong>About comparisons:</strong> details differ across plugins. This matrix outlines CIN’s approach versus common patterns to help you evaluate fit. For a specific alternative, see <a href="#/examples/faq">FAQ</a> or contact us for a tailored mapping.
+  </div>
+</div>
+
+<h2>Core Components</h2>
+<ul>
+  <li><code>UUtilityBrainComponent</code> — Main AI brain, lives on AIController, evaluates and executes actions</li>
+  <li><code>UUtilityActionAsset</code> — Data Asset defining an action with scoring curves and execution logic</li>
+  <li><code>UUtilityService</code> — Input providers (Perception, Memory, Squad) that publish Named Inputs</li>
+  <li><code>UCIN_AgentPreset</code> — Data Asset bundling archetype, actions, and services for quick setup</li>
+  <li><code>UCINQuickSetupComponent</code> — One-click component for applying presets to pawns</li>
+  <li><code>UCINDebugComponent</code> — Overhead widget showing current action, scores, and inputs</li>
+</ul>
+
+<h3>Service Classes</h3>
+<ul>
+  <li><code>UService_PerceptionMonitor</code> — Auto-publishes 20+ perception inputs (enemies, allies, threats)</li>
+  <li><code>UService_EnvironmentalMemory</code> — Tracks object states for investigation behaviors</li>
+  <li><code>UService_TacticalSense</code> — Reports squad intel to Tactical Squad Component</li>
+  <li><code>UService_TacticalStrategy</code> — Leader synthesizes squad strategy and publishes to members</li>
+  <li><code>UService_TagToInput</code> — Maps GameplayTags to Named Inputs for dynamic conditions</li>
+</ul>
+
+<h3>Blueprint Libraries</h3>
+<ul>
+  <li><code>UCIN_UtilityAILibrary</code> — Query/modify actions, momentum, locking, debug tools</li>
+  <li><code>UCIN_AIBlueprintLibrary</code> — Apply presets, configure agents, manage services</li>
+  <li><code>UCIN_AdvancedPerceptionLibrary</code> — Query perception data, stimulus memory, threats</li>
+</ul>
+
+<h2>Real Example: Combat Soldier</h2>
+<pre><code>// Services auto-publish these Named Inputs:
+// - Health (0-1, from GAS or health component)
+// - AmmoCount (0-1, normalized to clip size)
+// - HasKnownEnemy (0/1, from perception)
+// - NearestEnemyDistance (0-1, normalized to engagement range)
+// - ThreatLevel (0-1, calculated by perception service)
+
+// Actions score themselves:
+Action_Attack: Score = HasKnownEnemy * (1 - NearestEnemyDistance) * AmmoCount
+Action_Reload: Score = (1 - AmmoCount) * 2.0  // High priority when low ammo
+Action_TakeCover: Score = ThreatLevel * (1 - Health)
+Action_Retreat: Score = (1 - Health) * ThreatLevel * (1 - HasAllyNearby)
+
+// Brain picks highest score, momentum prevents rapid switching
+// If Attack fails (target dies), it locks briefly so agent considers other options</code></pre>
+
+<h2>Next Steps</h2>
+<div class="hero-cta">
+  <a class="button primary" href="#/docs/quick-start">Quick Start Guide</a>
+  <a class="button" href="#/docs/utility-ai">Core Architecture</a>
+  <a class="button" href="#/docs/archetypes">Archetype Reference</a>
+</div>
+
+<h3>Your Learning Journey</h3>
+<div class="journey-cards">
+  <div class="journey-card beginner">
+    <h4><i data-lucide="target"></i> Your First AI</h4>
+    <p>Get started in 40 minutes with step-by-step guides</p>
+    <ul>
+      <li><a href="#/docs/installation">Installation</a></li>
+      <li><a href="#/docs/archetype-guide">Choose Archetype</a></li>
+      <li><a href="#/docs/setup-workflow">15-Minute Setup</a></li>
+      <li><a href="#/docs/first-combat-ai">First Combat AI</a></li>
+      <li><a href="#/docs/debug-basics">Debug & Visualize</a></li>
+    </ul>
+  </div>
+  
+  <div class="journey-card intermediate">
+    <h4><i data-lucide="tool"></i> Building Production AI</h4>
+    <p>Learn best practices and professional patterns</p>
+    <ul>
+      <li><a href="#/docs/best-practices">Best Practices</a></li>
+      <li><a href="#/docs/perception-setup">Perception Setup</a></li>
+      <li><a href="#/docs/squad-setup">Squad Coordination</a></li>
+      <li><a href="#/docs/tuning">Tuning & Balancing</a></li>
+    </ul>
+  </div>
+  
+  <div class="journey-card advanced">
+    <h4><i data-lucide="rocket"></i> Advanced Features</h4>
+    <p>Deep dives into advanced systems</p>
+    <ul>
+      <li><a href="#/docs/intelligence-layers">Intelligence Layers</a></li>
+      <li><a href="#/docs/momentum">Task Momentum</a></li>
+      <li><a href="#/docs/environmental-memory">Environmental Memory</a></li>
+      <li><a href="#/docs/gas-integration">GAS Integration</a></li>
+    </ul>
+  </div>
+  
+  <div class="journey-card reference">
+    <h4><i data-lucide="book-open"></i> Complete Reference</h4>
+    <p>Exhaustive API documentation</p>
+    <ul>
+      <li><a href="#/docs/archetypes">All 11 Archetypes</a></li>
+      <li><a href="#/docs/brain-component">Brain Component API</a></li>
+      <li><a href="#/docs/bp-utility-library">Blueprint API</a></li>
+      <li><a href="#/docs/module-structure">Module Architecture</a></li>
+    </ul>
+  </div>
+</div>
+
+<script>lucide.createIcons();</script>

@@ -1,0 +1,478 @@
+<h1>Behavior Tree Integration</h1>
+<p class="note">Combine Utility AI with Behavior Trees for powerful hybrid AI. Learn how to use Behavior Trees as action executors while maintaining Utility AI's dynamic decision-making.</p>
+
+<div class="page-meta">
+  <span class="time"><i data-lucide="clock"></i> 12 minutes</span>
+  <span class="difficulty"><i data-lucide="bar-chart-2"></i> Advanced</span>
+</div>
+
+<div class="callout tip">
+  <span class="icon"><i data-lucide="lightbulb"></i></span>
+  <div>
+    <strong>Hybrid Power:</strong> Utility AI decides WHAT to do, Behavior Trees execute HOW to do it. Best of both worlds - intelligent decision-making with structured execution.
+  </div>
+</div>
+
+<h2>Why Combine Them?</h2>
+
+<h3>Utility AI Strengths</h3>
+
+<ul>
+  <li>✅ Dynamic action selection based on context</li>
+  <li>✅ Smooth priority handling</li>
+  <li>✅ Handles many variables elegantly</li>
+  <li>❌ Execution logic can be complex in code</li>
+</ul>
+
+<h3>Behavior Tree Strengths</h3>
+
+<ul>
+  <li>✅ Visual execution design</li>
+  <li>✅ Structured task breakdown</li>
+  <li>✅ Reusable sub-trees</li>
+  <li>❌ Static priority, inflexible decisions</li>
+</ul>
+
+<h3>Hybrid Approach</h3>
+
+<pre><code>Best of Both:
+  ├─ Utility AI: "Should I attack, cover, or retreat?"
+  │  └─ Scores all options, picks best
+  │
+  └─ Behavior Tree: "How do I execute attack?"
+     └─ Visual tree: Aim → Fire → Reload if needed
+
+Result: Smart decisions + Structured execution</code></pre>
+
+<h2>Architecture</h2>
+
+<pre><code>Hybrid AI Flow:
+┌────────────────────────────────────────────┐
+│ UUtilityBrainComponent                     │
+│ └─ Scores all actions                      │
+│    └─ Attack: 75.0 ✓ (Winner)             │
+│       TakeCover: 55.0                      │
+│       Reload: 45.0                         │
+└────────────────┬───────────────────────────┘
+                 ▼
+┌────────────────────────────────────────────┐
+│ UUtilityActionAsset: Attack                │
+│ └─ Executor: BehaviorTree                  │
+│    └─ BT_Attack                            │
+└────────────────┬───────────────────────────┘
+                 ▼
+┌────────────────────────────────────────────┐
+│ BT_Attack (Behavior Tree)                  │
+│ ├─ Selector: Choose attack type           │
+│ │  ├─ Sequence: Melee Attack              │
+│ │  └─ Sequence: Ranged Attack             │
+│ ├─ MoveTo: Get in range                   │
+│ ├─ RotateTo: Face target                  │
+│ └─ PlayAnimation: Attack anim              │
+└────────────────────────────────────────────┘</code></pre>
+
+<h2>Setup: Basic Integration</h2>
+
+<h3>Step 1: Create Behavior Tree</h3>
+
+<p>Create <code>BT_Attack</code> in Content Browser:</p>
+
+<pre><code>BT_Attack:
+  Root → Sequence
+    ├─ Task: Get Target Location
+    ├─ Task: Move To Target
+    ├─ Task: Aim At Target
+    ├─ Task: Fire Weapon
+    └─ Task: Wait (cooldown)</code></pre>
+
+<h3>Step 2: Create Action Asset</h3>
+
+<p>Create <code>DA_Action_Attack</code>:</p>
+
+<pre><code>Action Asset Configuration:
+  Action Name: "Attack"
+  Base Score: 60.0
+  
+  Considerations:
+    - HasKnownEnemy: 0→0, 1→100
+    - Distance: Optimal range curve
+    - AmmoCount: 0→0, 1→80
+  
+  Executor:
+    Type: Behavior Tree Executor
+    Behavior Tree: BT_Attack
+    Restart On Reselect: false
+    Stop On Abort: true</code></pre>
+
+<h3>Step 3: Add to Brain</h3>
+
+<p>Add action to Agent Preset or directly to brain.</p>
+
+<h2>Behavior Tree Executor Configuration</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Purpose</th>
+      <th>Default</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>BehaviorTree</strong></td>
+      <td>Which BT to execute</td>
+      <td>None (required)</td>
+    </tr>
+    <tr>
+      <td><strong>bRestartOnReselect</strong></td>
+      <td>Restart BT if action selected again</td>
+      <td>false</td>
+    </tr>
+    <tr>
+      <td><strong>bStopOnAbort</strong></td>
+      <td>Stop BT immediately when action interrupted</td>
+      <td>true</td>
+    </tr>
+    <tr>
+      <td><strong>bUseBlackboard</strong></td>
+      <td>Populate blackboard with action data</td>
+      <td>true</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Passing Data to Behavior Trees</h2>
+
+<h3>Auto-Populated Blackboard Keys</h3>
+
+<p>When action executes, these are automatically set:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Key Name</th>
+      <th>Type</th>
+      <th>Source</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>TargetActor</code></td>
+      <td>Actor</td>
+      <td>Action's target (if set)</td>
+    </tr>
+    <tr>
+      <td><code>TargetLocation</code></td>
+      <td>Vector</td>
+      <td>Action's target location</td>
+    </tr>
+    <tr>
+      <td><code>ActionScore</code></td>
+      <td>Float</td>
+      <td>Final action score</td>
+    </tr>
+    <tr>
+      <td><code>ActionName</code></td>
+      <td>Name</td>
+      <td>Action identifier</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Custom Data Transfer</h3>
+
+<pre><code>// In action's OnSelected callback
+void UMyAction::OnActionSelected(UUtilityBrainComponent* Brain)
+{
+    // Get blackboard from AI Controller
+    UBlackboardComponent* BB = Brain->GetBlackboardComponent();
+    
+    // Set custom values
+    BB->SetValueAsFloat("AttackIntensity", CalculateIntensity());
+    BB->SetValueAsBool("UseHeavyAttack", ShouldUseHeavy());
+    BB->SetValueAsVector("PreferredPosition", FindBestPosition());
+}
+
+// Behavior tree can now read these values</code></pre>
+
+<h2>Common BT Patterns</h2>
+
+<h3>Pattern 1: Simple Attack</h3>
+
+<pre><code>BT_SimpleAttack:
+  Sequence
+    ├─ Get Target (from blackboard)
+    ├─ Move To Target
+    ├─ Face Target
+    ├─ Play Attack Animation
+    └─ Success
+
+Used by: Basic combat actions</code></pre>
+
+<h3>Pattern 2: Complex Multi-Stage</h3>
+
+<pre><code>BT_ComplexAttack:
+  Sequence
+    ├─ Decorator: Check Ammo
+    ├─ Selector: Choose Attack Type
+    │  ├─ Sequence: Heavy Attack (if close)
+    │  └─ Sequence: Light Attack (if far)
+    ├─ Parallel: Attack + Strafe
+    │  ├─ Fire Weapon
+    │  └─ Strafe Movement
+    └─ Wait: Cooldown
+
+Used by: Advanced combat with options</code></pre>
+
+<h3>Pattern 3: Investigation</h3>
+
+<pre><code>BT_Investigate:
+  Sequence
+    ├─ Move To Suspicious Location
+    ├─ Look Around (360° scan)
+    ├─ Wait 2 seconds
+    ├─ Selector: Found Something?
+    │  ├─ Sequence: Enemy Found → Transition to combat
+    │  └─ Sequence: Nothing → Lower alert
+    └─ Success
+
+Used by: Stealth investigation behaviors</code></pre>
+
+<h3>Pattern 4: Cover Sequence</h3>
+
+<pre><code>BT_TakeCover:
+  Sequence
+    ├─ Find Cover Point (EQS or custom)
+    ├─ Move To Cover
+    ├─ Play Cover Animation
+    ├─ Wait In Cover
+    ├─ Selector: Peek Out?
+    │  ├─ Peek And Shoot
+    │  └─ Stay In Cover
+    └─ Success
+
+Used by: Defensive actions</code></pre>
+
+<h2>Action Lifecycle with BTs</h2>
+
+<pre><code>Action Selection:
+  t=0.0s: Brain evaluates actions
+  → Attack scores highest (75.0)
+  
+Action Start:
+  t=0.1s: OnActionSelected()
+  → Populate blackboard
+  → Start BT_Attack
+  → BT begins executing
+  
+BT Execution:
+  t=0.2s-2.0s: BT runs tasks
+  → MoveTo
+  → Aim
+  → Fire
+  → Wait
+  
+Action Complete:
+  t=2.0s: BT returns Success
+  → OnActionCompleted()
+  → Brain re-evaluates
+  
+Action Interrupted:
+  (Alternative) t=1.0s: Higher priority action
+  → BT stopped (if bStopOnAbort)
+  → OnActionAborted()
+  → New action starts</code></pre>
+
+<h2>Advanced Techniques</h2>
+
+<h3>Technique 1: Shared BT Sub-Trees</h3>
+
+<pre><code>// Reusable sub-trees
+BT_MoveTo_SubTree:
+  Sequence
+    ├─ Check Path Valid
+    ├─ Move To Location
+    └─ Success
+
+// Multiple actions use it
+BT_Attack includes BT_MoveTo_SubTree
+BT_Investigate includes BT_MoveTo_SubTree
+BT_Retreat includes BT_MoveTo_SubTree
+
+Result: DRY principle, maintainable</code></pre>
+
+<h3>Technique 2: Dynamic BT Selection</h3>
+
+<pre><code>// Action can choose BT at runtime
+void UMyAction::OnActionSelected(UUtilityBrainComponent* Brain)
+{
+    // Choose BT based on context
+    if (IsCloseRange())
+    {
+        Executor->SetBehaviorTree(BT_MeleeAttack);
+    }
+    else
+    {
+        Executor->SetBehaviorTree(BT_RangedAttack);
+    }
+}
+
+Result: One action, multiple execution paths</code></pre>
+
+<h3>Technique 3: BT Restart Control</h3>
+
+<pre><code>// Different restart behaviors
+Patrol Action:
+  bRestartOnReselect: true
+  → Always restart from beginning
+  → Fresh patrol route each time
+
+Attack Action:
+  bRestartOnReselect: false
+  → Continue from current point
+  → Resume interrupted attack
+
+Result: Control over execution continuity</code></pre>
+
+<h2>Debugging Hybrid AI</h2>
+
+<h3>Gameplay Debugger</h3>
+
+<pre><code>Press ' → 5 (Utility AI) → Select Agent
+
+Shows:
+  Current Action: Attack (75.0)
+  Executor: Behavior Tree
+  BT Status: Running
+  
+Press ' → 3 (Behavior Tree) → Same Agent
+
+Shows:
+  Active Tree: BT_Attack
+  Current Node: MoveTo
+  Blackboard Values:
+    - TargetActor: EnemyPawn_12
+    - TargetLocation: (1000, 500, 0)
+
+Both views work together!</code></pre>
+
+<h3>Visual Studio Debugger</h3>
+
+<pre><code>// Set breakpoints in both systems
+UUtilityBrainComponent::EvaluateAndRunBestAction()
+  → See action selection
+
+UBehaviorTreeComponent::TickComponent()
+  → See BT execution
+
+Trace full flow from decision to execution</code></pre>
+
+<h2>Performance Considerations</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Aspect</th>
+      <th>Cost</th>
+      <th>Optimization</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>BT Execution</td>
+      <td>0.5-1.5ms/agent</td>
+      <td>Standard BT optimization applies</td>
+    </tr>
+    <tr>
+      <td>Utility Evaluation</td>
+      <td>0.5-1.0ms/agent</td>
+      <td>Standard Utility AI optimization</td>
+    </tr>
+    <tr>
+      <td>Total Hybrid</td>
+      <td>1.0-2.5ms/agent</td>
+      <td>Both systems already optimized</td>
+    </tr>
+    <tr>
+      <td>Overhead</td>
+      <td>< 0.1ms</td>
+      <td>Minimal integration cost</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Best Practices</h2>
+
+<div class="callout tip">
+  <span class="icon"><i data-lucide="check-square"></i></span>
+  <div>
+    <strong>Hybrid AI Guidelines:</strong>
+    <ul class="compact">
+      <li>✅ Use Utility AI for WHAT decision</li>
+      <li>✅ Use Behavior Trees for HOW execution</li>
+      <li>✅ Keep BTs focused (one action = one tree)</li>
+      <li>✅ Reuse common sub-trees (MoveTo, Aim, etc.)</li>
+      <li>✅ Set bStopOnAbort for interruptible actions</li>
+      <li>❌ Don't put decision logic in BTs (that's Utility's job)</li>
+      <li>❌ Don't make BTs too complex (defeats the purpose)</li>
+      <li>❌ Don't duplicate action selection in BT Selectors</li>
+    </ul>
+  </div>
+</div>
+
+<h2>Migration from Pure BT</h2>
+
+<h3>Before: Traditional BT</h3>
+
+<pre><code>BT_MainLogic:
+  Selector (Evaluate every frame)
+    ├─ Sequence: See Enemy?
+    │  └─ Run BT_Attack
+    ├─ Sequence: Hear Sound?
+    │  └─ Run BT_Investigate
+    ├─ Sequence: Low Health?
+    │  └─ Run BT_Heal
+    └─ Run BT_Patrol
+
+Problem: Decision logic in tree structure
+Hard to tune, inflexible priorities</code></pre>
+
+<h3>After: Hybrid Approach</h3>
+
+<pre><code>Utility AI:
+  Actions:
+    - Attack (Score: 60, Considerations: See Enemy, Distance, Ammo)
+    - Investigate (Score: 50, Considerations: Hear Sound, Alert)
+    - Heal (Score: 70, Considerations: Low Health, Has HealthPack)
+    - Patrol (Score: 15, Considerations: Nothing else)
+
+Each action → Own focused BT:
+  - BT_Attack (just execution)
+  - BT_Investigate (just execution)
+  - BT_Heal (just execution)
+  - BT_Patrol (just execution)
+
+Benefit: Clean separation, easy to tune</code></pre>
+
+<h2>Next Steps</h2>
+
+<div class="next-steps">
+  <a class="button primary" href="#/docs/action-patterns">
+    <i data-lucide="target"></i>
+    Action Design Patterns
+  </a>
+  <a class="button" href="#/docs/custom-services">
+    <i data-lucide="tool"></i>
+    Custom Services
+  </a>
+</div>
+
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="#/docs/first-combat-ai"><i data-lucide="crosshair"></i> Combat AI Tutorial</a> - Includes BT integration</li>
+  <li><a href="#/docs/action-patterns"><i data-lucide="target"></i> Action Patterns</a> - Design actions for BT execution</li>
+  <li><a href="#/docs/intelligence-layers"><i data-lucide="cpu"></i> Intelligence Layers</i> - BT as tactical execution</li>
+</ul>
+
+<script>lucide.createIcons();</script>

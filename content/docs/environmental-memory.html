@@ -1,0 +1,428 @@
+<h1>Environmental Memory</h1>
+<p>The Environmental Memory system allows AI agents to remember object states and detect changes, enabling investigation and patrol behaviors.</p>
+
+<h2>Overview</h2>
+<p>Environmental Memory gives your AI agents situational awareness beyond just seeing enemies:</p>
+<ul>
+  <li>Remember door positions (open/closed)</li>
+  <li>Track container states (opened/looted)</li>
+  <li>Detect displaced objects (moved since last patrol)</li>
+  <li>Notice environmental changes</li>
+  <li>Investigate suspicious alterations</li>
+</ul>
+
+<div class="callout note">
+  <span class="icon" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10"></circle>
+      <line x1="12" y1="16" x2="12" y2="12"></line>
+      <line x1="12" y1="8" x2="12.01" y2="8"></line>
+    </svg>
+  </span>
+  <div>
+    <strong>Use Cases:</strong> Stealth game guards detecting intrusions, patrol AI noticing disturbances, security systems tracking unauthorized access, investigation behaviors.
+  </div>
+</div>
+
+<h2>System Architecture</h2>
+
+<pre><code>┌──────────────────────────────────────────────┐
+│         ENVIRONMENTAL MEMORY FLOW            │
+└──────────────────────────────────────────────┘
+
+1. WORLD OBJECTS
+   ├─ Door, Container, Physics Object
+   ├─ Tagged: CIN.Memory.Memorizable
+   └─ Implements state interface
+
+2. PERCEPTION ENVIRONMENT SUBSYSTEM (Global)
+   ├─ Tracks all memorizable objects in level
+   ├─ Monitors state changes
+   └─ Broadcasts change events
+
+3. ENVIRONMENTAL MEMORY COMPONENT (Per Agent)
+   ├─ Scans nearby objects
+   ├─ Stores object snapshots
+   ├─ Compares current vs remembered state
+   └─ Detects changes (displaced, state)
+
+4. SERVICE_ENVIRONMENTAL_MEMORY
+   ├─ Polls component for changes
+   ├─ Publishes Named Inputs
+   │  ├─ HasDisplacedObjects
+   │  ├─ HasOpenDoors
+   │  └─ SuspiciousChangeCount
+   └─ Updates every 0.2s
+
+5. ACTIONS USE INPUTS
+   └─ Action_Investigate scores high when
+       HasDisplacedObjects = 1.0</code></pre>
+
+<h2>Setup</h2>
+
+<h3>Step 1: Tag World Objects</h3>
+<pre><code>// Mark objects as memorizable
+Door Actor:
+  └─ Gameplay Tags: CIN.Memory.Memorizable
+  └─ Object Type: Door
+
+Container Actor:
+  └─ Gameplay Tags: CIN.Memory.Memorizable
+  └─ Object Type: Container
+
+Physics Object:
+  └─ Gameplay Tags: CIN.Memory.Memorizable
+  └─ Object Type: Displaceable</code></pre>
+
+<h3>Step 2: Add Component to Pawn</h3>
+<pre><code>// AI Pawn Blueprint
+Add Component: UEnvironmentalMemoryComponent
+
+Properties:
+  Memory Range: 3000 units
+  Max Memorized Objects: 50
+  Scan Interval: 1.0s
+  Displacement Threshold: 50 units
+  bTrackDoors: true
+  bTrackContainers: true
+  bTrackDisplacement: true</code></pre>
+
+<h3>Step 3: Add Service to Brain</h3>
+<pre><code>// Agent Preset or Brain setup
+Add Service: Service_EnvironmentalMemory
+
+Properties:
+  Min Interval: 0.2s
+  bPublishChangeInputs: true
+  bPublishCountInputs: true</code></pre>
+
+<h3>Step 4: Create Investigation Action</h3>
+<pre><code>Action: "Investigate"
+Base Score: 30
+
+Scoring Curves:
+  HasDisplacedObjects: (0→0, 1→100)
+  HasOpenDoors: (0→0, 1→80)
+  SuspiciousChangeCount: (0→0, 0.5→50, 1→100)
+  HasKnownEnemy: (0→0, 1→-100) // Don't investigate if in combat
+
+Executor: BT_Investigate</code></pre>
+
+<h2>Published Named Inputs</h2>
+
+<table class="comparison">
+  <thead>
+    <tr>
+      <th>Input Name</th>
+      <th>Range</th>
+      <th>Meaning</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>HasMemorizedObjects</td>
+      <td>0 or 1</td>
+      <td>Any objects in memory</td>
+    </tr>
+    <tr>
+      <td>MemorizedObjectCount</td>
+      <td>0-1</td>
+      <td>Count / MaxMemorizedObjects</td>
+    </tr>
+    <tr>
+      <td>HasDisplacedObjects</td>
+      <td>0 or 1</td>
+      <td>Objects moved since last seen</td>
+    </tr>
+    <tr>
+      <td>DisplacedObjectCount</td>
+      <td>0-1</td>
+      <td>Displaced / Total memorized</td>
+    </tr>
+    <tr>
+      <td>NearestDisplacedDistance</td>
+      <td>0-1</td>
+      <td>Distance to nearest displaced object</td>
+    </tr>
+    <tr>
+      <td>HasOpenDoors</td>
+      <td>0 or 1</td>
+      <td>Doors opened since patrol</td>
+    </tr>
+    <tr>
+      <td>OpenDoorCount</td>
+      <td>0-1</td>
+      <td>Open doors / Total doors</td>
+    </tr>
+    <tr>
+      <td>HasOpenContainers</td>
+      <td>0 or 1</td>
+      <td>Containers opened</td>
+    </tr>
+    <tr>
+      <td>SuspiciousChangeCount</td>
+      <td>0-1</td>
+      <td>Total changes / Max tracked</td>
+    </tr>
+    <tr>
+      <td>NearestChangeDistance</td>
+      <td>0-1</td>
+      <td>Distance to nearest change</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Object State Tracking</h2>
+
+<h3>Displacement Detection</h3>
+<pre><code>// Physics objects, furniture, items
+Object Snapshot:
+  ├─ Original Position: (100, 200, 50)
+  ├─ Original Rotation: (0, 0, 0)
+  └─ Timestamp: 10.5s
+
+Current State:
+  ├─ Current Position: (150, 210, 50)
+  ├─ Distance Moved: 51 units
+  └─ Threshold: 50 units
+
+Result: DISPLACED (51 > 50)
+  → HasDisplacedObjects = 1.0
+  → Agent investigates</code></pre>
+
+<h3>Door State Tracking</h3>
+<pre><code>// Doors (open/closed detection)
+Door Snapshot:
+  ├─ State: Closed
+  ├─ Yaw: 0°
+  └─ Timestamp: 15.0s
+
+Current State:
+  ├─ State: Open
+  ├─ Yaw: 90°
+  └─ Detection: Door opened
+
+Result: STATE CHANGED
+  → HasOpenDoors = 1.0
+  → Agent investigates entry point</code></pre>
+
+<h3>Container State Tracking</h3>
+<pre><code>// Chests, crates, lockers
+Container Snapshot:
+  ├─ State: Closed
+  ├─ bLooted: false
+  └─ Timestamp: 20.0s
+
+Current State:
+  ├─ State: Open
+  ├─ bLooted: true
+  └─ Detection: Container looted
+
+Result: STATE CHANGED
+  → HasOpenContainers = 1.0
+  → Agent raises alert level</code></pre>
+
+<h2>Component API</h2>
+
+<h3>Blueprint Functions</h3>
+<pre><code>// Memory Operations
+ScanForMemorizableObjects()
+ClearMemory()
+ForgetObject(Actor)
+RefreshMemory()
+
+// Queries
+GetMemorizedObjects() → Array
+GetDisplacedObjects() → Array
+GetChangedObjects() → Array
+GetNearestDisplacedObject() → Actor
+HasDisplacedObjects() → Bool
+GetDisplacementCount() → Int
+
+// State
+IsObjectMemorized(Actor) → Bool
+GetObjectSnapshot(Actor) → Snapshot
+GetDisplacementDistance(Actor) → Float</code></pre>
+
+<h3>C++ API</h3>
+<pre><code>// UEnvironmentalMemoryComponent.h
+class UEnvironmentalMemoryComponent : public UActorComponent
+{
+public:
+    UFUNCTION(BlueprintCallable)
+    void ScanForMemorizableObjects();
+    
+    UFUNCTION(BlueprintCallable)
+    TArray&lt;AActor*&gt; GetDisplacedObjects() const;
+    
+    UFUNCTION(BlueprintCallable)
+    bool HasSuspiciousChanges() const;
+    
+    UFUNCTION(BlueprintCallable)
+    AActor* GetNearestChangedObject() const;
+};</code></pre>
+
+<h2>Investigation Actions</h2>
+
+<h3>Basic Investigation Pattern</h3>
+<pre><code>Action: "Investigate Displacement"
+Triggers When:
+  - HasDisplacedObjects = 1.0
+  - Not in combat (HasKnownEnemy < 0.1)
+
+Behavior Tree:
+  1. Get nearest displaced object location
+  2. Move to location
+  3. Look around (360° scan)
+  4. If enemy found → Alert
+  5. If nothing → Resume patrol
+  6. Clear object from suspicious list</code></pre>
+
+<h3>Door Investigation Pattern</h3>
+<pre><code>Action: "Investigate Open Door"
+Triggers When:
+  - HasOpenDoors = 1.0
+  - Not in combat
+
+Behavior Tree:
+  1. Get nearest open door
+  2. Move to door
+  3. Peek through doorway
+  4. Scan room beyond
+  5. If intruder → Alert
+  6. If clear → Close door, resume patrol</code></pre>
+
+<h3>Multi-Change Investigation</h3>
+<pre><code>Action: "Investigate Area"
+Triggers When:
+  - SuspiciousChangeCount > 0.5 (multiple changes)
+  
+Behavior Tree:
+  1. Get all changed objects in area
+  2. Calculate center point
+  3. Move to center
+  4. Systematic area search
+  5. Radio report
+  6. Request backup if suspicious</code></pre>
+
+<h2>Integration with Archetypes</h2>
+
+<h3>BaseStealth Archetype</h3>
+<pre><code>Built-in Environmental Memory:
+  ✓ Service_EnvironmentalMemory included
+  ✓ Memory Range: 3000 units
+  ✓ Tracks: Doors, Containers, Displacement
+  ✓ Scan Interval: 0.5s (frequent)
+
+Recommended Actions:
+  - Patrol (low priority when HasDisplacedObjects)
+  - Investigate (high priority when changes detected)
+  - Alert (escalate if multiple changes)
+  - Search (after investigation incomplete)</code></pre>
+
+<h3>BaseCombat Integration</h3>
+<pre><code>Optional Environmental Memory:
+  - Add Service_EnvironmentalMemory manually
+  - Lower scan frequency (1.0s)
+  - Track only doors (tactical awareness)
+  
+Use For:
+  - Detecting enemy entry points
+  - Noticing flanking routes opened
+  - Awareness of combat area changes</code></pre>
+
+<h2>Performance Considerations</h2>
+
+<h3>Scan Frequency</h3>
+<pre><code>Scan Interval Guidelines:
+  Stealth Guard: 0.5s (frequent)
+  Patrol AI: 1.0s (moderate)
+  Ambient NPC: 2.0s (low)
+  Inactive Agent: Disabled
+
+// Dynamic throttling
+if (DistanceToPlayer > 3000)
+{
+    ScanInterval = 2.0f; // Far away, less critical
+}
+else if (AlertLevel > 0.5)
+{
+    ScanInterval = 0.3f; // Alert, scan more
+}
+else
+{
+    ScanInterval = 1.0f; // Normal
+}</code></pre>
+
+<h3>Memory Limits</h3>
+<pre><code>Max Memorized Objects:
+  Detail Level High: 100 objects
+  Detail Level Medium: 50 objects
+  Detail Level Low: 25 objects
+
+Objects beyond limit:
+  → Oldest memories forgotten first
+  → Keep changed objects longer</code></pre>
+
+<h2>Debugging</h2>
+
+<h3>Visual Debug</h3>
+<pre><code>// Show memory state in-world
+Component Properties:
+  bDebugDraw: true
+
+Visualization:
+  Green Sphere: Memorized objects (normal)
+  Yellow Sphere: Changed state (door/container)
+  Red Sphere: Displaced objects
+  Blue Line: To nearest change</code></pre>
+
+<h3>Gameplay Debugger</h3>
+<pre><code>Press ' → Environmental Memory Category
+
+Agent: Guard_01
+Memory Range: 3000 units
+Memorized: 23 objects
+Displaced: 2 objects
+Doors Changed: 1
+Containers Changed: 0
+
+Changes:
+  [Displaced] Chair_05 (45 units moved)
+  [Displaced] Barrel_12 (78 units moved)
+  [Door] Door_Main (Closed → Open)</code></pre>
+
+<h2>Best Practices</h2>
+
+<div class="callout tip">
+  <span class="icon" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
+    </svg>
+  </span>
+  <div>
+    <strong>Environmental Memory Guidelines:</strong>
+    <ul>
+      <li><strong>Tag Strategically:</strong> Only tag important objects (doors, valuables, etc.)</li>
+      <li><strong>Set Thresholds:</strong> DisplacementThreshold depends on object type (small items: 10, furniture: 50)</li>
+      <li><strong>Clear After Investigation:</strong> Remove resolved changes from memory</li>
+      <li><strong>LOD Awareness:</strong> Reduce scan rate for distant agents</li>
+      <li><strong>Combine with Perception:</strong> Cross-reference memory changes with sight/sound</li>
+      <li><strong>Escalate Properly:</strong> Single change = investigate, multiple = alert</li>
+    </ul>
+  </div>
+</div>
+
+<h2>Next Steps</h2>
+<div class="hero-cta">
+  <a class="button primary" href="#/docs/perception">Perception System</a>
+  <a class="button" href="#/docs/tactical-squad">Squad System</a>
+  <a class="button" href="#/examples/stealth-patrol">Stealth Example</a>
+</div>
+
+<h3>Related Documentation</h3>
+<ul>
+  <li><a href="#/docs/services">Services</a> - Service_EnvironmentalMemory details</li>
+  <li><a href="#/docs/archetypes">Archetypes</a> - BaseStealth with memory</li>
+  <li><a href="#/examples/investigation">Investigation Example</a> - Complete setup</li>
+</ul>

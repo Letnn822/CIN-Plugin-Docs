@@ -1,0 +1,25 @@
+<h1>End-to-End Setup</h1>
+<p>An example from empty level to behavior switching.</p>
+
+<h2>1) Agent + Health</h2>
+<pre><code>// Blueprint
+BindToGameplayAttribute("Health", "Attributes.Health", true, (0, 100))
+</code></pre>
+
+<h2>2) Stamina + Distance</h2>
+<pre><code>// Blueprint
+BindToGameplayAttribute("Stamina", "Attributes.Stamina", true, (0, 100))
+BindToBlueprintFunction("DistanceToPlayer", "GetDistanceToPlayerNormalized")
+</code></pre>
+
+<h2>3) Behavior switch</h2>
+<pre><code>// Pseudo Blueprint scoring
+ScoreAdvance = (1 - DistanceToPlayer) * Stamina
+ScoreRetreat  = (1 - Health)
+SetCurrentGoal(Max(Advance, Retreat))
+</code></pre>
+
+<h2>4) Validate</h2>
+<pre><code>ValidateParameterBindings()
+RefreshParameterBindings()
+</code></pre>

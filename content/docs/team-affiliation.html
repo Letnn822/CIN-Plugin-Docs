@@ -1,0 +1,228 @@
+<h1>Team Affiliation System</h1>
+<p class="note">Complete guide to team/faction management using Unreal's GenericTeamId interface. Learn how AI distinguishes friends from enemies.</p>
+
+<div class="page-meta">
+  <span class="time"><i data-lucide="clock"></i> 12 minutes</span>
+  <span class="difficulty"><i data-lucide="bar-chart-3"></i> Reference</span>
+</div>
+
+<h2>Overview</h2>
+
+<p>Team affiliation determines how AI agents perceive and react to each other. CIN Plugin uses Unreal Engine's built-in GenericTeamId system.</p>
+
+<h2>Setting Team ID</h2>
+
+<h3>In C++</h3>
+
+<pre><code>// AIController or Pawn
+void AMyAIController::BeginPlay()
+{
+    Super::BeginPlay();
+    
+    // Set team ID (0-255)
+    SetGenericTeamId(FGenericTeamId(1)); // Team 1
+}
+
+// Common team IDs:
+// 0 = Neutral
+// 1 = Player team
+// 2 = Enemy team
+// 3-255 = Custom teams</code></pre>
+
+<h3>In Blueprint</h3>
+
+<pre><code>Event BeginPlay
+  → Get AI Controller
+  → Set Generic Team Id
+    Team ID: 1 (byte)
+    
+Common Setup:
+  Player pawns: Team 1
+  Enemy AI: Team 2
+  Neutral NPCs: Team 0
+  Ally AI: Team 1</code></pre>
+
+<h2>Team Attitudes</h2>
+
+<h3>Default Attitudes</h3>
+
+<pre><code>Same Team ID → Friendly
+Different Team ID → Hostile
+Team 0 (Neutral) → Neutral to all
+
+Configure in Project Settings:
+  Edit → Project Settings → AI System
+  → Team Attitudes</code></pre>
+
+<h3>Custom Attitudes</h3>
+
+<pre><code>// Override in AIController
+ETeamAttitude::Type AMyAIController::GetTeamAttitudeTowards(const AActor& Other) const
+{
+    const IGenericTeamAgentInterface* OtherTeam = Cast<IGenericTeamAgentInterface>(&Other);
+    if (!OtherTeam) 
+        return ETeamAttitude::Neutral;
+    
+    FGenericTeamId OtherTeamID = OtherTeam->GetGenericTeamId();
+    FGenericTeamId MyTeamID = GetGenericTeamId();
+    
+    // Custom logic
+    if (MyTeamID == 1 && OtherTeamID == 3)
+        return ETeamAttitude::Friendly; // Team 1 and 3 are allies
+        
+    if (OtherTeamID == 0)
+        return ETeamAttitude::Neutral; // Neutral NPCs
+        
+    return MyTeamID == OtherTeamID ? 
+        ETeamAttitude::Friendly : 
+        ETeamAttitude::Hostile;
+}</code></pre>
+
+<h2>Perception Integration</h2>
+
+<h3>Automatic Enemy Detection</h3>
+
+<pre><code>// PerceptionMonitor service automatically uses team affiliation
+void UService_PerceptionMonitor::ClassifyActor(AActor* PerceivedActor)
+{
+    IGenericTeamAgentInterface* TeamAgent = Cast<IGenericTeamAgentInterface>(GetOwner());
+    IGenericTeamAgentInterface* OtherTeam = Cast<IGenericTeamAgentInterface>(PerceivedActor);
+    
+    if (TeamAgent && OtherTeam)
+    {
+        ETeamAttitude::Type Attitude = FGenericTeamId::GetAttitude(
+            TeamAgent->GetGenericTeamId(),
+            OtherTeam->GetGenericTeamId()
+        );
+        
+        if (Attitude == ETeamAttitude::Hostile)
+        {
+            // Add to enemies list
+            KnownEnemies.Add(PerceivedActor);
+        }
+        else if (Attitude == ETeamAttitude::Friendly)
+        {
+            // Add to allies list
+            KnownAllies.Add(PerceivedActor);
+        }
+    }
+}</code></pre>
+
+<h2>Common Patterns</h2>
+
+<h3>2-Team Setup (Player vs AI)</h3>
+
+<pre><code>Player Team: ID = 1
+  - Player pawn
+  - Ally AI
+  
+Enemy Team: ID = 2
+  - Enemy AI
+  - Boss AI
+  
+Neutral: ID = 0
+  - NPCs
+  - Wildlife</code></pre>
+
+<h3>Multi-Faction Setup</h3>
+
+<pre><code>Player Alliance: ID = 1
+Enemy Faction A: ID = 2
+Enemy Faction B: ID = 3
+Neutral Traders: ID = 0
+
+Custom attitudes:
+  Team 2 vs Team 3 → Hostile (factions fight each other)
+  Team 1 vs Team 2 → Hostile
+  Team 1 vs Team 3 → Hostile
+  Team 0 → Neutral to all</code></pre>
+
+<h3>Dynamic Team Changes</h3>
+
+<pre><code>// Change team at runtime
+void SwitchTeam(int32 NewTeamID)
+{
+    SetGenericTeamId(FGenericTeamId(NewTeamID));
+    
+    // Refresh perception
+    if (UAIPerceptionComponent* Perception = GetPerceptionComponent())
+    {
+        Perception->RequestStimuliListenerUpdate();
+    }
+}
+
+Use cases:
+  - Mind control
+  - Diplomacy changes
+  - Betrayal events
+  - Faction reputation shifts</code></pre>
+
+<h2>Squad Integration</h2>
+
+<h3>Squad + Team Setup</h3>
+
+<pre><code>// Squads within same team
+TacticalMemberComponent:
+  TeamID: 1 (all squad members)
+  SquadName: "AlphaSquad"
+  
+// Multiple squads, same team
+Squad Alpha: Team 1, Squad "Alpha"
+Squad Bravo: Team 1, Squad "Bravo"
+
+Both squads are friendly (same team)
+But coordinated separately (different squads)</code></pre>
+
+<h2>Debugging Team Affiliation</h2>
+
+<h3>Gameplay Debugger</h3>
+
+<pre><code>Press ' → Select agent
+
+Shows:
+  Team ID: Current team
+  Perceived Actors: Color-coded by attitude
+    Red = Hostile
+    Green = Friendly
+    Yellow = Neutral</code></pre>
+
+<h3>Logging</h3>
+
+<pre><code>// Add to service or controller
+UE_LOG(LogAI, Warning, TEXT("My Team: %d, Other Team: %d, Attitude: %s"),
+    MyTeamID.GetId(),
+    OtherTeamID.GetId(),
+    *UEnum::GetValueAsString(Attitude));</code></pre>
+
+<h2>Best Practices</h2>
+
+<div class="callout tip">
+  <span class="icon"><i data-lucide="check-square"></i></span>
+  <div>
+    <strong>Team Affiliation Best Practices:</strong>
+    <ul class="compact">
+      <li>✅ Set team ID in BeginPlay or on spawn</li>
+      <li>✅ Use consistent IDs across project</li>
+      <li>✅ Document team ID meanings</li>
+      <li>✅ Team 0 for truly neutral actors</li>
+      <li>✅ Test perception with different teams</li>
+      <li>❌ Don't change team ID frequently</li>
+      <li>❌ Don't forget to implement IGenericTeamAgentInterface</li>
+    </ul>
+  </div>
+</div>
+
+<h2>Next Steps</h2>
+
+<div class="next-steps">
+  <a class="button primary" href="#/docs/perception-setup">
+    <i data-lucide="eye"></i>
+    Perception Setup
+  </a>
+  <a class="button" href="#/docs/squad-setup">
+    <i data-lucide="users"></i>
+    Squad Setup
+  </a>
+</div>
+
+<script>lucide.createIcons();</script>

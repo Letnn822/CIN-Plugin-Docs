@@ -1,0 +1,480 @@
+<h1>Input Provider API</h1>
+<p class="note">Complete reference for input provider components that publish data to the Utility AI brain. Learn how to create custom input providers for specialized data sources.</p>
+
+<div class="page-meta">
+  <span class="time"><i data-lucide="clock"></i> 18 minutes</span>
+  <span class="difficulty"><i data-lucide="bar-chart-3"></i> Reference</span>
+</div>
+
+<h2>System Overview</h2>
+
+<pre><code>Input Provider Pattern:
+
+Component (Input Provider)
+├─ Gathers specialized data
+├─ Processes and normalizes
+├─ Publishes to brain via SetNamedInputValue
+└─ Ticks independently
+
+Brain Component
+├─ Receives inputs from multiple providers
+├─ Stores in TMap<FName, float>
+└─ Actions read during scoring
+
+Purpose:
+  Modular, reusable data publishing
+  Separation of concerns
+  Easy to add/remove providers</code></pre>
+
+<h2>Base Pattern</h2>
+
+<h3>Component Structure</h3>
+
+<pre><code>// Example input provider component
+UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
+class UMyInputProviderComponent : public UActorComponent
+{
+    GENERATED_BODY()
+    
+public:
+    UMyInputProviderComponent();
+    
+    virtual void TickComponent(float DeltaTime, ELevelTick TickType, 
+        FActorComponentTickFunction* ThisTickFunction) override;
+    
+protected:
+    virtual void BeginPlay() override;
+    
+    // Configuration
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Input Provider")
+    float UpdateInterval = 0.2f;
+    
+    // Cached references
+    UPROPERTY()
+    UUtilityBrainComponent* CachedBrain;
+    
+    float TimeSinceLastUpdate;
+};</code></pre>
+
+<h2>Built-In Input Providers</h2>
+
+<h3>1. UTacticalSquadInputProviderComponent</h3>
+
+<pre><code>Class: UTacticalSquadInputProviderComponent
+Module: CINAI
+Header: Public/Providers/TacticalSquadInputProviderComponent.h
+
+Purpose:
+  Publishes squad-related inputs from TacticalSquadComponent.
+  Provides squad strategy, member info, and shared intel.
+
+Published Inputs:
+  IsInSquad (0/1)
+  IsSquadLeader (0/1)
+  SquadMemberIndex (0-1, normalized position)
+  SquadMemberCount (0-1, max 10)
+  SquadKnownEnemies (0-1, max 20)
+  DistanceToLastKnownEnemy (0-1, max 5000)
+  SquadStrategy_Search (0/1)
+  SquadStrategy_Assault (0/1)
+  SquadStrategy_Flank (0/1)
+  SquadStrategy_Hold (0/1)
+  SquadStrategy_Retreat (0/1)
+
+Configuration:
+  None required - auto-discovers squad component
+
+Usage:
+  Add to AIController or Pawn
+  Requires TacticalMemberComponent
+  Auto-publishes every tick</code></pre>
+
+<h4>Implementation Details</h4>
+
+<pre><code>void UTacticalSquadInputProviderComponent::TickComponent(float DeltaTime, ...)
+{
+    Super::TickComponent(DeltaTime, ...);
+    
+    // Get squad member component
+    UTacticalMemberComponent* Member = GetOwner()->FindComponentByClass<UTacticalMemberComponent>();
+    if (!Member) return;
+    
+    // Get brain
+    UUtilityBrainComponent* Brain = GetOwner()->FindComponentByClass<UUtilityBrainComponent>();
+    if (!Brain) return;
+    
+    // Get squad state
+    FSquadState SquadState = GetSquadManager()->GetSquadState(Member->GetSquadName());
+    
+    // Publish basic squad info
+    Brain->SetNamedInputValue(TEXT("IsInSquad"), SquadState.Members.Num() > 0 ? 1.0f : 0.0f);
+    Brain->SetNamedInputValue(TEXT("IsSquadLeader"), Member->IsSquadLeader() ? 1.0f : 0.0f);
+    Brain->SetNamedInputValue(TEXT("SquadMemberIndex"), Member->GetMemberIndex() / 10.0f);
+    Brain->SetNamedInputValue(TEXT("SquadMemberCount"), SquadState.Members.Num() / 10.0f);
+    
+    // Publish squad intel
+    int32 KnownEnemies = SquadState.KnownEnemies.Num();
+    Brain->SetNamedInputValue(TEXT("SquadKnownEnemies"), FMath::Clamp(KnownEnemies / 20.0f, 0.0f, 1.0f));
+    
+    // Publish strategy flags
+    ESquadStrategy CurrentStrategy = SquadState.CurrentStrategy;
+    Brain->SetNamedInputValue(TEXT("SquadStrategy_Search"), CurrentStrategy == ESquadStrategy::Search ? 1.0f : 0.0f);
+    Brain->SetNamedInputValue(TEXT("SquadStrategy_Assault"), CurrentStrategy == ESquadStrategy::Assault ? 1.0f : 0.0f);
+    Brain->SetNamedInputValue(TEXT("SquadStrategy_Flank"), CurrentStrategy == ESquadStrategy::Flank ? 1.0f : 0.0f);
+    Brain->SetNamedInputValue(TEXT("SquadStrategy_Hold"), CurrentStrategy == ESquadStrategy::Hold ? 1.0f : 0.0f);
+    Brain->SetNamedInputValue(TEXT("SquadStrategy_Retreat"), CurrentStrategy == ESquadStrategy::Retreat ? 1.0f : 0.0f);
+}</code></pre>
+
+<h2>Creating Custom Input Providers</h2>
+
+<h3>Example: Health Input Provider</h3>
+
+<pre><code>// HealthInputProviderComponent.h
+#pragma once
+#include "CoreMinimal.h"
+#include "Components/ActorComponent.h"
+#include "HealthInputProviderComponent.generated.h"
+
+UCLASS(ClassGroup=(UtilityAI), meta=(BlueprintSpawnableComponent))
+class MYGAME_API UHealthInputProviderComponent : public UActorComponent
+{
+    GENERATED_BODY()
+    
+public:
+    UHealthInputProviderComponent();
+    
+    virtual void TickComponent(float DeltaTime, ELevelTick TickType, 
+        FActorComponentTickFunction* ThisTickFunction) override;
+    
+protected:
+    virtual void BeginPlay() override;
+    
+    // Configuration
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Health Provider")
+    float UpdateInterval = 0.2f;
+    
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Health Provider")
+    bool bPublishHealthInputs = true;
+    
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Health Provider")
+    bool bPublishStaminaInputs = true;
+    
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Health Provider")
+    bool bPublishShieldInputs = false;
+    
+private:
+    UPROPERTY()
+    UUtilityBrainComponent* CachedBrain;
+    
+    float TimeSinceLastUpdate;
+    
+    void PublishHealthData();
+    float GetHealthPercent() const;
+    float GetStaminaPercent() const;
+    float GetShieldPercent() const;
+};
+
+// HealthInputProviderComponent.cpp
+void UHealthInputProviderComponent::BeginPlay()
+{
+    Super::BeginPlay();
+    
+    // Cache brain reference
+    CachedBrain = GetOwner()->FindComponentByClass<UUtilityBrainComponent>();
+    TimeSinceLastUpdate = 0.0f;
+}
+
+void UHealthInputProviderComponent::TickComponent(float DeltaTime, ...)
+{
+    Super::TickComponent(DeltaTime, ...);
+    
+    if (!CachedBrain) return;
+    
+    // Throttle updates
+    TimeSinceLastUpdate += DeltaTime;
+    if (TimeSinceLastUpdate < UpdateInterval)
+        return;
+    
+    TimeSinceLastUpdate = 0.0f;
+    
+    // Publish data
+    PublishHealthData();
+}
+
+void UHealthInputProviderComponent::PublishHealthData()
+{
+    if (bPublishHealthInputs)
+    {
+        float HealthPercent = GetHealthPercent();
+        CachedBrain->SetNamedInputValue(TEXT("Health"), HealthPercent);
+        
+        // Health categories
+        CachedBrain->SetNamedInputValue(TEXT("HealthCritical"), HealthPercent < 0.3f ? 1.0f : 0.0f);
+        CachedBrain->SetNamedInputValue(TEXT("HealthLow"), HealthPercent < 0.5f ? 1.0f : 0.0f);
+        CachedBrain->SetNamedInputValue(TEXT("HealthFull"), HealthPercent > 0.9f ? 1.0f : 0.0f);
+    }
+    
+    if (bPublishStaminaInputs)
+    {
+        float StaminaPercent = GetStaminaPercent();
+        CachedBrain->SetNamedInputValue(TEXT("Stamina"), StaminaPercent);
+        CachedBrain->SetNamedInputValue(TEXT("StaminaDepleted"), StaminaPercent < 0.2f ? 1.0f : 0.0f);
+    }
+    
+    if (bPublishShieldInputs)
+    {
+        float ShieldPercent = GetShieldPercent();
+        CachedBrain->SetNamedInputValue(TEXT("Shield"), ShieldPercent);
+        CachedBrain->SetNamedInputValue(TEXT("ShieldActive"), ShieldPercent > 0.0f ? 1.0f : 0.0f);
+    }
+}</code></pre>
+
+<h3>Example: Inventory Input Provider</h3>
+
+<pre><code>// InventoryInputProviderComponent
+UCLASS()
+class UInventoryInputProviderComponent : public UActorComponent
+{
+    GENERATED_BODY()
+    
+public:
+    virtual void TickComponent(float DeltaTime, ...) override;
+    
+protected:
+    void PublishInventoryData();
+    
+private:
+    UInventoryComponent* InventoryComp;
+    UUtilityBrainComponent* Brain;
+};
+
+void UInventoryInputProviderComponent::PublishInventoryData()
+{
+    if (!InventoryComp || !Brain) return;
+    
+    // Ammo
+    int32 CurrentAmmo = InventoryComp->GetCurrentAmmo();
+    int32 MaxAmmo = InventoryComp->GetMaxAmmo();
+    float AmmoPercent = (float)CurrentAmmo / FMath::Max(1, MaxAmmo);
+    Brain->SetNamedInputValue(TEXT("AmmoLevel"), AmmoPercent);
+    
+    // Has specific items
+    Brain->SetNamedInputValue(TEXT("HasHealthPack"), InventoryComp->HasItem("HealthPack") ? 1.0f : 0.0f);
+    Brain->SetNamedInputValue(TEXT("HasGrenade"), InventoryComp->HasItem("Grenade") ? 1.0f : 0.0f);
+    Brain->SetNamedInputValue(TEXT("HasKeycard"), InventoryComp->HasItem("Keycard") ? 1.0f : 0.0f);
+    
+    // Item counts
+    int32 GrenadeCount = InventoryComp->GetItemCount("Grenade");
+    Brain->SetNamedInputValue(TEXT("GrenadeCount"), FMath::Clamp(GrenadeCount / 5.0f, 0.0f, 1.0f));
+    
+    // Inventory space
+    float UsedSpace = InventoryComp->GetUsedCapacity() / InventoryComp->GetMaxCapacity();
+    Brain->SetNamedInputValue(TEXT("InventoryFull"), UsedSpace > 0.9f ? 1.0f : 0.0f);
+}</code></pre>
+
+<h3>Example: Environment Input Provider</h3>
+
+<pre><code>// EnvironmentInputProviderComponent
+UCLASS()
+class UEnvironmentInputProviderComponent : public UActorComponent
+{
+    GENERATED_BODY()
+    
+public:
+    UPROPERTY(EditAnywhere, Category = "Environment")
+    float CoverSearchRadius = 1000.0f;
+    
+    UPROPERTY(EditAnywhere, Category = "Environment")
+    float HealthPackSearchRadius = 2000.0f;
+    
+protected:
+    void PublishEnvironmentData();
+};
+
+void UEnvironmentInputProviderComponent::PublishEnvironmentData()
+{
+    // Find nearby cover
+    TArray<AActor*> CoverPoints = FindCoverPoints(GetOwner()->GetActorLocation(), CoverSearchRadius);
+    Brain->SetNamedInputValue(TEXT("HasCoverNearby"), CoverPoints.Num() > 0 ? 1.0f : 0.0f);
+    Brain->SetNamedInputValue(TEXT("CoverCount"), FMath::Clamp(CoverPoints.Num() / 10.0f, 0.0f, 1.0f));
+    
+    if (CoverPoints.Num() > 0)
+    {
+        // Nearest cover distance
+        AActor* NearestCover = CoverPoints[0];
+        float Distance = FVector::Dist(GetOwner()->GetActorLocation(), NearestCover->GetActorLocation());
+        Brain->SetNamedInputValue(TEXT("DistanceToCover"), Distance / 5000.0f);
+    }
+    
+    // Find health packs
+    TArray<AActor*> HealthPacks = FindHealthPacks(GetOwner()->GetActorLocation(), HealthPackSearchRadius);
+    Brain->SetNamedInputValue(TEXT("HealthPackNearby"), HealthPacks.Num() > 0 ? 1.0f : 0.0f);
+    
+    // Environmental hazards
+    bool bInDanger = CheckEnvironmentalHazards();
+    Brain->SetNamedInputValue(TEXT("InDangerZone"), bInDanger ? 1.0f : 0.0f);
+}</code></pre>
+
+<h2>Best Practices</h2>
+
+<div class="callout tip">
+  <span class="icon"><i data-lucide="check-square"></i></span>
+  <div>
+    <strong>Input Provider Best Practices:</strong>
+    <ul class="compact">
+      <li>✅ Cache brain reference in BeginPlay</li>
+      <li>✅ Use UpdateInterval to throttle updates (0.1-0.5s)</li>
+      <li>✅ Normalize all outputs to 0-1 range</li>
+      <li>✅ Group related inputs (e.g., all health-related)</li>
+      <li>✅ Make providers toggleable (bPublish* flags)</li>
+      <li>✅ Use consistent naming conventions</li>
+      <li>✅ Provide configuration options</li>
+      <li>❌ Don't update every frame (expensive)</li>
+      <li>❌ Don't publish raw world values</li>
+      <li>❌ Don't hardcode magic numbers</li>
+      <li>❌ Don't duplicate work (check if input already published)</li>
+    </ul>
+  </div>
+</div>
+
+<h2>Blueprint Input Provider</h2>
+
+<h3>Creating in Blueprint</h3>
+
+<pre><code>1. Create Blueprint (parent: ActorComponent)
+2. Name: BP_CustomInputProvider
+
+Event BeginPlay
+  → Get Utility Brain Component
+  → Store reference
+
+Event Tick
+  → Check UpdateInterval
+  → Branch (time elapsed?)
+    Yes:
+      → Gather data
+      → Normalize values
+      → Set Named Input Values
+      → Reset timer
+    No:
+      → Continue
+
+Example: Weather Provider
+  Event Tick
+    → Get Weather System
+    → Get Rain Intensity (0-1)
+    → Set Named Input Value ("IsRaining", Intensity > 0.5)
+    → Set Named Input Value ("RainIntensity", Intensity)
+    → Get Temperature (-20 to 40°C)
+    → Normalize (0-1)
+    → Set Named Input Value ("Temperature", Normalized)</code></pre>
+
+<h2>Performance Considerations</h2>
+
+<h3>Update Frequency</h3>
+
+<pre><code>Recommended Update Intervals:
+
+Fast-changing data (0.1s):
+  - Health/Stamina
+  - Ammo count
+  - Immediate threats
+
+Medium-changing data (0.2s):
+  - Nearby cover
+  - Enemy positions
+  - Squad status
+
+Slow-changing data (0.5-1.0s):
+  - Inventory status
+  - Quest objectives
+  - Environmental conditions
+
+Very slow data (2.0s+):
+  - Strategic analysis
+  - Long-term goals
+  - Global game state</code></pre>
+
+<h3>Optimization Techniques</h3>
+
+<pre><code>1. Caching
+   Cache expensive queries:
+   - Component references
+   - Actor lists
+   - Navigation data
+   
+2. Lazy Evaluation
+   Only update when needed:
+   if (bDataChanged)
+       PublishData();
+   
+3. Staggered Updates
+   Different providers update on different frames:
+   Provider A: Frame 0
+   Provider B: Frame 2
+   Provider C: Frame 4
+   
+4. Conditional Publishing
+   Only publish if value changed significantly:
+   if (FMath::Abs(NewValue - OldValue) > Threshold)
+       Brain->SetNamedInputValue(Name, NewValue);</code></pre>
+
+<h2>Testing Input Providers</h2>
+
+<h3>Debug Visualization</h3>
+
+<pre><code>// Add debug output
+void UMyInputProvider::PublishData()
+{
+    for (auto& Pair : PublishedInputs)
+    {
+        FName InputName = Pair.Key;
+        float Value = Pair.Value;
+        
+        Brain->SetNamedInputValue(InputName, Value);
+        
+        #if !UE_BUILD_SHIPPING
+        if (bDebugVisualize)
+        {
+            UE_LOG(LogAI, Verbose, TEXT("[%s] Published: %s = %.2f"), 
+                *GetOwner()->GetName(), *InputName.ToString(), Value);
+        }
+        #endif
+    }
+}</code></pre>
+
+<h3>Gameplay Debugger</h3>
+
+<pre><code>View published inputs:
+Press ' → 5 → Select Agent
+
+NAMED INPUTS:
+  Health: 0.75 ← From HealthInputProvider
+  Stamina: 0.60 ← From HealthInputProvider
+  AmmoLevel: 0.40 ← From InventoryInputProvider
+  HasCoverNearby: 1.00 ← From EnvironmentInputProvider
+  IsInSquad: 1.00 ← From TacticalSquadInputProvider
+  SquadStrategy_Assault: 1.00 ← From TacticalSquadInputProvider</code></pre>
+
+<h2>Next Steps</h2>
+
+<div class="next-steps">
+  <a class="button primary" href="#/docs/named-inputs-api">
+    <i data-lucide="database"></i>
+    Named Inputs API
+  </a>
+  <a class="button" href="#/docs/service-api">
+    <i data-lucide="cog"></i>
+    Service API Reference
+  </a>
+</div>
+
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="#/docs/named-inputs-api"><i data-lucide="database"></i> Named Inputs</a> - Input system overview</li>
+  <li><a href="#/docs/service-api"><i data-lucide="cog"></i> Service API</a> - Service-based input publishing</li>
+  <li><a href="#/docs/tactical-components-api"><i data-lucide="layers"></i> Tactical Components</a> - Squad input provider details</li>
+  <li><a href="#/docs/custom-services"><i data-lucide="tool"></i> Custom Services</a> - Alternative input publishing</li>
+</ul>
+
+<script>lucide.createIcons();</script>

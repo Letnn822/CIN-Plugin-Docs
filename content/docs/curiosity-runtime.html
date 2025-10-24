@@ -1,0 +1,156 @@
+<h1>Curiosity Behaviors</h1>
+<p>This section explains how CIN agents evaluate and act on curiosity at runtime and how each policy value influences the outcome. The system is configured through <code>UCINCuriosityPolicyDA_Base</code> in <code>Plugins/CINPlugin/Source/CINCore/Public/Types/UCINCuriosityPolicyDA_Base.h</code>.</p>
+
+<h2>Curiosity Types</h2>
+<ul>
+  <li><strong>Exploration</strong>: seek unknown areas.</li>
+  <li><strong>Investigation</strong>: examine specific objects.</li>
+  <li><strong>Learning</strong>: pursue knowledge goals.</li>
+  <li><strong>Social</strong>: interact with other agents.</li>
+  <li><strong>Experimentation</strong>: try new behaviors.</li>
+  <li><strong>Collection</strong>: gather items/resources.</li>
+  <li><strong>Pattern</strong>: search for patterns/regularities.</li>
+  <li><strong>Custom</strong>: project-specific type.</li>
+</ul>
+
+<h2>Decision Flow (at a glance)</h2>
+<ul>
+  <li>Evaluate novelty and context via <code>CalculateCuriosityValue(StimulusType, StimulusLocation, Context)</code>.</li>
+  <li>Gate pursuit via <code>ShouldPursueCuriosity(Context)</code> (e.g., safety/health).</li>
+  <li>Select dominant type via <code>GetDominantCuriosityType(Context)</code> (priorities + conditions).</li>
+  <li>Track engagement with <code>AttentionSpan</code> and memory/familiarity.</li>
+  <li>Report via <code>OnNoveltyDetected</code> and <code>OnExplorationCompleted</code>.</li>
+</ul>
+
+<h2>Key Policy Values and Their Effects</h2>
+
+<h3>Global Modulators</h3>
+<ul>
+  <li><strong>CuriosityDrive (0.0–5.0)</strong>: scales desire to act on curiosity.
+    <ul>
+      <li>Higher: more likely to pass pursuit gates and choose curiosity-driven actions.</li>
+      <li>Lower: curiosity rarely wins unless highly novel and safe.</li>
+    </ul>
+  </li>
+  <li><strong>BoredomThreshold (0.0–1.0)</strong> with <code>CalculateBoredomLevel(...)</code>:
+    <ul>
+      <li>Higher threshold: agent tolerates more repetition before disengaging.</li>
+      <li>Lower threshold: agent gives up sooner and seeks something new.</li>
+    </ul>
+  </li>
+  <li><strong>AttentionSpan (sec)</strong>:
+    <ul>
+      <li>Higher: stays on the same curiosity task longer before re-evaluating.</li>
+      <li>Lower: switches off tasks sooner; more frequent re-selection.</li>
+    </ul>
+  </li>
+  <li><strong>FamiliarityPenalty (0.0–1.0)</strong> + <strong>Location/Object Memory Duration (sec)</strong>:
+    <ul>
+      <li>Higher penalty / longer memory: stronger avoidance of revisiting known places/objects.</li>
+      <li>Lower penalty / shorter memory: repeats are more acceptable; quicker re-interest.</li>
+    </ul>
+  </li>
+</ul>
+
+<h3>Novelty Detection (<code>FCINNoveltyDetection</code>)</h3>
+<ul>
+  <li><strong>NoveltyType</strong>: e.g., <em>Unknown</em>, <em>SocialAgent</em>, <em>Environment</em>.</li>
+  <li><strong>NoveltyThreshold (0.0–1.0)</strong>:
+    <ul>
+      <li>Raise: fewer triggers; only strong novelty prompts curiosity.</li>
+      <li>Lower: more frequent triggers; even mild novelty counts.</li>
+    </ul>
+  </li>
+  <li><strong>NoveltyDecayRate (0.0–1.0)</strong>:
+    <ul>
+      <li>Raise: interest fades quickly; rapid de-escalation.</li>
+      <li>Lower: novelty persists; sustained curiosity for longer.</li>
+    </ul>
+  </li>
+  <li><strong>DetectionRange (uu)</strong>:
+    <ul>
+      <li>Raise: detects novelty from farther away; broader scanning.</li>
+      <li>Lower: only nearby novelty matters.</li>
+    </ul>
+  </li>
+  <li><strong>NoveltyFactors (map)</strong>: weighted contributors (e.g., <em>FirstTime</em>, <em>Complexity</em>). Increase to bias that factor’s impact.</li>
+  <li><strong>bIsActive</strong>: disable to remove this detector from consideration.</li>
+</ul>
+
+<h3>Exploration Behaviors (<code>FCINExplorationBehavior</code>)</h3>
+<ul>
+  <li><strong>ExplorationType</strong>: which <code>ECINCuriosityType</code> this config governs.</li>
+  <li><strong>ExplorationPriority (0.0–10.0)</strong>:
+    <ul>
+      <li>Higher: this type wins arbitration more often (e.g., Investigation over Exploration).</li>
+      <li>Lower: chosen less frequently unless others are gated out.</li>
+    </ul>
+  </li>
+  <li><strong>Min/MaxTimeBetweenAttempts (sec)</strong>:
+    <ul>
+      <li>Raise mins: slower rhythm; fewer attempts.</li>
+      <li>Lower mins: more frequent attempts when eligible.</li>
+    </ul>
+  </li>
+  <li><strong>ExplorationDuration (sec)</strong>:
+    <ul>
+      <li>Raise: persists longer before giving up.</li>
+      <li>Lower: aborts sooner if satisfaction not reached.</li>
+    </ul>
+  </li>
+  <li><strong>ExplorationRange (uu)</strong>:
+    <ul>
+      <li>Raise: willing to pursue farther targets.</li>
+      <li>Lower: stays local; ignores distant stimuli.</li>
+    </ul>
+  </li>
+  <li><strong>SatisfactionThreshold (0.0–1.0)</strong>:
+    <ul>
+      <li>Raise: needs stronger payoff to stop; tends to continue.</li>
+      <li>Lower: stops sooner once minimally satisfied.</li>
+    </ul>
+  </li>
+  <li><strong>RiskTolerance (0.0–1.0)</strong>:
+    <ul>
+      <li>Raise: accepts riskier opportunities (still constrained by safety gates).</li>
+      <li>Lower: conservative; avoids risky paths.</li>
+    </ul>
+  </li>
+  <li><strong>ExplorationConditions (map)</strong>:
+    <ul>
+      <li>Gates per-type eligibility (e.g., <em>Safety</em>, <em>InterestingObject</em>, <em>SocialNeed</em>).</li>
+      <li>Unavailable conditions mean this behavior won’t be selected.</li>
+    </ul>
+  </li>
+  <li><strong>bIsEnabled</strong>: master switch for this behavior entry.</li>
+</ul>
+
+<h3>Learning Goals (<code>FCINLearningGoal</code>)</h3>
+<ul>
+  <li><strong>LearningPriority (0.0–10.0)</strong>: higher values increase the chance of picking behaviors that advance this goal.</li>
+  <li><strong>Progress (0.0–1.0)</strong> &amp; <strong>CompletionThreshold</strong>: define when a goal is “done.”</li>
+  <li><strong>ProgressDecayRate</strong>: faster decay means goals re-open sooner and maintain pressure to act.</li>
+  <li><strong>LearningRewards (map)</strong>: boosts when the goal advances; adjust to incentivize specific curiosities.</li>
+  <li><strong>bIsActive</strong>: toggles whether this goal affects arbitration.</li>
+</ul>
+
+<h3>Rewards &amp; Debug</h3>
+<ul>
+  <li><strong>ExplorationRewardScale</strong> / <strong>ExplorationPenaltyScale</strong>: tune reinforcement for successful/failed attempts.</li>
+  <li><strong>bEnableDebugVisualization</strong>: turn on in the policy to visualize curiosity-driven decisions.</li>
+</ul>
+
+<h2>Runtime Manifestations</h2>
+<ul>
+  <li><strong>High CuriosityDrive</strong>: more frequent pursuit of eligible curiosity tasks; still respects gates (safety, timing, risk).</li>
+  <li><strong>Investigation vs Exploration</strong>: arbitration is priority-driven (defaults favor Investigation when an <em>InterestingObject</em> is present).</li>
+  <li><strong>Social Curiosity</strong>: requires <em>SocialNeed</em> and a social novelty trigger within range/threshold.</li>
+  <li><strong>Boredom/Familiarity</strong>: reduce repetitive loops and revisit frequency via thresholds, memory, and penalties.</li>
+</ul>
+
+<h2>Instrumentation</h2>
+<ul>
+  <li>Implement <code>OnCuriosityPolicyApplied(AActor* Agent)</code> for setup-time hooks.</li>
+  <li>Log <code>OnNoveltyDetected(NoveltyType, NoveltyValue)</code> to observe triggers.</li>
+  <li>Track <code>OnExplorationCompleted(Type, bWasSuccessful)</code> to evaluate tuning.</li>
+</ul>

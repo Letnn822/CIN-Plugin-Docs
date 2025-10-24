@@ -1,0 +1,353 @@
+<h1>Delegates & Events API</h1>
+<p class="note">Complete reference for delegates and events in CIN Plugin. Learn how to hook into AI events for custom logic and integrations.</p>
+
+<div class="page-meta">
+  <span class="time"><i data-lucide="clock"></i> 15 minutes</span>
+  <span class="difficulty"><i data-lucide="bar-chart-3"></i> Reference</span>
+</div>
+
+<h2>Brain Component Delegates</h2>
+
+<h3>OnInputsGathered</h3>
+
+<pre><code>// Fired after all services publish inputs
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnInputsGathered);
+
+UPROPERTY(BlueprintAssignable, Category = "Utility AI")
+FOnInputsGathered OnInputsGathered;
+
+// C++ Usage
+void AMyAIController::BeginPlay()
+{
+    UUtilityBrainComponent* Brain = GetBrain();
+    Brain->OnInputsGathered.AddDynamic(this, &AMyAIController::OnInputsComplete);
+}
+
+void AMyAIController::OnInputsComplete()
+{
+    // React to inputs being gathered
+    float Health = Brain->GetNamedInput("Health");
+    UE_LOG(LogAI, Log, TEXT("Inputs gathered, Health: %.2f"), Health);
+}
+
+// Blueprint Usage
+Event OnInputsGathered
+  → Get Named Input ("Health")
+  → Branch (Health < 0.3)
+    Yes: Play Low Health Sound</code></pre>
+
+<h3>OnActionStarted</h3>
+
+<pre><code>// Fired when new action starts executing
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnActionStarted, 
+    FName, ActionName, float, ActionScore);
+
+UPROPERTY(BlueprintAssignable, Category = "Utility AI")
+FOnActionStarted OnActionStarted;
+
+// C++ Usage
+Brain->OnActionStarted.AddDynamic(this, &AMyAIController::OnNewAction);
+
+void AMyAIController::OnNewAction(FName ActionName, float Score)
+{
+    UE_LOG(LogAI, Log, TEXT("Started action: %s with score: %.2f"), 
+        *ActionName.ToString(), Score);
+        
+    // Custom logic
+    if (ActionName == "Attack")
+    {
+        PlayAggressiveMusic();
+    }
+}
+
+// Blueprint Usage
+Event OnActionStarted (ActionName, Score)
+  → Branch (ActionName == "Attack")
+    Yes:
+      → Play Attack VO
+      → Update UI
+      → Notify Team</code></pre>
+
+<h3>OnActionCompleted</h3>
+
+<pre><code>// Fired when action finishes successfully
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnActionCompleted, 
+    FName, ActionName, bool, bSuccess);
+
+UPROPERTY(BlueprintAssignable, Category = "Utility AI")
+FOnActionCompleted OnActionCompleted;
+
+// Usage
+Brain->OnActionCompleted.AddDynamic(this, &AMyAIController::OnActionDone);
+
+void AMyAIController::OnActionDone(FName ActionName, bool bSuccess)
+{
+    if (bSuccess)
+    {
+        UE_LOG(LogAI, Log, TEXT("Action %s completed successfully"), 
+            *ActionName.ToString());
+    }
+    else
+    {
+        UE_LOG(LogAI, Warning, TEXT("Action %s failed"), 
+            *ActionName.ToString());
+            
+        // Maybe lock action temporarily
+        Brain->LockActionForDuration(ActionName, 5.0f);
+    }
+}</code></pre>
+
+<h2>Service Lifecycle Delegates</h2>
+
+<h3>Service Start/Stop</h3>
+
+<pre><code>// In custom service
+UCLASS()
+class UMyCustomService : public UUtilityService
+{
+    GENERATED_BODY()
+    
+public:
+    // Delegate: When service starts
+    DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnServiceActivated);
+    UPROPERTY(BlueprintAssignable)
+    FOnServiceActivated OnServiceActivated;
+    
+    // Delegate: When service stops
+    DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnServiceDeactivated);
+    UPROPERTY(BlueprintAssignable)
+    FOnServiceDeactivated OnServiceDeactivated;
+    
+protected:
+    virtual void OnServiceStart() override
+    {
+        Super::OnServiceStart();
+        OnServiceActivated.Broadcast();
+    }
+    
+    virtual void OnServiceStop() override
+    {
+        Super::OnServiceStop();
+        OnServiceDeactivated.Broadcast();
+    }
+};</code></pre>
+
+<h2>Perception Events</h2>
+
+<h3>Enemy Detected</h3>
+
+<pre><code>// PerceptionMonitor service events
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnEnemyDetected, AActor*, Enemy);
+
+UPROPERTY(BlueprintAssignable)
+FOnEnemyDetected OnEnemyDetected;
+
+// In Service_PerceptionMonitor
+void UService_PerceptionMonitor::ProcessNewEnemy(AActor* Enemy)
+{
+    KnownEnemies.Add(Enemy);
+    OnEnemyDetected.Broadcast(Enemy);
+}
+
+// Usage in AI Controller
+PerceptionMonitor->OnEnemyDetected.AddDynamic(this, &AMyAI::HandleEnemySpotted);
+
+void AMyAI::HandleEnemySpotted(AActor* Enemy)
+{
+    // Play alert sound
+    PlaySound(AlertSound);
+    
+    // Notify squad
+    if (SquadComponent)
+    {
+        SquadComponent->ReportEnemy(Enemy);
+    }
+}</code></pre>
+
+<h2>Squad Coordination Events</h2>
+
+<h3>Strategy Changed</h3>
+
+<pre><code>// TacticalSquadComponent events
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnStrategyChanged, 
+    ESquadStrategy, OldStrategy, ESquadStrategy, NewStrategy);
+
+UPROPERTY(BlueprintAssignable)
+FOnStrategyChanged OnStrategyChanged;
+
+// Usage
+SquadComponent->OnStrategyChanged.AddDynamic(this, &AMyAI::OnSquadStrategyChange);
+
+void AMyAI::OnSquadStrategyChange(ESquadStrategy Old, ESquadStrategy New)
+{
+    UE_LOG(LogAI, Log, TEXT("Squad strategy changed: %s -> %s"), 
+        *UEnum::GetValueAsString(Old), 
+        *UEnum::GetValueAsString(New));
+        
+    // React to strategy
+    if (New == ESquadStrategy::Assault)
+    {
+        // More aggressive behavior
+        Brain->BoostAction("Attack", 1.5f);
+    }
+}</code></pre>
+
+<h2>Custom Event System</h2>
+
+<h3>Creating Custom Events</h3>
+
+<pre><code>// Define custom event
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnAbilityUsed,
+    FName, AbilityName,
+    AActor*, Target,
+    float, Cooldown);
+
+UPROPERTY(BlueprintAssignable, Category = "AI|Abilities")
+FOnAbilityUsed OnAbilityUsed;
+
+// Fire event
+void UseAbility(FName AbilityName, AActor* Target)
+{
+    // Execute ability logic
+    ExecuteAbility(AbilityName, Target);
+    
+    // Broadcast event
+    float Cooldown = GetAbilityCooldown(AbilityName);
+    OnAbilityUsed.Broadcast(AbilityName, Target, Cooldown);
+}
+
+// Multiple listeners
+Controller->OnAbilityUsed.AddDynamic(HUD, &AHUD::ShowAbilityCooldown);
+Controller->OnAbilityUsed.AddDynamic(VFX, &AVFXManager::PlayAbilityEffect);
+Controller->OnAbilityUsed.AddDynamic(Audio, &AAudioManager::PlayAbilitySound);</code></pre>
+
+<h2>Event-Driven AI Updates</h2>
+
+<h3>Reactive AI Pattern</h3>
+
+<pre><code>// Instead of polling, react to events
+void AReactiveAI::BeginPlay()
+{
+    Super::BeginPlay();
+    
+    // Subscribe to relevant events
+    Brain->OnActionStarted.AddDynamic(this, &AReactiveAI::OnActionChanged);
+    HealthComponent->OnHealthChanged.AddDynamic(this, &AReactiveAI::OnHealthUpdate);
+    WeaponComponent->OnAmmoChanged.AddDynamic(this, &AReactiveAI::OnAmmoUpdate);
+    
+    // Update brain inputs when events fire
+}
+
+void AReactiveAI::OnHealthUpdate(float NewHealth, float MaxHealth)
+{
+    float HealthPercent = NewHealth / MaxHealth;
+    Brain->SetNamedInputValue("Health", HealthPercent);
+}
+
+void AReactiveAI::OnAmmoUpdate(int32 NewAmmo, int32 MaxAmmo)
+{
+    float AmmoPercent = (float)NewAmmo / MaxAmmo;
+    Brain->SetNamedInputValue("AmmoLevel", AmmoPercent);
+}
+
+Benefits:
+  - More efficient (no polling)
+  - Immediate reaction
+  - Cleaner code
+  - Better performance</code></pre>
+
+<h2>Blueprint Event Implementation</h2>
+
+<h3>Implementing Delegates in Blueprint</h3>
+
+<pre><code>Create Event Dispatcher:
+  1. Open BP_MyAIPawn
+  2. Event Dispatchers panel
+  3. Add Event Dispatcher: "OnTakingDamage"
+  4. Add parameters: DamageAmount (float), Attacker (Actor)
+
+Fire Event:
+  Event Any Damage
+    → Call "OnTakingDamage" (DamageAmount, DamageCauser)
+
+Listen to Event (in another Blueprint):
+  Event BeginPlay
+    → Get AI Pawn Reference
+    → Bind Event to OnTakingDamage
+      → Create Custom Event: HandleAIDamaged
+      
+  Event HandleAIDamaged (Damage, Attacker)
+    → Update Threat Level
+    → Set Named Input Value ("UnderFire", 1.0)</code></pre>
+
+<h2>Performance Considerations</h2>
+
+<div class="callout tip">
+  <span class="icon"><i data-lucide="zap"></i></span>
+  <div>
+    <strong>Delegate Performance Tips:</strong>
+    <ul class="compact">
+      <li>✅ Unbind delegates in EndPlay/Destroyed</li>
+      <li>✅ Use dynamic delegates for Blueprint</li>
+      <li>✅ Use regular delegates for C++ only</li>
+      <li>✅ Limit number of listeners</li>
+      <li>✅ Check for null before broadcasting</li>
+      <li>❌ Don't broadcast every frame</li>
+      <li>❌ Don't create circular dependencies</li>
+    </ul>
+  </div>
+</div>
+
+<h2>Common Event Patterns</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Event</th>
+      <th>When to Use</th>
+      <th>Example</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>OnActionStarted</strong></td>
+      <td>Track AI state changes</td>
+      <td>Update animations, UI</td>
+    </tr>
+    <tr>
+      <td><strong>OnInputsGathered</strong></td>
+      <td>Debug or log decisions</td>
+      <td>Print scores before evaluation</td>
+    </tr>
+    <tr>
+      <td><strong>OnEnemyDetected</strong></td>
+      <td>Immediate threat response</td>
+      <td>Alert squad, play sound</td>
+    </tr>
+    <tr>
+      <td><strong>OnHealthChanged</strong></td>
+      <td>React to damage</td>
+      <td>Update defensive behavior</td>
+    </tr>
+    <tr>
+      <td><strong>OnStrategyChanged</strong></td>
+      <td>Squad coordination</td>
+      <td>Adjust individual tactics</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Next Steps</h2>
+
+<div class="next-steps">
+  <a class="button primary" href="#/docs/brain-api">
+    <i data-lucide="cpu"></i>
+    Brain API
+  </a>
+  <a class="button" href="#/docs/bp-utility-library">
+    <i data-lucide="book"></i>
+    Blueprint API
+  </a>
+</div>
+
+<script>lucide.createIcons();</script>

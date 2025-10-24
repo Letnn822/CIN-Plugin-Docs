@@ -1,0 +1,292 @@
+<h1>Quick Reference Guide</h1>
+<p class="note">Fast lookup for common tasks, functions, and configurations. Perfect for experienced users who need quick answers.</p>
+
+<div class="page-meta">
+  <span class="time"><i data-lucide="clock"></i> 10 minutes</span>
+  <span class="difficulty"><i data-lucide="zap"></i> Reference</span>
+</div>
+
+<h2>Quick Setup (5 Minutes)</h2>
+
+<pre><code>1. Add to AIController/Pawn: CINQuickSetupComponent
+2. Set AgentType: BaseCombat (or desired archetype)
+3. Enable bAutoInitialize: true
+4. Add AIPerceptionComponent (if needed)
+5. Set Team ID: SetGenericTeamId(1)
+6. Done!</code></pre>
+
+<h2>Common Archetypes</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Archetype</th>
+      <th>Use Case</th>
+      <th>Key Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>BaseCombat</strong></td>
+      <td>FPS/TPS enemies</td>
+      <td>Attack, TakeCover, Reload, Retreat</td>
+    </tr>
+    <tr>
+      <td><strong>BaseStealth</strong></td>
+      <td>Stealth games</td>
+      <td>Patrol, Investigate, Alert, Search</td>
+    </tr>
+    <tr>
+      <td><strong>BaseSquadCombat</strong></td>
+      <td>Squad tactics</td>
+      <td>Combat + Squad coordination</td>
+    </tr>
+    <tr>
+      <td><strong>BaseCreature</strong></td>
+      <td>Animals/monsters</td>
+      <td>Roam, Hunt, Flee, Territorial</td>
+    </tr>
+    <tr>
+      <td><strong>BaseBoss</strong></td>
+      <td>Boss fights</td>
+      <td>Multi-phase, Special abilities</td>
+    </tr>
+    <tr>
+      <td><strong>BaseCompanion</strong></td>
+      <td>Followers/allies</td>
+      <td>Follow, Assist, Wait, Interact</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Blueprint Functions (Most Used)</h2>
+
+<pre><code>// Get brain
+GetUtilityBrainFromPawn(Pawn) → Brain
+
+// Query state
+GetCurrentActionName(Brain) → FName
+GetCurrentActionScore(Brain) → float
+GetNamedInput(Brain, "InputName") → float
+
+// Control actions
+BoostAction(Brain, "ActionName", 1.5)
+LockActionForDuration(Brain, "ActionName", 10.0)
+
+// Set inputs
+Brain → SetNamedInputValue("Health", 0.75)
+
+// Debug
+ToggleDebugForPawn(Pawn)</code></pre>
+
+<h2>Action Configuration Cheat Sheet</h2>
+
+<pre><code>BaseScore:
+  30-40: Low priority / Fallback
+  50-60: Normal actions
+  70-80: Important actions
+  85-95: Critical/survival actions
+
+Priority:
+  0-30: Low
+  40-60: Normal
+  70-90: High
+
+ReplaceResistance:
+  1.0: Easy to interrupt
+  1.5: Moderate resistance
+  2.0+: Hard to interrupt
+
+Momentum:
+  MaxMomentum: 1.0-3.0
+  MomentumDecayTime: 2.0-5.0s
+  
+UnlockTime:
+  0.0: No cooldown
+  2.0-5.0: Short cooldown
+  10.0+: Long cooldown
+  -1.0: Locks permanently</code></pre>
+
+<h2>Consideration Patterns</h2>
+
+<pre><code>// Linear (proportional)
+(0,0) → (1,100)
+
+// Boolean (required)
+(0,0) → (0.99,0) → (1,100)
+
+// Threshold (activate at value)
+(0,0) → (0.5,0) → (0.5,100) → (1,100)
+
+// Inverse (prefer low values)
+(0,100) → (1,0)
+
+// Bell curve (optimal range)
+(0,0) → (0.5,100) → (1,0)
+
+// Exponential (urgency)
+(0,0) → (0.7,30) → (0.9,70) → (1,100)</code></pre>
+
+<h2>Common Input Names</h2>
+
+<pre><code>// Health/Resources
+Health, AmmoLevel, Stamina, Mana
+
+// Enemies
+HasKnownEnemy, EnemyCount, DistanceToEnemy
+HasVisibleEnemy, VisibleEnemyCount
+
+// Perception
+HasLineOfSight, CanSeeEnemy, HeardSound
+TimeSinceLastSawEnemy
+
+// Threat
+ThreatLevel, UnderFire
+
+// Environment
+HasCoverNearby, DistanceToCover, IsInCover
+
+// Squad
+IsInSquad, IsSquadLeader, SquadMemberCount
+SquadStrategy_Assault, SquadStrategy_Flank
+
+// State
+State_Idle, State_Combat, State_Fleeing</code></pre>
+
+<h2>Service Configuration</h2>
+
+<pre><code>MinInterval:
+  0.05s: Very fast (use sparingly)
+  0.1s: Fast (perception, health)
+  0.2s: Normal (most services)
+  0.5s: Slow (inventory, quests)
+  1.0s+: Very slow (strategic analysis)
+
+Common Services:
+- PerceptionMonitor (perception data)
+- Custom health/ammo services
+- Environment queries
+- Squad coordinationSquad coordination</code></pre>
+
+<h2>Performance Targets</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Metric</th>
+      <th>Target</th>
+      <th>Acceptable</th>
+      <th>Poor</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Brain Tick</td>
+      <td>&lt;0.3ms</td>
+      <td>&lt;0.5ms</td>
+      <td>&gt;1.0ms</td>
+    </tr>
+    <tr>
+      <td>Action Count</td>
+      <td>5-8</td>
+      <td>8-10</td>
+      <td>&gt;12</td>
+    </tr>
+    <tr>
+      <td>Considerations</td>
+      <td>2-5</td>
+      <td>5-7</td>
+      <td>&gt;7</td>
+    </tr>
+    <tr>
+      <td>Update Rate</td>
+      <td>10Hz</td>
+      <td>5-10Hz</td>
+      <td>&gt;20Hz</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Debug Commands</h2>
+
+<pre><code>// Console commands
+' (apostrophe) → Opens Gameplay Debugger
+5 → Select Utility AI category
+Click agent → Shows scores
+
+log LogUtilityAI Verbose → Enable logging
+vislog start → Visual logger
+stat ai → AI performance stats
+stat game → Game thread stats</code></pre>
+
+<h2>Common Fixes</h2>
+
+<pre><code>AI not doing anything:
+✓ Check brain has actions
+✓ Verify services publishing inputs
+✓ Ensure considerations can score > 0
+
+AI switching too much:
+✓ Increase ReplaceResistance
+✓ Add Momentum
+✓ Smooth consideration curves
+
+AI too slow to respond:
+✓ Decrease TickInterval
+✓ Increase action BaseScore
+✓ Check ReplaceResistance not too high
+
+Performance issues:
+✓ Reduce action/consideration count
+✓ Increase service MinInterval
+✓ Implement LOD system
+✓ Use stat ai to profile</code></pre>
+
+<h2>File Locations</h2>
+
+<pre><code>Plugin:
+Plugins/CINPlugin/
+
+C++ Headers:
+Public/
+├─ Components/ (Quick Setup, Debug, Tactical)
+├─ Config/ (Presets)
+├─ Services/ (Built-in services)
+├─ Executors/ (BT, custom)
+└─ Blueprint/ (Function library)
+
+Content:
+Create your content structure:
+Content/AI/
+├─ Pawns/
+├─ Actions/
+├─ Presets/
+├─ Services/
+└─ BehaviorTrees/</code></pre>
+
+<h2>Keyboard Shortcuts</h2>
+
+<pre><code>In Editor:
+' → Gameplay Debugger
+Shift+F1 → Mouse cursor in PIE
+F8 → Eject from player
+Alt+P → Pause/Resume simulation
+
+For Quick Access:
+Create input binding for ToggleDebugForPawn
+Bind to F5 or similar for runtime debug</code></pre>
+
+<h2>Next Steps</h2>
+
+<div class="next-steps">
+  <a class="button primary" href="#/docs/faq">
+    <i data-lucide="help-circle"></i>
+    FAQ
+  </a>
+  <a class="button" href="#/docs/bp-utility-library">
+    <i data-lucide="book"></i>
+    Full API Reference
+  </a>
+</div>
+
+<script>lucide.createIcons();</script>

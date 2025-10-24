@@ -1,0 +1,341 @@
+<h1>Weapon-Aware Combat Agent</h1>
+<p>This end-to-end guide walks you through building a combat AI agent that adapts tactics based on the equipped weapon type, ammunition state, health, and distance to target. It uses the CIN Plugin’s generic AI systems with the project-side <code>UCINCombatComponent</code> integration helpers. The plugin itself ships generic AI and parameter binding; the combat helpers are provided as project examples.</p>
+
+<div class="note callout">
+  <span class="icon" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="9"></circle>
+      <path d="M12 10v6"></path>
+      <path d="M12 8h.01"></path>
+    </svg>
+  </span>
+  <div>
+    <strong>Prerequisites</strong>
+    <ul>
+      <li>Read: <a href="#/docs/overview">Overview</a>, <a href="#/docs/parameter-binding">Parameter Binding</a>, <a href="#/docs/arbitration-strategy">Arbitration Strategy</a>.</li>
+      <li>Optional: <a href="#/docs/gas-integration">GAS Integration</a>, <a href="#/docs/role-archetypes">Role Archetypes</a>, <a href="#/docs/action-packs">Action Packs (Data Assets)</a>, <a href="#/docs/goal-templates">Goal Templates (Data Assets)</a>.</li>
+      <li>Project-side helpers exist under <code>Source/CIN/Combat</code> (e.g., <code>UCINCombatComponent</code>, <code>UCINCombatBlueprintLibrary</code>).</li>
+    </ul>
+  </div>
+</div>
+
+<h2>1) Design the Tactical Model</h2>
+<p>Define how tactics should adapt to context:</p>
+<ul>
+  <li><strong>Weapon Type</strong>: Melee, Pistol, Rifle, Shotgun, Launcher (customizable categories).</li>
+  <li><strong>Ammo State</strong>: Current clip, reserve ammo, needs reload, out of ammo.</li>
+  <li><strong>Health</strong>: Normal, Low, Critical thresholds.</li>
+  <li><strong>Distance to Target</strong>: Close, Medium, Far bands.</li>
+</ul>
+<p>Each tactic translates into <em>Actions</em> (e.g., MeleeAttack, BurstFire, AimAndFire, Reload, TakeCover, SwapWeapon) exposed via an <a href="#/docs/action-packs">Action Pack</a>.</p>
+
+<h2>2) Create Data Assets</h2>
+<ul>
+  <li><strong>Action Packs</strong> (e.g., <em>AP_Melee</em>, <em>AP_Pistol</em>, <em>AP_Rifle</em>): list actions and optional metadata. See <a href="#/docs/action-packs">Action Packs</a>.</li>
+  <li><strong>Goal Templates</strong> for combat loops: e.g., <em>EngageTarget</em>, <em>MaintainCover</em>, <em>RetreatAndHeal</em>, <em>ReloadAndReengage</em>. See <a href="#/docs/goal-templates">Goal Templates</a>.</li>
+  <li><strong>Role Archetype</strong> (optional): default action pack(s), combat style preferences. See <a href="#/docs/role-archetypes">Role Archetypes</a>.</li>
+</ul>
+
+<div class="tip callout">
+  <span class="icon" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="9"></circle>
+      <path d="M12 10v6"></path>
+      <path d="M12 8h.01"></path>
+    </svg>
+  </span>
+  <div>
+    <strong>Tip:</strong> You can use multiple action packs and switch or blend based on parameters or role. Keep packs focused by weapon category for clarity.
+  </div>
+</div>
+
+<h3>Example Action Pack (Weapon-Aware)</h3>
+<p>Schema-aligned pseudo-config for <code>UCINActionPackDA_Base</code>. Configure these fields in the data asset UI (see <a href="#/docs/action-packs">Action Packs</a>):</p>
+<pre><code class="language-json">{
+  "PackName": "AP_Rifle",
+  "Actions": [
+    {
+      "ActionClass": "UMyAimAndFireAction",
+      "ActionID": "AimAndFire",
+      "ActionCategory": "Combat",
+      "BasePriority": 5.0,
+      "BaseUtility": 0.65,
+      "Requirements": { "MinDistance": 0.35, "MaxDistance": 1.0, "bRequiresLineOfSight": true, "RequiredStates": { "AmmoCurrent": 0.10 } }
+    },
+    {
+      "ActionClass": "UMyReloadAction",
+      "ActionID": "Reload",
+      "ActionCategory": "Utility",
+      "BasePriority": 7.5,
+      "BaseUtility": 0.85,
+      "Requirements": { "RequiredStates": { "AmmoCurrent": 0.05 } }
+    }
+  ]
+}
+</code></pre>
+<div class="note callout">
+  <span class="icon" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="9"></circle>
+      <path d="M12 10v6"></path>
+      <path d="M12 8h.01"></path>
+    </svg>
+  </span>
+  <div>
+    <strong>Note:</strong> Fields mirror <code>FCINActionDefinition</code>. Use normalized <code>DistanceToTarget</code> and gates via <code>Requirements.RequiredStates</code>.
+  </div>
+</div>
+
+<h3>Example Goal Templates (Combat Loop)</h3>
+<p>Schema-aligned pseudo-config for <code>UCINGoalTemplatesDA_Base</code> (see <a href="#/docs/goal-templates">Goal Templates</a>):</p>
+<pre><code class="language-json">{
+  "CollectionName": "GT_Combat",
+  "GoalTemplates": [
+    {
+      "GoalClass": "UMyEngageTargetGoal",
+      "TemplateID": "EngageTarget",
+      "BasePriority": "Normal",
+      "ActivationConditions": [ { "Parameter": "AmmoCurrent", "Operator": "Greater", "Value": 0.10 } ],
+      "ConsiderationFrequency": 1.0,
+      "bIsEnabled": true
+    },
+    {
+      "GoalClass": "UMyReloadAndReengageGoal",
+      "TemplateID": "ReloadAndReengage",
+      "BasePriority": "High",
+      "ActivationConditions": [ { "Parameter": "AmmoCurrent", "Operator": "LessEqual", "Value": 0.05 } ],
+      "ConsiderationFrequency": 2.0,
+      "bIsEnabled": true
+    }
+  ]
+}
+</code></pre>
+
+<h2>3) Bind Combat Parameters</h2>
+<p>Use the parameter binding system to feed the brain normalized signals. Project-side helpers simplify typical combat bindings.</p>
+
+<h3>3.1 Quick health/stamina bindings</h3>
+<pre><code>// Blueprint: UCINCombatBlueprintLibrary
+// Example calls (also available as Blueprint nodes)
+QuickBindHealth(MyActor, HealthComponent, "CurrentHealth", 100.0);
+QuickBindStamina(MyActor, StaminaComponent, "CurrentStamina", 100.0);
+QuickSetThresholds(MyActor, LowHealth=0.35, CriticalHealth=0.15, LowStamina=0.25, LowMana=0.25, LowAmmo=0.30);
+</code></pre>
+<p>Alternatively, bind to GAS attributes:</p>
+<pre><code>QuickBindHealthToGAS(MyActor, "Attributes.Health");
+QuickBindStaminaToGAS(MyActor, "Attributes.Stamina");
+</code></pre>
+
+  <h3>3.2 Weapon + ammo bindings</h3>
+  <p>Choose a binding type per parameter. See <a href="#/docs/parameter-binding">Parameter Binding</a> for <code>ECINParameterBindingType</code> options.</p>
+  <ul>
+    <li><strong>WeaponType</strong> (categorical→float):
+      <ul>
+        <li><em>BlueprintFunction</em>: a function that returns a numeric category (e.g., 0=Melee, 1=Pistol, 2=Rifle...).</li>
+        <li><em>ObjectProperty</em>: read an enum or name and map to floats in your getter function.</li>
+      </ul>
+    </li>
+    <li><strong>AmmoCurrent</strong> / <strong>AmmoReserve</strong>:
+      <ul>
+        <li><em>ObjectProperty</em>: e.g., read from your Weapon/Inventory component.</li>
+        <li><em>GameplayAttribute</em>: bind to GAS attributes if you store ammo there.</li>
+      </ul>
+    </li>
+  </ul>
+  <pre><code>// Blueprint: UCINCombatBlueprintLibrary
+// Custom function returns current weapon type as float category (0..N)
+BindCustomParameterToBlueprintFunction(MyActor, "WeaponType", "GetWeaponTypeCategory");
+
+// Project helpers for custom parameters (object properties)
+BindCustomCombatParameter(MyActor, Name="AmmoCurrent", BindingType=ObjectProperty,
+                          Target=WeaponComponent, Property="CurrentAmmo", Normalize=true, Range=(0, MaxClip));
+BindCustomCombatParameter(MyActor, Name="AmmoReserve", BindingType=ObjectProperty,
+                          Target=InventoryComponent, Property="ReserveAmmo", Normalize=true, Range=(0, MaxReserve));
+
+// Alternatively, bind ammo values to GAS attributes if your project uses GAS
+BindCustomParameterToGASAttribute(MyActor, "AmmoCurrent", "Attributes.AmmoCurrent", Normalize=true, Range=(0, MaxClip));
+BindCustomParameterToGASAttribute(MyActor, "AmmoReserve", "Attributes.AmmoReserve", Normalize=true, Range=(0, MaxReserve));
+</code></pre>
+
+  <div class="note callout">
+    <span class="icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="9"></circle>
+        <path d="M12 10v6"></path>
+        <path d="M12 8h.01"></path>
+      </svg>
+    </span>
+    <div>
+      You can query the current weapon type at runtime via <code>UCINCombatComponent::GetWeaponType()</code>. Internally, weapon type changes are detected every tick and fire a dedicated <code>OnWeaponTypeChanged</code> event.
+    </div>
+  </div>
+
+<div class="warn callout">
+  <span class="icon" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="9"></circle>
+      <path d="M12 10v6"></path>
+      <path d="M12 8h.01"></path>
+    </svg>
+  </span>
+  <div>
+    <strong>Coherency:</strong> Keep parameters normalized to [0..1] where possible. If you use custom ranges, configure normalization explicitly in the binding setup.
+  </div>
+</div>
+
+<h3>3.3 Distance, cover and utility signals</h3>
+  <ul>
+    <li><strong>DistanceToTarget</strong>: BlueprintFunction that returns distance in meters; normalize to a max range (e.g., 0..2000).</li>
+    <li><strong>HasCover</strong> / <strong>IsExposed</strong>: function or property returning 1/0.</li>
+    <li><strong>IsReloading</strong>, <strong>IsAiming</strong>: properties from your weapon system.</li>
+  </ul>
+  <h3>Normalization Strategy</h3>
+  <p>Keep inputs comparable. Prefer normalized ranges [0..1] so thresholds, gates, and utilities behave consistently across actions and goals. Examples:</p>
+  <ul>
+    <li><strong>DistanceToTarget</strong>: choose a sensible max (e.g., 2000 cm → 20 m) and map to 0..1. Consider inverting or using bands in utility if “closer is better.”</li>
+    <li><strong>AmmoCurrent/Reserve</strong>: normalize by clip/reserve capacity. Gate reload at ≤ 0.05; bias firing above ≥ 0.10.</li>
+    <li><strong>Health/Stamina</strong>: keep as 0..1; align thresholds with your <code>SetLowHealthThreshold</code>/<code>SetCriticalHealthThreshold</code>.</li>
+  </ul>
+
+<h2>4) Thresholds and Events</h2>
+<p>Set thresholds to trigger tactic shifts via the combat component’s event hooks.</p>
+<pre><code>// Blueprint: UCINCombatComponent (on the Agent)
+SetLowHealthThreshold(0.35);
+SetCriticalHealthThreshold(0.15);
+
+// Blueprint events you can implement (BlueprintImplementableEvent)
+OnHealthBecameLow
+OnHealthBecameCritical
+OnStaminaBecameLow
+OnManaBecameLow
+OnAmmoBecameLow
+OnWeaponTypeChanged // fires on weapon swap or category change
+OnCombatParameterChanged // fires when any bound parameter changes
+</code></pre>
+<p>Use these to swap goals (e.g., <em>MaintainCover</em>) or change action pack bias at runtime.</p>
+  <h3>Gating vs Utility</h3>
+  <p><strong>Requirements/ActivationConditions</strong> act as hard gates (must be true). <strong>Utility</strong> and <strong>priorities/modifiers</strong> are soft preferences. Use gates to keep the search safe (e.g., no fire without ammo) and utility to express desirability (e.g., burst fire preferred at medium range).</p>
+  <ul>
+    <li>Gate examples: <em>AmmoCurrent ≥ 0.10</em> to enable AimAndFire; <em>Health ≤ 0.35</em> to enable MaintainCover.</li>
+    <li>Utility examples: add small bonuses for distance bands, cover state, recoil recovery, etc.</li>
+  </ul>
+
+<h2>5) Goals and Action Selection</h2>
+<p>Define clear goals that the brain can arbitrate between. For example:</p>
+<ul>
+  <li><strong>EngageTarget</strong>: pursue and attack the enemy.</li>
+  <li><strong>MaintainCover</strong>: find/hold cover when low health or reloading.</li>
+  <li><strong>ReloadAndReengage</strong>: prioritize reload when ammo low/out.</li>
+  <li><strong>RetreatAndHeal</strong>: disengage when health critical.</li>
+</ul>
+<p>See <a href="#/docs/arbitration-strategy">Arbitration Strategy</a> for combining influences. Utility evaluation happens in the brain via <code>SelectBestAction</code>/<code>EvaluateActionUtility</code>.</p>
+
+<h3>5.1 Example scoring considerations</h3>
+<ul>
+  <li><strong>Melee</strong> at close range: high utility when <em>WeaponType=Melee</em>, <em>DistanceToTarget</em> close, target visible, and stamina adequate.</li>
+  <li><strong>Pistol/Rifle</strong> at medium/far range: high utility when ammo present, line-of-sight good, and recoil-recovery state ready.</li>
+  <li><strong>Reload</strong> when <em>AmmoCurrent</em> low and safe (in cover or distance far).</li>
+  <li><strong>TakeCover</strong> when <em>Health</em> low or <em>Critical</em>, or when reloading under pressure.</li>
+  <li><strong>SwapWeapon</strong> when out of ammo and reserve for another weapon exists.</li>
+</ul>
+
+<h3>5.2 Utility “Scoring Sheet” Cheatsheet</h3>
+<pre><code class="language-yaml">Actions:
+  MeleeAttack:
+    Gate: { WeaponType: 0, DistanceToTarget: "<= 0.25" }
+    Utility:
+      Base: 0.7
+      "+0.2 if Stamina >= 0.4": true
+  AimAndFire:
+    Gate: { WeaponType: [1, 2], AmmoCurrent: ">= 0.10" }
+    Utility:
+      Base: 0.65
+      "+0.1 if DistanceToTarget in [0.35, 1.0]": true
+  Reload:
+    Gate: { AmmoCurrent: "<= 0.05" }
+    Utility:
+      Base: 0.85
+      "+0.1 if HasCover == 1": true
+</code></pre>
+
+<h2>6) Putting It Together (Blueprint Setup)</h2>
+<ol>
+  <li>Add <strong>CIN Brain</strong> to your AI agent (via your agent base or component setup). See <a href="#/docs/brain-runtime">Brain</a>.</li>
+  <li>Add <strong>UCINCombatComponent</strong> to the same actor.</li>
+  <li>On <em>BeginPlay</em> (or initialization):
+    <ul>
+      <li>Call <code>QuickBindHealth</code>/<code>QuickBindStamina</code> or GAS variants.</li>
+      <li>Bind <code>WeaponType</code>, <code>AmmoCurrent</code>, <code>AmmoReserve</code>, <code>DistanceToTarget</code> via appropriate binding types.</li>
+      <li>Set thresholds with <code>QuickSetThresholds</code> and/or per-parameter setters.</li>
+      <li>Load your <strong>Action Pack</strong> and <strong>Goal Templates</strong> into the agent’s configuration.</li>
+    </ul>
+  </li>
+  <li>Wire <strong>OnHealthBecameLow</strong>/<strong>OnHealthBecameCritical</strong> to trigger goal swaps or cover behavior.</li>
+  <li>Wire <strong>OnWeaponTypeChanged</strong> to react immediately to weapon swaps (e.g., adjust action packs, aim mode, or distance preferences).</li>
+  <li>Optionally, listen to <strong>OnCombatParameterChanged</strong> for coarse-grained reactions to any parameter change.</li>
+</ol>
+
+<h3>6.1 Minimal Blueprint Wiring (Diagram + Steps)</h3>
+<div style="border:1px dashed var(--elevation-3,#999); padding:12px; border-radius:8px; text-align:center; margin:8px 0;">
+  Blueprint Wiring Diagram Placeholder
+</div>
+<ol>
+  <li>Add <strong>CIN Brain</strong> and <strong>UCINCombatComponent</strong> to the AI actor.</li>
+  <li>BeginPlay: <code>QuickBindHealth</code>/<code>QuickBindStamina</code> or GAS equivalents.</li>
+  <li>Bind <code>WeaponType</code> via <code>BindCustomParameterToBlueprintFunction</code>.</li>
+  <li>Bind <code>AmmoCurrent</code>/<code>AmmoReserve</code> via <code>BindCustomCombatParameter</code> or GAS attributes.</li>
+  <li>Set thresholds and load <code>AP_Rifle</code> + <code>GT_Combat</code>.</li>
+</ol>
+
+  <h2>7) Example Blueprint Library Calls</h2>
+  <h3>Runtime Flow Overview</h3>
+  <ol>
+    <li><strong>Inputs</strong> update via parameter bindings each tick or on change.</li>
+    <li><strong>Templates</strong> are considered at their <em>ConsiderationFrequency</em>; relevant goals emerge.</li>
+    <li><strong>Arbitration</strong> evaluates enabled actions (gates passed) and selects the best candidate.</li>
+    <li><strong>Execution</strong> runs the chosen action; thresholds/events can trigger goal swaps.</li>
+    <li><strong>Iteration</strong> repeats; tune thresholds and utilities to shape behavior smoothly.</li>
+  </ol>
+  <pre><code>// Typical one-click setup with GAS attributes (if your project uses GAS)
+CompleteGASSetup(MyActor, "Attributes.Health", "Attributes.Stamina", "Attributes.Mana"); // standard setup
+
+// Bind ammo via custom parameters if needed
+BindCustomParameterToGASAttribute(MyActor, "AmmoCurrent", "Attributes.AmmoCurrent", Normalize=true, Range=(0, MaxClip));
+BindCustomParameterToGASAttribute(MyActor, "AmmoReserve", "Attributes.AmmoReserve", Normalize=true, Range=(0, MaxReserve));
+
+// Or bind individually
+QuickBindHealth(MyActor, HealthComponent, "CurrentHealth", 100.0);
+QuickBindStamina(MyActor, StaminaComponent, "CurrentStamina", 100.0);
+
+// Custom parameters (object properties or Blueprint functions)
+BindCustomCombatParameter(MyActor, "AmmoCurrent", ObjectProperty, WeaponComponent, "CurrentAmmo", true, (0, MaxClip));
+BindCustomCombatParameter(MyActor, "AmmoReserve", ObjectProperty, InventoryComponent, "ReserveAmmo", true, (0, MaxReserve));
+BindCustomParameterToBlueprintFunction(MyActor, "WeaponType", "GetWeaponTypeCategory"); // function returns 0..N mapped categories
+
+// Validation (prints a detailed report to log)
+ValidateIntegrationSetup(MyActor);
+</code></pre>
+
+<h2>8) Testing & Validation</h2>
+<ul>
+  <li>Use <code>ValidateIntegrationSetup</code> to confirm bindings are valid and normalized.</li>
+  <li>Run with the <a href="#/docs/lod-performance">LOD & Performance</a> guidelines; ensure tick/update rates are appropriate.</li>
+  <li>Leverage <a href="#/docs/perception">Perception</a> to ensure <em>DistanceToTarget</em> and visibility signals are consistent.</li>
+</ul>
+
+<h2>9) Troubleshooting</h2>
+<ul>
+  <li><strong>Scores not changing?</strong> Check that your parameter binding types and ranges are correct; log current normalized values.</li>
+  <li><strong>Agent not reloading?</strong> Ensure <em>AmmoCurrent</em> low threshold is set and action exists in the active action pack with proper preconditions.</li>
+  <li><strong>Wrong tactic for weapon?</strong> Verify <em>WeaponType</em> mapping function returns expected category values.</li>
+  <li><strong>Jittery tactic switching?</strong> Introduce small hysteresis or cooldown inside your action preconditions/goals.</li>
+</ul>
+
+<h2>10) Polishing</h2>
+<ul>
+  <li>Refine animation transitions per <a href="#/docs/animation">Animation (Best Practices)</a>.</li>
+  <li>Adjust arbitration weights for your game’s pacing (<a href="#/docs/arbitration-strategy">Arbitration Strategy</a>).</li>
+  <li>Use <a href="#/docs/learning">Learning & Adaptation</a> to bias future choices after good/bad outcomes.</li>
+</ul>
+
+<p class="note">Reminder: <strong>Combat helpers</strong> live in your project (<code>Source/CIN/Combat</code>). The <strong>CIN Plugin</strong> focuses on generic AI and parameter binding.</p>

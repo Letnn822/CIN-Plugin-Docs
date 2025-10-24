@@ -1,0 +1,507 @@
+<h1>Debug & Visualize</h1>
+<p class="note">Master the debug tools to understand what your AI is thinking. Real-time visualization of action scores, inputs, and decision-making is essential for tuning and troubleshooting.</p>
+
+<div class="page-meta">
+  <span class="time"><i data-lucide="clock"></i> 5 minutes</span>
+  <span class="difficulty"><i data-lucide="bar-chart-2"></i> Beginner</span>
+</div>
+
+<div class="callout tip">
+  <span class="icon"><i data-lucide="lightbulb"></i></span>
+  <div>
+    <strong>Why Debug Tools Matter:</strong> Utility AI decisions can seem mysterious. Debug tools make the AI's "thought process" visible, showing exactly why it chose one action over another.
+  </div>
+</div>
+
+<h2>Three Ways to Debug</h2>
+
+<table class="comparison">
+  <thead>
+    <tr>
+      <th>Method</th>
+      <th>Best For</th>
+      <th>Setup Time</th>
+      <th>Detail Level</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Gameplay Debugger</strong></td>
+      <td>Development, deep inspection</td>
+      <td>0 min (built-in)</td>
+      <td>⭐⭐⭐⭐⭐</td>
+    </tr>
+    <tr>
+      <td><strong>CINDebugComponent</strong></td>
+      <td>Visual debugging, demos</td>
+      <td>1 min (add component)</td>
+      <td>⭐⭐⭐</td>
+    </tr>
+    <tr>
+      <td><strong>Console Logs</strong></td>
+      <td>Automated testing, CI/CD</td>
+      <td>30 sec (enable setting)</td>
+      <td>⭐⭐</td>
+    </tr>
+  </tbody>
+</table>
+
+<hr/>
+
+<h2>Method 1: Gameplay Debugger (Most Powerful)</h2>
+
+<h3>Activation</h3>
+<ol>
+  <li>Press <kbd>'</kbd> (apostrophe) to open Gameplay Debugger</li>
+  <li>Press <kbd>5</kbd> to enable <strong>Utility AI</strong> category</li>
+  <li>Press numpad <kbd>1-9</kbd> to select agents (or click on them)</li>
+</ol>
+
+<h3>What You See</h3>
+
+<div class="debug-display">
+  <pre><code>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ UTILITY AI - Soldier_1
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+<span class="highlight-green">CURRENT ACTION: Attack (Score: 42.5)</span>
+
+ACTION SCORES:
+  1. Attack ........................ 42.5 ← ACTIVE
+  2. TakeCover ..................... 28.3
+  3. Reload ........................ 18.7
+  4. Retreat ....................... 12.1
+  5. Patrol ........................  0.0
+
+NAMED INPUTS:
+  Health ........................... 0.85
+  AmmoCount ........................ 0.60
+  HasKnownEnemy .................... 1.00
+  NearestEnemyDistance ............. 0.35
+  ThreatLevel ...................... 0.50
+  HasAllyNearby .................... 0.20
+
+ACTIVE SERVICES (2):
+  • PerceptionMonitor (Tick: 0.2s)
+  • TacticalSense (Tick: 1.0s)
+
+MOMENTUM:
+  Attack: 2.5 (reducing score by -30)
+  TakeCover: 0.0
+  Reload: 0.0
+
+LOCKED ACTIONS:
+  (none)
+
+PERFORMANCE:
+  Evaluation Time: 0.12ms
+  Actions Evaluated: 5
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</code></pre>
+</div>
+
+<h3>Understanding the Display</h3>
+
+<h4><i data-lucide="zap"></i> Current Action</h4>
+<p>Shows which action is executing and its score. Green = active, white = available but not chosen.</p>
+
+<h4><i data-lucide="bar-chart-2"></i> Action Scores</h4>
+<p>All actions ranked by score. This answers "Why did AI choose X over Y?"</p>
+<ul>
+  <li>Attack (42.5) beat TakeCover (28.3) by 14.2 points</li>
+  <li>Patrol (0.0) scored zero because HasKnownEnemy = 1.0</li>
+</ul>
+
+<h4><i data-lucide="list"></i> Named Inputs</h4>
+<p>Current values of all inputs (0-1 normalized). These feed into action scoring curves.</p>
+
+<h4><i data-lucide="refresh-cw"></i> Active Services</h4>
+<p>Services currently running and their tick intervals. If you expect a service but don't see it, check service conditions.</p>
+
+<h4><i data-lucide="trending-up"></i> Momentum</h4>
+<p>Current momentum values and their score penalties. Attack has momentum of 2.5, reducing its score by 30 points to prevent spam.</p>
+
+<h4><i data-lucide="lock"></i> Locked Actions</h4>
+<p>Actions temporarily locked due to failure. Shows remaining lock time.</p>
+
+<h4><i data-lucide="activity"></i> Performance</h4>
+<p>Evaluation time and action count. Should be < 1ms for good performance.</p>
+
+<h3>Keyboard Shortcuts</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Key</th>
+      <th>Action</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><kbd>'</kbd></td>
+      <td>Toggle Gameplay Debugger</td>
+    </tr>
+    <tr>
+      <td><kbd>5</kbd></td>
+      <td>Toggle Utility AI category</td>
+    </tr>
+    <tr>
+      <td><kbd>1-9</kbd> (numpad)</td>
+      <td>Select agent by index</td>
+    </tr>
+    <tr>
+      <td><kbd>Page Up/Down</kbd></td>
+      <td>Cycle through categories</td>
+    </tr>
+    <tr>
+      <td><kbd>Home</kbd></td>
+      <td>Toggle simulation (pause game time)</td>
+    </tr>
+  </tbody>
+</table>
+
+<hr/>
+
+<h2>Method 2: CINDebugComponent (Visual Widget)</h2>
+
+<h3>Setup</h3>
+
+<ol>
+  <li>
+    <p><strong>Add to AI Controller:</strong></p>
+    <ul>
+      <li>Open your AI Controller Blueprint</li>
+      <li>Add Component → <code>CINDebugComponent</code></li>
+    </ul>
+  </li>
+  
+  <li>
+    <p><strong>Configure (Optional):</strong></p>
+    <ul>
+      <li><strong>Update Interval:</strong> <code>0.2</code> seconds (default, lower = more responsive)</li>
+      <li><strong>bShowWidget:</strong> <code>true</code> (visibility toggle)</li>
+      <li><strong>Widget Z Offset:</strong> <code>100.0</code> (height above character)</li>
+    </ul>
+  </li>
+</ol>
+
+<h3>What You See</h3>
+
+<div class="debug-widget-example">
+  <div class="overhead-widget">
+    <div class="widget-header">Soldier_1</div>
+    <div class="widget-action">⚔️ Attack (42.5)</div>
+    <div class="widget-scores">
+      <div>TakeCover: 28.3</div>
+      <div>Reload: 18.7</div>
+      <div>Retreat: 12.1</div>
+    </div>
+    <div class="widget-inputs">
+      Health: 85% | Ammo: 60%
+    </div>
+    <div class="widget-squad">
+      Squad: Alpha | Role: Assault
+    </div>
+  </div>
+</div>
+
+<h3>Widget Information</h3>
+<ul>
+  <li><strong>Line 1:</strong> Agent name/ID</li>
+  <li><strong>Line 2:</strong> Current action and score (with icon)</li>
+  <li><strong>Lines 3-5:</strong> Top 3 alternative actions and scores</li>
+  <li><strong>Line 6:</strong> Key inputs (health, ammo, etc.)</li>
+  <li><strong>Line 7:</strong> Squad info (if in squad)</li>
+</ul>
+
+<h3>Runtime Control</h3>
+
+<p><strong>Toggle All Widgets:</strong></p>
+<pre><code>// Blueprint
+CIN Utility AI Library → Enable Debug Visualization On All Agents
+
+// C++
+#include "Blueprint/CIN_UtilityAILibrary.h"
+UCIN_UtilityAILibrary::EnableDebugVisualizationOnAllAgents();</code></pre>
+
+<p><strong>Toggle Specific Pawn:</strong></p>
+<pre><code>// Blueprint
+CIN Utility AI Library → Toggle Debug For Pawn (Target Pawn)
+
+// C++
+UCIN_UtilityAILibrary::ToggleDebugForPawn(MyPawn);</code></pre>
+
+<div class="callout warn">
+  <span class="icon"><i data-lucide="alert-triangle"></i></span>
+  <div>
+    <strong>Performance:</strong> Overhead widgets use UMG and have rendering cost. Disable in shipping builds or limit to nearby agents only.
+  </div>
+</div>
+
+<hr/>
+
+<h2>Method 3: Console Logs</h2>
+
+<h3>Enable Logging</h3>
+
+<p><strong>Via Project Settings:</strong></p>
+<ol>
+  <li>Edit → Project Settings</li>
+  <li>Plugins → CIN Plugin → Debug</li>
+  <li>Enable:
+    <ul>
+      <li><code>bLogActionSelection = true</code></li>
+      <li><code>bLogInputChanges = true</code></li>
+      <li><code>bLogServiceEvents = true</code></li>
+    </ul>
+  </li>
+</ol>
+
+<p><strong>Via Console (Runtime):</strong></p>
+<pre><code>// In-game console (~)
+LogCINUtilityAI Verbose
+LogCINServices Verbose
+LogCINPerception Verbose</code></pre>
+
+<h3>Example Log Output</h3>
+
+<pre><code>[LogCINUtilityAI] Soldier_1: Evaluating 5 actions
+[LogCINUtilityAI] Soldier_1: Attack scored 42.5 (momentum: -30.0)
+[LogCINUtilityAI] Soldier_1: TakeCover scored 28.3
+[LogCINUtilityAI] Soldier_1: Reload scored 18.7
+[LogCINUtilityAI] Soldier_1: Selected action 'Attack' with score 42.5
+
+[LogCINServices] Soldier_1: PerceptionMonitor published 12 inputs
+[LogCINUtilityAI] Soldier_1: Input 'HasKnownEnemy' changed 0.00 → 1.00
+[LogCINUtilityAI] Soldier_1: Input 'ThreatLevel' changed 0.20 → 0.65
+
+[LogCINPerception] Soldier_1: Enemy detected at distance 1250.0
+[LogCINPerception] Soldier_1: Threat level calculated: 0.65</code></pre>
+
+<h3>Filtering Logs</h3>
+
+<p><strong>Show Only Action Selection:</strong></p>
+<pre><code>LogCINUtilityAI VeryVerbose -LogCINServices All</code></pre>
+
+<p><strong>Show Only Specific Agent:</strong></p>
+<p>(Edit log categories in code to include agent name)</p>
+
+<hr/>
+
+<h2>Common Debug Scenarios</h2>
+
+<h3>Scenario 1: "AI not doing anything"</h3>
+
+<p><strong>Use Gameplay Debugger:</strong></p>
+<ol>
+  <li>Check <strong>ACTION SCORES</strong> - are all scores 0?
+    <ul>
+      <li>If yes: Inputs are wrong or actions misconfigured</li>
+      <li>If no: Brain might be paused or preset not applied</li>
+    </ul>
+  </li>
+  <li>Check <strong>NAMED INPUTS</strong> - are critical inputs at expected values?
+    <ul>
+      <li><code>HasKnownEnemy</code> should be 1.0 when enemy present</li>
+      <li><code>Health</code> should match actual health percentage</li>
+    </ul>
+  </li>
+  <li>Check <strong>ACTIVE SERVICES</strong> - is PerceptionMonitor running?
+    <ul>
+      <li>If not listed: Service didn't start (check conditions)</li>
+      <li>If listed: Perception component might be missing</li>
+    </ul>
+  </li>
+</ol>
+
+<h3>Scenario 2: "Action scores are wrong"</h3>
+
+<p><strong>Debug the Math:</strong></p>
+<pre><code>// Example: Attack should score high but shows 0
+
+1. Check inputs used in scoring:
+   HasKnownEnemy: 1.0 ✓
+   NearestEnemyDistance: 0.3 ✓
+   AmmoCount: 0.0 ← PROBLEM!
+
+2. Formula: BaseScore × HasKnownEnemy × (1 - Distance) × AmmoCount
+   60 × 1.0 × 0.7 × 0.0 = 0
+
+3. Root cause: AmmoCount input not being set
+   Solution: Verify weapon system is calling SetNamedInputValue("AmmoCount", value)</code></pre>
+
+<h3>Scenario 3: "AI switching too fast"</h3>
+
+<p><strong>Check Momentum & Resistance:</strong></p>
+<ol>
+  <li>Look at <strong>MOMENTUM</strong> section - is it accumulating?
+    <ul>
+      <li>If momentum is 0: MaxMomentum might be too low or decay too fast</li>
+      <li>If momentum is high but AI still switches: Score reduction too small</li>
+    </ul>
+  </li>
+  <li>Compare action scores - are they very close (within 5 points)?
+    <ul>
+      <li>If yes: Increase ReplaceResistance to require larger gap</li>
+      <li>If no: Actions might have bugs in their scoring logic</li>
+    </ul>
+  </li>
+</ol>
+
+<h3>Scenario 4: "Action never executes"</h3>
+
+<p><strong>Check Locking & Priority:</strong></p>
+<ol>
+  <li>Look at <strong>LOCKED ACTIONS</strong> - is action locked?
+    <ul>
+      <li>If yes: Action failed previously, wait for unlock time</li>
+      <li>To fix: Reduce UnlockTime or fix why action is failing</li>
+    </ul>
+  </li>
+  <li>Compare with other action scores - is it always losing?
+    <ul>
+      <li>If yes: Increase base score or adjust scoring curves</li>
+      <li>If tied: Add Priority to win ties</li>
+    </ul>
+  </li>
+</ol>
+
+<hr/>
+
+<h2>Advanced Debugging Tips</h2>
+
+<h3>Visualize Perception</h3>
+
+<p><strong>AIPerception Debugging:</strong></p>
+<ol>
+  <li>Gameplay Debugger → Press <kbd>4</kbd> for Perception category</li>
+  <li>Shows:
+    <ul>
+      <li>Red cones: Sight perception</li>
+      <li>Blue circles: Hearing perception</li>
+      <li>Orange markers: Last known locations</li>
+    </ul>
+  </li>
+</ol>
+
+<h3>Pause & Step Through</h3>
+
+<p><strong>Slow Motion Debugging:</strong></p>
+<pre><code>// Console command
+slomo 0.1  // 10% speed
+slomo 1.0  // Normal speed
+
+// Blueprint
+Set Global Time Dilation (0.1)</code></pre>
+
+<h3>Record Debug Session</h3>
+
+<p><strong>Sequence Recorder:</strong></p>
+<ol>
+  <li>Window → Sequence Recorder</li>
+  <li>Add Actor to Record → Select AI pawn</li>
+  <li>Record</li>
+  <li>Playback in Sequencer with debug overlay</li>
+</ol>
+
+<hr/>
+
+<h2>Best Practices</h2>
+
+<div class="callout tip">
+  <span class="icon"><i data-lucide="star"></i></span>
+  <div>
+    <strong>Development Workflow:</strong>
+    <ol>
+      <li>Use <strong>Gameplay Debugger</strong> during development for deep inspection</li>
+      <li>Use <strong>CINDebugComponent</strong> for demos and visual presentations</li>
+      <li>Use <strong>Console Logs</strong> for automated testing and CI/CD</li>
+      <li>Disable all debug in shipping builds for performance</li>
+    </ol>
+  </div>
+</div>
+
+<h3>Performance Impact</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Method</th>
+      <th>Cost (per agent)</th>
+      <th>Shipping Build</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Gameplay Debugger</td>
+      <td>~0.1ms</td>
+      <td>Auto-disabled</td>
+    </tr>
+    <tr>
+      <td>CINDebugComponent</td>
+      <td>~0.3ms (UMG)</td>
+      <td>Manually disable</td>
+    </tr>
+    <tr>
+      <td>Console Logs</td>
+      <td>~0.05ms</td>
+      <td>Compiled out</td>
+    </tr>
+  </tbody>
+</table>
+
+<hr/>
+
+<h2>Congratulations!</h2>
+
+<div class="completion-checklist">
+  <h3><i data-lucide="check-circle"></i> You've Completed "Your First AI" Journey!</h3>
+  <p>You now have:</p>
+  <ul>
+    <li>✅ Understanding of CIN Plugin architecture</li>
+    <li>✅ Working combat AI with intelligent decision-making</li>
+    <li>✅ Debug tools to visualize and tune AI behavior</li>
+    <li>✅ Foundation to build more complex AI</li>
+  </ul>
+</div>
+
+<hr/>
+
+<h2>Next Steps: Level Up Your Skills</h2>
+
+<div class="journey-progress">
+  <div class="journey-completed">
+    <i data-lucide="check-circle"></i>
+    <strong>Your First AI</strong>
+    <span>100% Complete</span>
+  </div>
+  <div class="journey-next">
+    <i data-lucide="tool"></i>
+    <strong>Building Production AI</strong>
+    <span>Start Here →</span>
+  </div>
+</div>
+
+<div class="next-steps">
+  <a class="button primary" href="#/docs/best-practices">
+    <i data-lucide="star"></i>
+    Learn Best Practices
+  </a>
+  <a class="button" href="#/docs/archetype-inheritance">
+    <i data-lucide="git-branch"></i>
+    Master Archetype Inheritance
+  </a>
+  <a class="button" href="#/docs/action-patterns">
+    <i data-lucide="target"></i>
+    Action Design Patterns
+  </a>
+</div>
+
+<h3>Explore Advanced Features</h3>
+<ul>
+  <li><a href="#/docs/squad-setup"><i data-lucide="users"></i> Squad Coordination</a> - Build team tactics</li>
+  <li><a href="#/docs/perception-setup"><i data-lucide="eye"></i> Advanced Perception</a> - Fine-tune sensing</li>
+  <li><a href="#/docs/tuning"><i data-lucide="sliders"></i> Tuning & Balancing</a> - Perfect your AI</li>
+  <li><a href="#/docs/intelligence-layers"><i data-lucide="cpu"></i> Intelligence Layers</a> - Multi-strategy AI</li>
+</ul>
+
+<script>lucide.createIcons();</script>

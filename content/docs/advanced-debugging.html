@@ -1,0 +1,349 @@
+<h1>Advanced Debugging Techniques</h1>
+<p class="note">Expert-level debugging strategies for complex AI issues. Learn advanced techniques for profiling, analysis, and troubleshooting.</p>
+
+<div class="page-meta">
+  <span class="time"><i data-lucide="clock"></i> 18 minutes</span>
+  <span class="difficulty"><i data-lucide="bar-chart-3"></i> Reference</span>
+</div>
+
+<h2>Visual Logger Deep Dive</h2>
+
+<h3>Recording AI Sessions</h3>
+
+<pre><code>// Enable visual logger
+Console: vislog start
+
+// Record specific categories
+vislog category AI on
+vislog category UtilityAI on
+vislog category Perception on
+
+// Custom logging from C++
+UE_VLOG(this, LogUtilityAI, Log, TEXT("Action selected: %s with score: %.2f"), 
+    *ActionName.ToString(), FinalScore);
+
+// Log shapes for visualization
+UE_VLOG_LOCATION(this, LogUtilityAI, Log, TargetLocation, 50, FColor::Red, TEXT("Target"));
+UE_VLOG_SEGMENT(this, LogUtilityAI, Log, Start, End, FColor::Green, TEXT("Path"));
+
+// Timeline playback
+vislog stop
+vislog gui</code></pre>
+
+<h3>Analyzing Visual Logger Data</h3>
+
+<pre><code>Visual Logger Timeline View:
+├─ Action selections over time
+├─ Score changes
+├─ Input value fluctuations
+├─ Service executions
+└─ World state visualization
+
+Use Cases:
+  - Why did action switch?
+  - When did scoring change?
+  - What inputs affected decision?
+  - Where did AI go?</code></pre>
+
+<h2>Unreal Insights Profiling</h2>
+
+<h3>CPU Profiling</h3>
+
+<pre><code>// Start Unreal Insights trace
+trace.start
+
+// Run game, reproduce issue
+
+// Stop trace
+trace.stop
+
+// Open in Unreal Insights
+UnrealInsights.exe
+
+Focus Areas:
+  - UtilityBrainComponent::TickComponent
+  - ComputeActionScore
+  - Service TickService calls
+  - Perception updates</code></pre>
+
+<h3>Performance Hotspots</h3>
+
+<pre><code>Common Bottlenecks:
+
+1. Too Many Actions
+   Problem: >10 actions evaluated each tick
+   Solution: Reduce to 5-8 actions
+   
+2. Complex Considerations
+   Problem: >7 considerations per action
+   Solution: Simplify to 2-5
+   
+3. Expensive Services
+   Problem: Services doing heavy work every tick
+   Solution: Increase MinInterval
+   
+4. Perception Overhead
+   Problem: Large perception radius
+   Solution: Reduce radius or use LOD</code></pre>
+
+<h2>Custom Debug Visualizations</h2>
+
+<h3>Draw Debug Helpers</h3>
+
+<pre><code>// In service or action
+void DebugDraw(float DeltaTime)
+{
+    #if ENABLE_DRAW_DEBUG
+    if (bDebugVisualize)
+    {
+        // Current target
+        if (CurrentTarget)
+        {
+            DrawDebugLine(GetWorld(), 
+                GetOwner()->GetActorLocation(),
+                CurrentTarget->GetActorLocation(),
+                FColor::Red, false, 0.1f, 0, 2.0f);
+                
+            DrawDebugSphere(GetWorld(),
+                CurrentTarget->GetActorLocation(),
+                100.0f, 12, FColor::Red, false, 0.1f);
+        }
+        
+        // Perception range
+        DrawDebugCircle(GetWorld(),
+            GetOwner()->GetActorLocation(),
+            PerceptionRadius,
+            32, FColor::Blue, false, 0.1f);
+            
+        // Action scores (text)
+        FString ScoreText = FString::Printf(TEXT("Score: %.1f"), CurrentScore);
+        DrawDebugString(GetWorld(),
+            GetOwner()->GetActorLocation() + FVector(0,0,200),
+            ScoreText, nullptr, FColor::White, 0.1f);
+    }
+    #endif
+}</code></pre>
+
+<h2>Breakpoint Debugging</h2>
+
+<h3>Strategic Breakpoints</h3>
+
+<pre><code>Key Breakpoint Locations:
+
+1. Action Selection
+   UUtilityBrainComponent::EvaluateAndRunBestAction()
+   → Line where best action is chosen
+   
+2. Score Calculation
+   UUtilityBrainComponent::ComputeActionScore()
+   → After all considerations applied
+   
+3. Service Execution
+   YourCustomService::TickService()
+   → Where inputs are published
+   
+4. Action Start
+   UUtilityActionExecutor::Execute()
+   → When action begins
+
+Conditional Breakpoints:
+  if (ActionName == "Attack") // Break only for specific action
+  if (FinalScore < 10.0f) // Break on low scores
+  if (CurrentTarget == nullptr) // Break on null targets</code></pre>
+
+<h2>Logging Strategies</h2>
+
+<h3>Structured Logging</h3>
+
+<pre><code>// Define log category
+DECLARE_LOG_CATEGORY_EXTERN(LogMyAI, Log, All);
+DEFINE_LOG_CATEGORY(LogMyAI);
+
+// Verbose logging for development
+UE_LOG(LogMyAI, Verbose, TEXT("[%s] Evaluating %d actions"), 
+    *GetOwner()->GetName(), Actions.Num());
+
+// Warnings for issues
+UE_LOG(LogMyAI, Warning, TEXT("[%s] No valid actions scored > 0"), 
+    *GetOwner()->GetName());
+
+// Errors for critical issues
+UE_LOG(LogMyAI, Error, TEXT("[%s] Brain component is null!"), 
+    *GetOwner()->GetName());
+
+// Enable specific verbosity
+log LogMyAI Verbose</code></pre>
+
+<h3>Frame-by-Frame Analysis</h3>
+
+<pre><code>// Log every decision
+void LogActionSelection()
+{
+    UE_LOG(LogMyAI, Log, TEXT("=== Frame %d ==="), GFrameNumber);
+    UE_LOG(LogMyAI, Log, TEXT("Action Scores:"));
+    
+    for (auto& Action : Actions)
+    {
+        float Score = ComputeActionScore(Action);
+        UE_LOG(LogMyAI, Log, TEXT("  %s: %.2f"), *Action->ActionName.ToString(), Score);
+    }
+    
+    UE_LOG(LogMyAI, Log, TEXT("Selected: %s"), *SelectedAction->ActionName.ToString());
+}</code></pre>
+
+<h2>AI Debugging Tools</h2>
+
+<h3>Custom Debug Commands</h3>
+
+<pre><code>// Register console commands
+#if !UE_BUILD_SHIPPING
+static FAutoConsoleCommand CVarDebugAI(
+    TEXT("AI.Debug"),
+    TEXT("Toggle AI debug visualization"),
+    FConsoleCommandDelegate::CreateStatic(&ToggleAIDebug)
+);
+
+static FAutoConsoleCommand CVarDumpScores(
+    TEXT("AI.DumpScores"),
+    TEXT("Dump current action scores"),
+    FConsoleCommandDelegate::CreateStatic(&DumpActionScores)
+);
+#endif
+
+Usage:
+  AI.Debug         // Toggle visualization
+  AI.DumpScores    // Print scores to log</code></pre>
+
+<h2>Network Debugging</h2>
+
+<h3>Multiplayer AI Issues</h3>
+
+<pre><code>// Log server vs client
+void DebugNetworkState()
+{
+    FString Role = GetOwnerRole() == ROLE_Authority ? TEXT("SERVER") : TEXT("CLIENT");
+    UE_LOG(LogMyAI, Log, TEXT("[%s] Action: %s, Score: %.2f"), 
+        *Role, *CurrentActionName.ToString(), CurrentScore);
+}
+
+// Replicated state tracking
+void OnRep_CurrentActionName()
+{
+    UE_LOG(LogMyAI, Log, TEXT("Client received action: %s"), 
+        *CurrentActionName.ToString());
+    
+    // Check for discrepancies
+    if (PredictedAction != CurrentActionName)
+    {
+        UE_LOG(LogMyAI, Warning, TEXT("Prediction mismatch! Predicted: %s, Actual: %s"),
+            *PredictedAction.ToString(), *CurrentActionName.ToString());
+    }
+}</code></pre>
+
+<h2>Automated Testing</h2>
+
+<h3>Unit Tests for AI</h3>
+
+<pre><code>// Test action scoring
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FUtilityAIScoreTest, 
+    "UtilityAI.Scoring.BasicScore",
+    EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+
+bool FUtilityAIScoreTest::RunTest(const FString& Parameters)
+{
+    // Setup test environment
+    UUtilityBrainComponent* TestBrain = NewObject<UUtilityBrainComponent>();
+    UUtilityActionAsset* TestAction = NewObject<UUtilityActionAsset>();
+    TestAction->BaseScore = 50.0f;
+    
+    // Add simple consideration
+    FConsideration TestConsideration;
+    TestConsideration.InputName = "Health";
+    TestConsideration.Weight = 1.0f;
+    TestAction->Considerations.Add(TestConsideration);
+    
+    // Set input value
+    TestBrain->SetNamedInputValue("Health", 1.0f);
+    
+    // Calculate score
+    float Score = TestBrain->ComputeActionScore(TestAction);
+    
+    // Verify
+    TestTrue("Score should be 50", FMath::IsNearlyEqual(Score, 50.0f, 0.1f));
+    
+    return true;
+}</code></pre>
+
+<h2>Common Issues & Solutions</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Issue</th>
+      <th>Debug Technique</th>
+      <th>Solution</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Action thrashing</td>
+      <td>Visual Logger timeline</td>
+      <td>Increase ReplaceResistance</td>
+    </tr>
+    <tr>
+      <td>Low performance</td>
+      <td>Unreal Insights profiling</td>
+      <td>Reduce actions/considerations</td>
+    </tr>
+    <tr>
+      <td>Wrong action selected</td>
+      <td>Gameplay Debugger scores</td>
+      <td>Tune consideration curves</td>
+    </tr>
+    <tr>
+      <td>Inputs not updating</td>
+      <td>Breakpoint in TickService</td>
+      <td>Check service is added to brain</td>
+    </tr>
+    <tr>
+      <td>Network desync</td>
+      <td>Network logging</td>
+      <td>Verify server authority</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Best Practices</h2>
+
+<div class="callout tip">
+  <span class="icon"><i data-lucide="check-square"></i></span>
+  <div>
+    <strong>Advanced Debugging Best Practices:</strong>
+    <ul class="compact">
+      <li>✅ Use Visual Logger for timeline analysis</li>
+      <li>✅ Profile with Unreal Insights regularly</li>
+      <li>✅ Add structured logging early</li>
+      <li>✅ Create custom debug visualizations</li>
+      <li>✅ Write unit tests for scoring logic</li>
+      <li>✅ Use conditional breakpoints</li>
+      <li>✅ Test in multiplayer early</li>
+      <li>❌ Don't debug only in shipping builds</li>
+      <li>❌ Don't ignore performance warnings</li>
+    </ul>
+  </div>
+</div>
+
+<h2>Next Steps</h2>
+
+<div class="next-steps">
+  <a class="button primary" href="#/docs/debug-basics">
+    <i data-lucide="bug"></i>
+    Debug Basics
+  </a>
+  <a class="button" href="#/docs/troubleshooting">
+    <i data-lucide="alert-circle"></i>
+    Troubleshooting
+  </a>
+</div>
+
+<script>lucide.createIcons();</script>

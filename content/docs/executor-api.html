@@ -1,0 +1,498 @@
+<h1>Action Executor API</h1>
+<p class="note">Complete reference for UUtilityActionExecutor and its implementations. Learn how to create custom executors and integrate Behavior Trees, Blueprints, and C++ logic.</p>
+
+<div class="page-meta">
+  <span class="time"><i data-lucide="clock"></i> 20 minutes</span>
+  <span class="difficulty"><i data-lucide="bar-chart-3"></i> Reference</span>
+</div>
+
+<h2>Base Class Overview</h2>
+
+<pre><code>Class: UUtilityActionExecutor
+Parent: UObject
+Module: CINAI
+Header: Public/UtilityActionExecutor.h
+
+Purpose:
+  Abstract base class for action execution strategies.
+  Defines interface for starting, updating, and stopping actions.
+  Subclasses implement specific execution methods (BT, BP, C++).
+
+Key Concept:
+  Actions define WHAT to do (scoring logic)
+  Executors define HOW to do it (implementation)</code></pre>
+
+<h2>Base Class Interface</h2>
+
+<h3>Virtual Functions</h3>
+
+<pre><code>// Called when action starts
+virtual void Execute(AActor* Owner, UUtilityBrainComponent* Brain);
+
+// Called every frame while action is running
+virtual void TickExecute(float DeltaTime);
+
+// Called to stop action
+virtual void StopExecution();
+
+// Query if action is complete
+virtual bool IsExecutionComplete() const;
+
+// Get execution status
+virtual EExecutionStatus GetExecutionStatus() const;</code></pre>
+
+<h3>Execution Status</h3>
+
+<pre><code>UENUM(BlueprintType)
+enum class EExecutionStatus : uint8
+{
+    NotStarted,    // Executor hasn't run yet
+    Running,       // Currently executing
+    Succeeded,     // Completed successfully
+    Failed,        // Failed to complete
+    Aborted        // Interrupted/cancelled
+};</code></pre>
+
+<h2>Built-In Executors</h2>
+
+<h3>1. UUtilityActionExecutor_BehaviorTree</h3>
+
+<pre><code>Class: UUtilityActionExecutor_BehaviorTree
+Parent: UUtilityActionExecutor
+Header: Public/Executors/UtilityActionExecutor_BehaviorTree.h
+
+Purpose:
+  Runs a Behavior Tree when action is selected.
+  Most common executor for complex behaviors.
+
+Properties:
+  UPROPERTY(EditAnywhere, BlueprintReadWrite)
+  UBehaviorTree* BehaviorTree;
+  
+  UPROPERTY(EditAnywhere, BlueprintReadWrite)
+  bool bRestartOnReselect = false;
+  
+  UPROPERTY(EditAnywhere, BlueprintReadWrite)
+  bool bStopTreeOnAbort = true;</code></pre>
+
+<h4>Configuration Example</h4>
+
+<pre><code>Action Asset: DA_Action_Attack
+  Executor: UtilityActionExecutor_BehaviorTree (instanced)
+    BehaviorTree: BT_Attack
+    bRestartOnReselect: false
+    bStopTreeOnAbort: true
+
+Behavior:
+  - Action selected → BT_Attack starts
+  - Action running → BT_Attack continues
+  - Action deselected → BT_Attack stops
+  - Action reselected → BT_Attack resumes (or restarts if flag set)</code></pre>
+
+<h4>Behavior Tree Integration</h4>
+
+<pre><code>BT_Attack Structure:
+Root
+└─ Sequence
+   ├─ Move To Enemy
+   ├─ Aim At Target
+   ├─ Fire Weapon
+   ├─ Wait (0.5s)
+   └─ Finish Execute (Success)
+
+Action Asset uses this executor:
+  When Attack scores highest
+  → Execute() called
+  → Behavior Tree runs
+  → Action completes when BT finishes</code></pre>
+
+<h3>2. UUtilityActionExecutor_Blueprint</h3>
+
+<pre><code>Class: UUtilityActionExecutor_Blueprint
+Parent: UUtilityActionExecutor
+Header: Public/Executors/UtilityActionExecutor_Blueprint.h
+
+Purpose:
+  Allows Blueprint implementation of execution logic.
+  Useful for designers without C++ access.
+
+Blueprint Events:
+  Event OnExecute(Actor Owner, UtilityBrain Brain)
+  Event OnTickExecute(float DeltaTime)
+  Event OnStopExecution()
+  
+Blueprint Functions:
+  MarkComplete(bool bSuccess)
+  GetOwningActor() → AActor
+  GetBrain() → UUtilityBrainComponent</code></pre>
+
+<h4>Blueprint Example</h4>
+
+<pre><code>Create BP_Executor_CustomAction (parent: UtilityActionExecutor_Blueprint)
+
+Event OnExecute
+  → Store Owner reference
+  → Start custom logic
+  → Begin async operation
+
+Event OnTickExecute
+  → Check if operation complete
+  → Update state
+  → Branch
+    Complete:
+      → Mark Complete (true)
+    Failed:
+      → Mark Complete (false)
+
+Event OnStopExecution
+  → Clean up
+  → Cancel async operations</code></pre>
+
+<h3>3. UUtilityActionExecutor_Simple (Custom)</h3>
+
+<pre><code>// Example C++ custom executor
+UCLASS()
+class UUtilityActionExecutor_Simple : public UUtilityActionExecutor
+{
+    GENERATED_BODY()
+    
+public:
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    float Duration = 2.0f;
+    
+    virtual void Execute(AActor* Owner, UUtilityBrainComponent* Brain) override
+    {
+        OwnerActor = Owner;
+        ElapsedTime = 0.0f;
+        Status = EExecutionStatus::Running;
+        
+        // Custom logic here
+        UE_LOG(LogAI, Log, TEXT("Action started!"));
+    }
+    
+    virtual void TickExecute(float DeltaTime) override
+    {
+        ElapsedTime += DeltaTime;
+        
+        if (ElapsedTime >= Duration)
+        {
+            Status = EExecutionStatus::Succeeded;
+        }
+    }
+    
+    virtual void StopExecution() override
+    {
+        Status = EExecutionStatus::Aborted;
+    }
+    
+    virtual bool IsExecutionComplete() const override
+    {
+        return Status == EExecutionStatus::Succeeded || 
+               Status == EExecutionStatus::Failed;
+    }
+    
+private:
+    float ElapsedTime;
+    AActor* OwnerActor;
+    EExecutionStatus Status;
+};</code></pre>
+
+<h2>Executor Lifecycle</h2>
+
+<h3>Standard Execution Flow</h3>
+
+<pre><code>1. Action Selected
+   └─ Brain calls Executor->Execute(Owner, Brain)
+   
+2. Action Running
+   └─ Brain calls Executor->TickExecute(DeltaTime) every frame
+   
+3. Check Completion
+   └─ Brain checks Executor->IsExecutionComplete()
+   
+4. Action Completes or Interrupted
+   └─ Brain calls Executor->StopExecution()
+
+Example Timeline:
+  Frame 0: Execute() called
+  Frame 1-N: TickExecute() called each frame
+  Frame N: IsExecutionComplete() returns true
+  Frame N+1: Action finishes, new evaluation</code></pre>
+
+<h3>Behavior Tree Lifecycle</h3>
+
+<pre><code>BT Executor Specific:
+
+Execute():
+  → Get AIController from Owner
+  → Run BehaviorTree on AIController
+  → BT becomes active
+  → Store BT component reference
+
+TickExecute():
+  → Check BT status
+  → Update internal state
+
+IsExecutionComplete():
+  → Query BT execution status
+  → Return true if BT finished
+
+StopExecution():
+  → Stop BT if bStopTreeOnAbort = true
+  → Clean up BT component reference</code></pre>
+
+<h2>Creating Custom Executors</h2>
+
+<h3>C++ Custom Executor Template</h3>
+
+<pre><code>// MyCustomExecutor.h
+#pragma once
+#include "UtilityActionExecutor.h"
+#include "MyCustomExecutor.generated.h"
+
+UCLASS(BlueprintType, EditInlineNew)
+class MYGAME_API UMyCustomExecutor : public UUtilityActionExecutor
+{
+    GENERATED_BODY()
+    
+public:
+    // Configuration properties
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Execution")
+    float ExecutionDuration = 1.0f;
+    
+    // Implement interface
+    virtual void Execute(AActor* Owner, UUtilityBrainComponent* Brain) override;
+    virtual void TickExecute(float DeltaTime) override;
+    virtual void StopExecution() override;
+    virtual bool IsExecutionComplete() const override;
+    virtual EExecutionStatus GetExecutionStatus() const override;
+    
+private:
+    AActor* OwningActor;
+    UUtilityBrainComponent* OwningBrain;
+    float ElapsedTime;
+    EExecutionStatus CurrentStatus;
+};
+
+// MyCustomExecutor.cpp
+void UMyCustomExecutor::Execute(AActor* Owner, UUtilityBrainComponent* Brain)
+{
+    OwningActor = Owner;
+    OwningBrain = Brain;
+    ElapsedTime = 0.0f;
+    CurrentStatus = EExecutionStatus::Running;
+    
+    // Your custom logic here
+    // Example: Start animation, fire event, etc.
+}
+
+void UMyCustomExecutor::TickExecute(float DeltaTime)
+{
+    if (CurrentStatus != EExecutionStatus::Running)
+        return;
+    
+    ElapsedTime += DeltaTime;
+    
+    // Update logic
+    if (ElapsedTime >= ExecutionDuration)
+    {
+        CurrentStatus = EExecutionStatus::Succeeded;
+    }
+}
+
+void UMyCustomExecutor::StopExecution()
+{
+    CurrentStatus = EExecutionStatus::Aborted;
+    // Cleanup logic
+}
+
+bool UMyCustomExecutor::IsExecutionComplete() const
+{
+    return CurrentStatus == EExecutionStatus::Succeeded ||
+           CurrentStatus == EExecutionStatus::Failed ||
+           CurrentStatus == EExecutionStatus::Aborted;
+}
+
+EExecutionStatus UMyCustomExecutor::GetExecutionStatus() const
+{
+    return CurrentStatus;
+}</code></pre>
+
+<h3>Blueprint Custom Executor</h3>
+
+<pre><code>1. Create Blueprint (parent: UtilityActionExecutor_Blueprint)
+2. Name: BP_Executor_MyAction
+3. Implement events:
+
+Event OnExecute
+  → Store references
+  → Initialize state
+  → Begin execution
+
+Event OnTickExecute
+  → Update each frame
+  → Check completion
+  → Call Mark Complete when done
+
+Event OnStopExecution
+  → Cleanup
+  → Stop any async operations</code></pre>
+
+<h2>Common Executor Patterns</h2>
+
+<h3>Pattern 1: Animation-Based</h3>
+
+<pre><code>// Execute plays animation, completes when done
+void UAnimationExecutor::Execute(AActor* Owner, UUtilityBrainComponent* Brain)
+{
+    UAnimInstance* AnimInstance = GetAnimInstance(Owner);
+    AnimInstance->Montage_Play(ActionMontage);
+    
+    // Bind to montage complete
+    AnimInstance->OnMontageEnded.AddDynamic(this, &UAnimationExecutor::OnMontageComplete);
+    
+    Status = EExecutionStatus::Running;
+}
+
+void UAnimationExecutor::OnMontageComplete(UAnimMontage* Montage, bool bInterrupted)
+{
+    Status = bInterrupted ? EExecutionStatus::Aborted : EExecutionStatus::Succeeded;
+}</code></pre>
+
+<h3>Pattern 2: Async Task</h3>
+
+<pre><code>// Execute starts async operation
+void UAsyncExecutor::Execute(AActor* Owner, UUtilityBrainComponent* Brain)
+{
+    // Start async task
+    TaskHandle = StartAsyncTask();
+    Status = EExecutionStatus::Running;
+}
+
+void UAsyncExecutor::TickExecute(float DeltaTime)
+{
+    if (IsTaskComplete(TaskHandle))
+    {
+        Status = GetTaskResult(TaskHandle) ? 
+            EExecutionStatus::Succeeded : 
+            EExecutionStatus::Failed;
+    }
+}</code></pre>
+
+<h3>Pattern 3: Timer-Based</h3>
+
+<pre><code>// Execute with fixed duration
+void UTimerExecutor::Execute(AActor* Owner, UUtilityBrainComponent* Brain)
+{
+    ElapsedTime = 0.0f;
+    Status = EExecutionStatus::Running;
+    
+    // Perform instant action
+    PerformAction(Owner);
+}
+
+void UTimerExecutor::TickExecute(float DeltaTime)
+{
+    ElapsedTime += DeltaTime;
+    
+    if (ElapsedTime >= Duration)
+    {
+        Status = EExecutionStatus::Succeeded;
+    }
+}</code></pre>
+
+<h3>Pattern 4: Condition-Based</h3>
+
+<pre><code>// Execute until condition met
+void UConditionExecutor::Execute(AActor* Owner, UUtilityBrainComponent* Brain)
+{
+    OwningActor = Owner;
+    OwningBrain = Brain;
+    Status = EExecutionStatus::Running;
+}
+
+void UConditionExecutor::TickExecute(float DeltaTime)
+{
+    if (CheckCondition(OwningBrain))
+    {
+        Status = EExecutionStatus::Succeeded;
+    }
+    else if (CheckFailureCondition(OwningBrain))
+    {
+        Status = EExecutionStatus::Failed;
+    }
+}</code></pre>
+
+<h2>Best Practices</h2>
+
+<div class="callout tip">
+  <span class="icon"><i data-lucide="check-square"></i></span>
+  <div>
+    <strong>Executor Best Practices:</strong>
+    <ul class="compact">
+      <li>✅ Use BT executor for complex multi-step behaviors</li>
+      <li>✅ Use Blueprint executor for designer-friendly actions</li>
+      <li>✅ Use custom C++ executors for performance-critical actions</li>
+      <li>✅ Always set status appropriately (Running/Succeeded/Failed)</li>
+      <li>✅ Clean up resources in StopExecution()</li>
+      <li>✅ Mark EditInlineNew for editor integration</li>
+      <li>✅ Handle interruption gracefully</li>
+      <li>❌ Don't block in Execute() (keep it fast)</li>
+      <li>❌ Don't forget to mark completion</li>
+      <li>❌ Don't assume action will run to completion</li>
+      <li>❌ Don't store heavy state in executor (use owner/brain)</li>
+    </ul>
+  </div>
+</div>
+
+<h2>Troubleshooting</h2>
+
+<h3>Common Issues</h3>
+
+<pre><code>Problem: Executor never completes
+Solution:
+  - Check IsExecutionComplete() implementation
+  - Verify status is set to Succeeded/Failed
+  - Ensure TickExecute is called (check logs)
+
+Problem: Behavior Tree doesn't start
+Solution:
+  - Verify BehaviorTree asset is assigned
+  - Check AIController is valid
+  - Ensure Owner has AIController component
+  - Check BT asset for errors
+
+Problem: Action interrupted immediately
+Solution:
+  - Check bInterruptible flag on action
+  - Verify ReplaceResistance settings
+  - Check if higher priority action exists
+
+Problem: Memory leak/performance
+Solution:
+  - Clean up in StopExecution()
+  - Remove delegates/timers
+  - Don't store unnecessary references</code></pre>
+
+<h2>Next Steps</h2>
+
+<div class="next-steps">
+  <a class="button primary" href="#/docs/action-api">
+    <i data-lucide="target"></i>
+    Action Asset API
+  </a>
+  <a class="button" href="#/docs/behavior-tree">
+    <i data-lucide="git-branch"></i>
+    Behavior Tree Integration
+  </a>
+</div>
+
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="#/docs/action-api"><i data-lucide="target"></i> Action Asset API</a> - Configure actions</li>
+  <li><a href="#/docs/behavior-tree"><i data-lucide="git-branch"></i> Behavior Tree</a> - BT integration guide</li>
+  <li><a href="#/docs/custom-services"><i data-lucide="tool"></i> Custom Services</a> - Create services in C++</li>
+  <li><a href="#/docs/brain-api"><i data-lucide="cpu"></i> Brain API</a> - Brain component reference</li>
+</ul>
+
+<script>lucide.createIcons();</script>

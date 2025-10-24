@@ -1,0 +1,514 @@
+<h1>Your First Combat AI</h1>
+<p class="note">Hands-on tutorial: Build a complete combat soldier AI with attack, cover, reload, and retreat behaviors. By the end, you'll have a fully functional AI that fights intelligently!</p>
+
+<div class="page-meta">
+  <span class="time"><i data-lucide="clock"></i> 10 minutes</span>
+  <span class="difficulty"><i data-lucide="bar-chart-2"></i> Beginner</span>
+</div>
+
+<div class="callout tip">
+  <span class="icon"><i data-lucide="lightbulb"></i></span>
+  <div>
+    <strong>Prerequisites:</strong>
+    <ul class="compact">
+      <li>✅ Completed <a href="#/docs/setup-workflow">15-Minute Setup</a></li>
+      <li>✅ Have a character pawn with basic movement</li>
+      <li>✅ Familiar with Behavior Trees (optional but helpful)</li>
+    </ul>
+  </div>
+</div>
+
+<h2>What We're Building</h2>
+
+<p>A combat soldier AI that:</p>
+<ul>
+  <li><i data-lucide="crosshair"></i> <strong>Attacks</strong> enemies when in range with ammo</li>
+  <li><i data-lucide="shield"></i> <strong>Takes Cover</strong> when under threat and low health</li>
+  <li><i data-lucide="rotate-cw"></i> <strong>Reloads</strong> weapon when ammo depleted</li>
+  <li><i data-lucide="arrow-left"></i> <strong>Retreats</strong> when critically injured</li>
+  <li><i data-lucide="move"></i> <strong>Patrols</strong> when no threats present</li>
+</ul>
+
+<hr/>
+
+<h2>Step 1: Create the Agent Preset</h2>
+
+<ol>
+  <li>Create <code>DA_CombatSoldier_Preset</code> (CIN_AgentPreset)</li>
+  <li>Set <strong>Archetype</strong>: <code>BaseCombat</code></li>
+  <li>Set <strong>Team ID</strong>: <code>1</code> (player team = 0, enemies = 1+)</li>
+</ol>
+
+<hr/>
+
+<h2>Step 2: Create Combat Actions</h2>
+
+<h3>Action 1: Attack</h3>
+
+<p><strong>Purpose:</strong> Engage visible enemy with weapon fire</p>
+
+<p><strong>Configuration:</strong></p>
+<ul>
+  <li><strong>Name:</strong> <code>Attack</code></li>
+  <li><strong>Base Score:</strong> <code>60.0</code></li>
+</ul>
+
+<p><strong>Scoring Formula:</strong></p>
+<pre><code>Score = BaseScore × HasKnownEnemy × (1 - NearestEnemyDistance) × AmmoCount
+
+Example:
+  BaseScore: 60
+  HasKnownEnemy: 1.0 (yes)
+  NearestEnemyDistance: 0.3 (fairly close, so 1-0.3 = 0.7)
+  AmmoCount: 0.8 (80% ammo)
+  
+  Final Score: 60 × 1.0 × 0.7 × 0.8 = 33.6</code></pre>
+
+<p><strong>Considerations:</strong></p>
+<table>
+  <thead>
+    <tr>
+      <th>Input</th>
+      <th>Curve</th>
+      <th>Reasoning</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>HasKnownEnemy</code></td>
+      <td>0.0→0, 1.0→100</td>
+      <td>Can't attack without target</td>
+    </tr>
+    <tr>
+      <td><code>NearestEnemyDistance</code></td>
+      <td>0.0→100, 1.0→0</td>
+      <td>Prefer closer targets (inverted)</td>
+    </tr>
+    <tr>
+      <td><code>AmmoCount</code></td>
+      <td>0.0→0, 1.0→80</td>
+      <td>Can't attack without ammo</td>
+    </tr>
+  </tbody>
+</table>
+
+<p><strong>Momentum Settings:</strong></p>
+<ul>
+  <li><strong>Max Momentum:</strong> <code>4.0</code></li>
+  <li><strong>Momentum Score Reduction:</strong> <code>12.0</code></li>
+  <li><strong>Momentum Decay Time:</strong> <code>2.5</code> seconds</li>
+  <li><em>Effect: After 4 attacks in quick succession, score reduced by 48 for 2.5 seconds</em></li>
+</ul>
+
+<p><strong>Other Settings:</strong></p>
+<ul>
+  <li><strong>bInterruptible:</strong> <code>true</code></li>
+  <li><strong>Replace Resistance:</strong> <code>1.2</code> (new action must score 1.2x higher)</li>
+</ul>
+
+<h3>Action 2: Take Cover</h3>
+
+<p><strong>Purpose:</strong> Move to cover when under threat</p>
+
+<p><strong>Configuration:</strong></p>
+<ul>
+  <li><strong>Name:</strong> <code>TakeCover</code></li>
+  <li><strong>Base Score:</strong> <code>70.0</code> (higher priority than attack when conditions met)</li>
+</ul>
+
+<p><strong>Scoring Formula:</strong></p>
+<pre><code>Score = BaseScore × ThreatLevel × (1 - Health)
+
+Example:
+  BaseScore: 70
+  ThreatLevel: 0.8 (high threat)
+  Health: 0.3 (low health, so 1-0.3 = 0.7)
+  
+  Final Score: 70 × 0.8 × 0.7 = 39.2</code></pre>
+
+<p><strong>Considerations:</strong></p>
+<table>
+  <thead>
+    <tr>
+      <th>Input</th>
+      <th>Curve</th>
+      <th>Reasoning</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>ThreatLevel</code></td>
+      <td>0.0→0, 1.0→100</td>
+      <td>Only take cover when threatened</td>
+    </tr>
+    <tr>
+      <td><code>Health</code></td>
+      <td>0.0→100, 1.0→0</td>
+      <td>More urgent when injured (inverted)</td>
+    </tr>
+  </tbody>
+</table>
+
+<p><strong>Resistance Settings:</strong></p>
+<ul>
+  <li><strong>Replace Resistance:</strong> <code>2.0</code> (hard to interrupt once committed to cover)</li>
+  <li><strong>bInterruptible:</strong> <code>true</code> (but only by much higher scores)</li>
+</ul>
+
+<h3>Action 3: Reload</h3>
+
+<p><strong>Purpose:</strong> Reload weapon when ammunition low</p>
+
+<p><strong>Configuration:</strong></p>
+<ul>
+  <li><strong>Name:</strong> <code>Reload</code></li>
+  <li><strong>Base Score:</strong> <code>80.0</code> (very high priority)</li>
+  <li><strong>Priority:</strong> <code>15</code> (wins ties - reloading is critical)</li>
+</ul>
+
+<p><strong>Scoring Formula:</strong></p>
+<pre><code>Score = BaseScore × (1 - AmmoCount) × (1 - ThreatLevel)
+
+Example:
+  BaseScore: 80
+  AmmoCount: 0.2 (low ammo, so 1-0.2 = 0.8)
+  ThreatLevel: 0.3 (not too dangerous, so 1-0.3 = 0.7)
+  
+  Final Score: 80 × 0.8 × 0.7 = 44.8</code></pre>
+
+<p><strong>Considerations:</strong></p>
+<table>
+  <thead>
+    <tr>
+      <th>Input</th>
+      <th>Curve</th>
+      <th>Reasoning</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>AmmoCount</code></td>
+      <td>0.0→100, 1.0→0</td>
+      <td>Reload when low (inverted)</td>
+    </tr>
+    <tr>
+      <td><code>ThreatLevel</code></td>
+      <td>0.0→100, 1.0→20</td>
+      <td>Prefer safe moments to reload</td>
+    </tr>
+  </tbody>
+</table>
+
+<p><strong>Locking Settings:</strong></p>
+<ul>
+  <li><strong>Unlock Time:</strong> <code>3.0</code> seconds (if reload fails, don't spam retry)</li>
+  <li><strong>bInterruptible:</strong> <code>false</code> (critical action, must complete)</li>
+</ul>
+
+<h3>Action 4: Retreat</h3>
+
+<p><strong>Purpose:</strong> Fall back when critically injured</p>
+
+<p><strong>Configuration:</strong></p>
+<ul>
+  <li><strong>Name:</strong> <code>Retreat</code></li>
+  <li><strong>Base Score:</strong> <code>90.0</code> (highest priority - survival)</li>
+  <li><strong>Priority:</strong> <code>20</code> (beats everything at same score)</li>
+</ul>
+
+<p><strong>Scoring Formula:</strong></p>
+<pre><code>Score = BaseScore × (1 - Health) × ThreatLevel × (1 - HasAllyNearby)
+
+Example:
+  BaseScore: 90
+  Health: 0.15 (very low, so 1-0.15 = 0.85)
+  ThreatLevel: 0.9 (very dangerous)
+  HasAllyNearby: 0.2 (few allies, so 1-0.2 = 0.8)
+  
+  Final Score: 90 × 0.85 × 0.9 × 0.8 = 55.08</code></pre>
+
+<p><strong>Considerations:</strong></p>
+<table>
+  <thead>
+    <tr>
+      <th>Input</th>
+      <th>Curve</th>
+      <th>Reasoning</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>Health</code></td>
+      <td>0.0→100, 0.3→50, 1.0→0</td>
+      <td>Urgent below 30% health</td>
+    </tr>
+    <tr>
+      <td><code>ThreatLevel</code></td>
+      <td>0.0→0, 1.0→100</td>
+      <td>Only retreat if actually threatened</td>
+    </tr>
+    <tr>
+      <td><code>HasAllyNearby</code></td>
+      <td>0.0→100, 1.0→50</td>
+      <td>More likely to retreat if alone</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Action 5: Patrol</h3>
+
+<p><strong>Purpose:</strong> Default behavior when nothing else to do</p>
+
+<p><strong>Configuration:</strong></p>
+<ul>
+  <li><strong>Name:</strong> <code>Patrol</code></li>
+  <li><strong>Base Score:</strong> <code>15.0</code> (lowest priority - fallback)</li>
+</ul>
+
+<p><strong>Scoring Formula:</strong></p>
+<pre><code>Score = BaseScore × (1 - HasKnownEnemy)</code></pre>
+
+<p><strong>Considerations:</strong></p>
+<table>
+  <thead>
+    <tr>
+      <th>Input</th>
+      <th>Curve</th>
+      <th>Reasoning</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>HasKnownEnemy</code></td>
+      <td>0.0→100, 1.0→0</td>
+      <td>Only patrol when safe</td>
+    </tr>
+  </tbody>
+</table>
+
+<hr/>
+
+<h2>Step 3: Provide Named Inputs</h2>
+
+<p>These inputs are auto-published by <code>UService_PerceptionMonitor</code> (included in BaseCombat):</p>
+
+<h3>Auto-Published Inputs</h3>
+<ul>
+  <li><code>HasKnownEnemy</code> - Automatically set by perception</li>
+  <li><code>NearestEnemyDistance</code> - Automatically calculated</li>
+  <li><code>ThreatLevel</code> - Automatically assessed</li>
+  <li><code>HasAllyNearby</code> - Automatically detected</li>
+</ul>
+
+<h3>Custom Inputs (You Must Provide)</h3>
+
+<p>These you need to set manually based on your game:</p>
+
+<p><strong>Health Input (GAS Integration Example):</strong></p>
+<pre><code>// In your character's AttributeSet or HealthComponent
+void AYourCharacter::OnHealthChanged(float NewHealth, float MaxHealth)
+{
+    if (UUtilityBrainComponent* Brain = GetController&lt;AYourAIController&gt;()->FindComponentByClass&lt;UUtilityBrainComponent&gt;())
+    {
+        float NormalizedHealth = NewHealth / MaxHealth;
+        Brain->SetNamedInputValue(TEXT("Health"), NormalizedHealth);
+    }
+}</code></pre>
+
+<p><strong>AmmoCount Input (Weapon System Example):</strong></p>
+<pre><code>// In your weapon component
+void UYourWeapon::OnAmmoChanged(int32 CurrentAmmo, int32 MaxAmmo)
+{
+    if (AAIController* AI = Cast&lt;AAIController&gt;(GetOwner()->GetInstigatorController()))
+    {
+        if (UUtilityBrainComponent* Brain = AI->FindComponentByClass&lt;UUtilityBrainComponent&gt;())
+        {
+            float NormalizedAmmo = (float)CurrentAmmo / (float)MaxAmmo;
+            Brain->SetNamedInputValue(TEXT("AmmoCount"), NormalizedAmmo);
+        }
+    }
+}</code></pre>
+
+<p><strong>Blueprint Example:</strong></p>
+<pre><code>// Event: On Health Changed
+Get AI Controller
+  → Get Component By Class (UtilityBrainComponent)
+  → Set Named Input Value
+     Input Name: "Health"
+     Value: Current Health / Max Health
+
+// Event: On Ammo Changed
+Get AI Controller
+  → Get Component By Class (UtilityBrainComponent)
+  → Set Named Input Value
+     Input Name: "AmmoCount"
+     Value: Current Ammo / Max Ammo</code></pre>
+
+<hr/>
+
+<h2>Step 4: Wire Everything Together</h2>
+
+<ol>
+  <li>
+    <p><strong>Add Actions to Preset:</strong></p>
+    <p>Open <code>DA_CombatSoldier_Preset</code>, add to Actions array:</p>
+    <ul>
+      <li><code>DA_Action_Attack</code></li>
+      <li><code>DA_Action_TakeCover</code></li>
+      <li><code>DA_Action_Reload</code></li>
+      <li><code>DA_Action_Retreat</code></li>
+      <li><code>DA_Action_Patrol</code></li>
+    </ul>
+  </li>
+  
+  <li>
+    <p><strong>Apply Preset:</strong></p>
+    <p>Use <code>UCINQuickSetupComponent</code> or call <code>ApplyAgentPresetToPawn</code></p>
+  </li>
+</ol>
+
+<hr/>
+
+<h2>Step 5: Test Behavior</h2>
+
+<h3>Expected Action Priority (No Enemies)</h3>
+<pre><code>1. Patrol (15.0 × 1.0 = 15.0) ← ACTIVE
+   All other actions score 0 (no enemy)</code></pre>
+
+<h3>Expected Action Priority (Enemy Detected, Full Health/Ammo)</h3>
+<pre><code>1. Attack (60 × 1.0 × 0.7 × 1.0 = 42.0) ← ACTIVE
+2. TakeCover (70 × 0.5 × 0.0 = 0) - Not injured
+3. Reload (80 × 0.0 × 0.7 = 0) - Has ammo
+4. Retreat (90 × 0.0 × ... = 0) - Full health
+5. Patrol (15 × 0.0 = 0) - Enemy present</code></pre>
+
+<h3>Expected Action Priority (Enemy Present, 20% Health, 10% Ammo, High Threat)</h3>
+<pre><code>1. Retreat (90 × 0.8 × 0.9 × 0.7 = 45.36) ← ACTIVE (critical health!)
+2. TakeCover (70 × 0.9 × 0.8 = 50.4) - Close second
+3. Attack (60 × 1.0 × 0.7 × 0.1 = 4.2) - Low ammo reduces score
+4. Reload (80 × 0.9 × 0.1 = 7.2) - Dangerous to reload now
+5. Patrol (15 × 0.0 = 0)</code></pre>
+
+<div class="callout tip">
+  <span class="icon"><i data-lucide="lightbulb"></i></span>
+  <div>
+    <strong>Use Gameplay Debugger:</strong> Press <kbd>'</kbd> then <kbd>5</kbd> to see these scores in real-time. This is essential for tuning!
+  </div>
+</div>
+
+<hr/>
+
+<h2>Step 6: Create Behavior Trees (Optional)</h2>
+
+<p>If your actions use <code>UtilityActionExecutor_BehaviorTree</code>, create simple BTs:</p>
+
+<h3>BT_Attack</h3>
+<pre><code>Sequence
+  ├─ Move To (Nearest Enemy, Acceptance Radius: 800)
+  └─ Loop
+     ├─ Rotate To Face (Nearest Enemy)
+     ├─ Play Animation Montage (Fire Weapon)
+     └─ Wait (0.5 seconds)</code></pre>
+
+<h3>BT_TakeCover</h3>
+<pre><code>Sequence
+  ├─ Find Cover Point (EQS Query)
+  ├─ Move To (Cover Point)
+  ├─ Play Animation (Crouch/Cover)
+  └─ Wait (3 seconds)</code></pre>
+
+<h3>BT_Reload</h3>
+<pre><code>Sequence
+  ├─ Play Animation Montage (Reload)
+  ├─ Wait (Montage Duration)
+  └─ Refill Ammo (Custom Task)</code></pre>
+
+<h3>BT_Retreat</h3>
+<pre><code>Sequence
+  ├─ Find Retreat Point (Away From Enemies, EQS)
+  ├─ Move To (Retreat Point, Run Speed)
+  └─ Wait (2 seconds)</code></pre>
+
+<h3>BT_Patrol</h3>
+<pre><code>Loop
+  ├─ Get Next Patrol Point (Blackboard)
+  ├─ Move To (Patrol Point)
+  ├─ Rotate Randomly
+  └─ Wait (Random 2-5 seconds)</code></pre>
+
+<hr/>
+
+<h2>Tuning Tips</h2>
+
+<h3>If AI Attacks Too Aggressively</h3>
+<ul>
+  <li>Reduce <code>Attack</code> base score</li>
+  <li>Increase <code>TakeCover</code> base score</li>
+  <li>Adjust <code>ThreatLevel</code> thresholds in PerceptionMonitor</li>
+</ul>
+
+<h3>If AI Too Passive</h3>
+<ul>
+  <li>Increase <code>Attack</code> base score</li>
+  <li>Reduce <code>TakeCover</code> and <code>Retreat</code> scores</li>
+  <li>Lower <code>ReplaceResistance</code> to allow quicker action switching</li>
+</ul>
+
+<h3>If AI Feels Repetitive</h3>
+<ul>
+  <li>Increase <code>MaxMomentum</code> and <code>MomentumScoreReduction</code></li>
+  <li>Add variety to actions (multiple attack types)</li>
+  <li>Randomize some input values slightly</li>
+</ul>
+
+<h3>If AI Switches Too Fast</h3>
+<ul>
+  <li>Increase <code>ReplaceResistance</code> on all actions</li>
+  <li>Make scoring curves more distinct (bigger score gaps)</li>
+  <li>Use <code>bInterruptible = false</code> for critical actions</li>
+</ul>
+
+<hr/>
+
+<h2>What You Built</h2>
+
+<div class="completion-checklist">
+  <h3><i data-lucide="check-circle"></i> Congratulations!</h3>
+  <p>You now have a fully functional combat AI with:</p>
+  <ul>
+    <li>✅ 5 distinct behaviors (Attack, Cover, Reload, Retreat, Patrol)</li>
+    <li>✅ Dynamic decision-making based on game state</li>
+    <li>✅ Anti-thrashing with momentum and resistance</li>
+    <li>✅ Prioritized actions that feel intelligent</li>
+    <li>✅ Debug tools to visualize decisions</li>
+  </ul>
+</div>
+
+<hr/>
+
+<h2>Next Steps</h2>
+
+<div class="next-steps">
+  <a class="button primary" href="#/docs/squad-setup">
+    <i data-lucide="users"></i>
+    Add Squad Coordination
+  </a>
+  <a class="button" href="#/docs/tuning">
+    <i data-lucide="sliders"></i>
+    Master Tuning & Balancing
+  </a>
+  <a class="button" href="#/docs/perception-setup">
+    <i data-lucide="eye"></i>
+    Advanced Perception Setup
+  </a>
+</div>
+
+<h3>Extend This AI</h3>
+<ul>
+  <li><a href="#/docs/behavior-tree"><i data-lucide="git-commit"></i> Behavior Tree Integration</a> - Create proper BT executors</li>
+  <li><a href="#/docs/environmental-memory"><i data-lucide="map"></i> Environmental Memory</a> - Add investigation behaviors</li>
+  <li><a href="#/docs/gas-integration"><i data-lucide="gamepad-2"></i> GAS Integration</a> - Bind health/attributes automatically</li>
+  <li><a href="#/examples/squad-coordination"><i data-lucide="users"></i> Squad Example</a> - See team tactics in action</li>
+</ul>
+
+<script>lucide.createIcons();</script>

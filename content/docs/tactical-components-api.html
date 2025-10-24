@@ -1,0 +1,495 @@
+<h1>Tactical Components API</h1>
+<p class="note">Complete reference for squad coordination components. Learn UTacticalMemberComponent, UTacticalSquadComponent, and UTacticalSquadInputProviderComponent for coordinated AI behavior.</p>
+
+<div class="page-meta">
+  <span class="time"><i data-lucide="clock"></i> 20 minutes</span>
+  <span class="difficulty"><i data-lucide="bar-chart-3"></i> Reference</span>
+</div>
+
+<h2>System Overview</h2>
+
+<pre><code>Squad Coordination System:
+
+UTacticalSquadComponent (Subsystem)
+├─ Manages all squads
+├─ Stores squad state
+├─ Broadcasts strategy
+└─ Aggregates intel
+
+UTacticalMemberComponent (Per Agent)
+├─ Joins squad by name
+├─ Reports to squad
+├─ Receives strategy
+└─ Tracks role
+
+UTacticalSquadInputProviderComponent (Per Agent)
+├─ Reads squad state
+├─ Publishes to brain
+└─ Enables action scoring
+
+Integration:
+  Member → Squad → InputProvider → Brain → Actions</code></pre>
+
+<h2>UTacticalMemberComponent</h2>
+
+<h3>Class Definition</h3>
+
+<pre><code>Class: UTacticalMemberComponent
+Parent: UActorComponent
+Module: CINAI
+Header: Public/Components/TacticalMemberComponent.h
+
+Purpose:
+  Connects an AI agent to a tactical squad.
+  Auto-joins squad by name, tracks team affiliation,
+  and manages member role within the squad.</code></pre>
+
+<h3>Properties</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Default</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>SquadName</code></td>
+      <td>FName</td>
+      <td>None</td>
+      <td>Squad to join automatically</td>
+    </tr>
+    <tr>
+      <td><code>TeamID</code></td>
+      <td>uint8</td>
+      <td>0</td>
+      <td>Team affiliation for perception</td>
+    </tr>
+    <tr>
+      <td><code>bIsLeader</code></td>
+      <td>bool</td>
+      <td>false</td>
+      <td>Is this agent the squad leader?</td>
+    </tr>
+    <tr>
+      <td><code>MemberIndex</code></td>
+      <td>int32</td>
+      <td>-1</td>
+      <td>Index in squad (auto-assigned)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Key Functions</h3>
+
+<pre><code>// Join squad
+UFUNCTION(BlueprintCallable)
+void JoinSquad(FName InSquadName);
+
+// Leave current squad
+UFUNCTION(BlueprintCallable)
+void LeaveSquad();
+
+// Query squad state
+UFUNCTION(BlueprintPure)
+bool IsInSquad() const;
+
+UFUNCTION(BlueprintPure)
+FName GetSquadName() const;
+
+UFUNCTION(BlueprintPure)
+int32 GetMemberIndex() const;
+
+UFUNCTION(BlueprintPure)
+bool IsSquadLeader() const;</code></pre>
+
+<h3>Usage Example</h3>
+
+<pre><code>// Blueprint setup
+Components:
+  + TacticalMember (UTacticalMemberComponent)
+    SquadName: "Alpha"
+    TeamID: 1
+    bIsLeader: false
+
+// Auto-joins "Alpha" squad on BeginPlay
+
+// C++ setup
+AMyAIPawn::AMyAIPawn()
+{
+    TacticalMember = CreateDefaultSubobject<UTacticalMemberComponent>(TEXT("TacticalMember"));
+    TacticalMember->SquadName = TEXT("Alpha");
+    TacticalMember->TeamID = 1;
+    TacticalMember->bIsLeader = false;
+}
+
+// Runtime squad change
+void AMyAIPawn::SwitchToSquadBravo()
+{
+    TacticalMember->LeaveSquad();
+    TacticalMember->JoinSquad(TEXT("Bravo"));
+}</code></pre>
+
+<h2>UTacticalSquadComponent</h2>
+
+<h3>Class Definition</h3>
+
+<pre><code>Class: UTacticalSquadComponent
+Parent: UActorComponent  
+Module: CINAI
+Header: Public/Components/TacticalSquadComponent.h
+
+Purpose:
+  Central squad management component.
+  Usually attached to GameMode or level actor.
+  Manages all squads, aggregates intel, synthesizes strategy.</code></pre>
+
+<h3>Squad State</h3>
+
+<pre><code>USTRUCT(BlueprintType)
+struct FSquadState
+{
+    GENERATED_BODY()
+    
+    UPROPERTY(BlueprintReadOnly)
+    FName SquadName;
+    
+    UPROPERTY(BlueprintReadOnly)
+    TArray<AActor*> Members;
+    
+    UPROPERTY(BlueprintReadOnly)
+    AActor* Leader;
+    
+    UPROPERTY(BlueprintReadOnly)
+    ESquadStrategy CurrentStrategy;
+    
+    UPROPERTY(BlueprintReadOnly)
+    float StrategyConfidence;
+    
+    UPROPERTY(BlueprintReadOnly)
+    TArray<AActor*> KnownEnemies;
+    
+    UPROPERTY(BlueprintReadOnly)
+    FVector LastKnownEnemyLocation;
+};</code></pre>
+
+<h3>Squad Strategy</h3>
+
+<pre><code>UENUM(BlueprintType)
+enum class ESquadStrategy : uint8
+{
+    Search,    // No enemies, patrol area
+    Assault,   // Enemies visible, engage directly
+    Flank,     // Enemies in cover, maneuver
+    Hold,      // Defensive position
+    Retreat    // Overwhelmed, fall back
+};</code></pre>
+
+<h3>Key Functions</h3>
+
+<pre><code>// Squad management
+UFUNCTION(BlueprintCallable)
+void RegisterMember(AActor* Member, FName SquadName);
+
+UFUNCTION(BlueprintCallable)
+void UnregisterMember(AActor* Member);
+
+// Query squads
+UFUNCTION(BlueprintPure)
+TArray<FName> GetAllSquadNames() const;
+
+UFUNCTION(BlueprintPure)
+FSquadState GetSquadState(FName SquadName) const;
+
+UFUNCTION(BlueprintPure)
+int32 GetSquadMemberCount(FName SquadName) const;
+
+// Enemy intel
+UFUNCTION(BlueprintCallable)
+void ReportEnemy(FName SquadName, AActor* Enemy, FVector Location);
+
+UFUNCTION(BlueprintPure)
+TArray<AActor*> GetSquadKnownEnemies(FName SquadName) const;
+
+// Strategy
+UFUNCTION(BlueprintCallable)
+void SetSquadStrategy(FName SquadName, ESquadStrategy Strategy, float Confidence);
+
+UFUNCTION(BlueprintPure)
+ESquadStrategy GetSquadStrategy(FName SquadName) const;</code></pre>
+
+<h3>Setup Example</h3>
+
+<pre><code>// Attach to GameMode or level actor
+AMyGameMode::AMyGameMode()
+{
+    TacticalSquadComponent = CreateDefaultSubobject<UTacticalSquadComponent>(TEXT("TacticalSquad"));
+}
+
+// Or create in level
+Event BeginPlay
+  → Spawn Actor (EmptyActor)
+  → Add Component (UTacticalSquadComponent)
+  → Store reference globally</code></pre>
+
+<h2>UTacticalSquadInputProviderComponent</h2>
+
+<h3>Class Definition</h3>
+
+<pre><code>Class: UTacticalSquadInputProviderComponent
+Parent: UActorComponent
+Module: CINAI
+Header: Public/Providers/TacticalSquadInputProviderComponent.h
+
+Purpose:
+  Bridges squad state to Utility AI brain.
+  Reads from TacticalMemberComponent and TacticalSquadComponent,
+  publishes NamedInputs for action scoring.</code></pre>
+
+<h3>Published Inputs</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Input Name</th>
+      <th>Type</th>
+      <th>Range</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>IsInSquad</code></td>
+      <td>bool</td>
+      <td>0 or 1</td>
+      <td>Agent is in a squad</td>
+    </tr>
+    <tr>
+      <td><code>IsSquadLeader</code></td>
+      <td>bool</td>
+      <td>0 or 1</td>
+      <td>Agent is squad leader</td>
+    </tr>
+    <tr>
+      <td><code>SquadMemberIndex</code></td>
+      <td>float</td>
+      <td>0-1</td>
+      <td>Normalized position in squad</td>
+    </tr>
+    <tr>
+      <td><code>SquadMemberCount</code></td>
+      <td>float</td>
+      <td>0-1</td>
+      <td>Squad size normalized (0-10)</td>
+    </tr>
+    <tr>
+      <td><code>SquadKnownEnemies</code></td>
+      <td>float</td>
+      <td>0-1</td>
+      <td>Enemy count normalized (0-20)</td>
+    </tr>
+    <tr>
+      <td><code>SquadStrategy_Search</code></td>
+      <td>bool</td>
+      <td>0 or 1</td>
+      <td>Strategy is Search</td>
+    </tr>
+    <tr>
+      <td><code>SquadStrategy_Assault</code></td>
+      <td>bool</td>
+      <td>0 or 1</td>
+      <td>Strategy is Assault</td>
+    </tr>
+    <tr>
+      <td><code>SquadStrategy_Flank</code></td>
+      <td>bool</td>
+      <td>0 or 1</td>
+      <td>Strategy is Flank</td>
+    </tr>
+    <tr>
+      <td><code>SquadStrategy_Hold</code></td>
+      <td>bool</td>
+      <td>0 or 1</td>
+      <td>Strategy is Hold</td>
+    </tr>
+    <tr>
+      <td><code>SquadStrategy_Retreat</code></td>
+      <td>bool</td>
+      <td>0 or 1</td>
+      <td>Strategy is Retreat</td>
+    </tr>
+    <tr>
+      <td><code>DistanceToLastKnownEnemy</code></td>
+      <td>float</td>
+      <td>0-1</td>
+      <td>Distance normalized (0-5000)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Usage in Actions</h3>
+
+<pre><code>Action: DA_Action_Flank
+  Considerations:
+    1. SquadStrategy_Flank
+       InputName: "SquadStrategy_Flank"
+       ResponseCurve: (0,0) → (1,100)
+       Weight: 1.0
+       
+    2. IsInSquad
+       InputName: "IsInSquad"
+       ResponseCurve: (0,0) → (1,100)
+       Weight: 1.0
+       
+    3. SquadMemberIndex
+       InputName: "SquadMemberIndex"
+       ResponseCurve: (0,20) → (0.5,100) → (1,20)
+       Weight: 1.0
+       Comment: Flankers prefer middle positions
+
+Result: Action scores high when:
+  - Squad strategy is Flank
+  - Agent is in a squad
+  - Agent is mid-position (flanker role)</code></pre>
+
+<h2>Complete Setup Example</h2>
+
+<h3>Creating a Squad</h3>
+
+<pre><code>Step 1: Create Squad Manager
+  GameMode or Level Actor:
+    + TacticalSquadComponent
+
+Step 2: Create Squad Members
+  AI Pawn 1 (Leader):
+    + TacticalMember
+      SquadName: "Alpha"
+      TeamID: 1
+      bIsLeader: true
+    + TacticalSquadInputProvider
+    + UtilityBrain
+      Services: [TacticalSense, TacticalStrategy]
+      
+  AI Pawn 2-4 (Members):
+    + TacticalMember
+      SquadName: "Alpha"  
+      TeamID: 1
+      bIsLeader: false
+    + TacticalSquadInputProvider
+    + UtilityBrain
+      Services: [TacticalSense]
+
+Step 3: Configure Actions
+  Leader Actions:
+    - DirectSquad (uses IsSquadLeader)
+    - AnalyzeStrategy (uses squad intel)
+    
+  Member Actions:
+    - FollowStrategy (uses SquadStrategy_*)
+    - FlankPosition (uses SquadMemberIndex)
+    - HoldPosition (uses SquadStrategy_Hold)
+
+Result: Coordinated 4-agent squad with leader-directed strategy</code></pre>
+
+<h2>Services Integration</h2>
+
+<h3>UService_TacticalSense</h3>
+
+<pre><code>Purpose: Reports perceived enemies to squad
+
+void UService_TacticalSense::TickService(float DeltaTime)
+{
+    // Get perception
+    TArray<AActor*> PerceivedEnemies = GetKnownEnemies();
+    
+    // Report to squad
+    if (UTacticalMemberComponent* Member = GetMember())
+    {
+        UTacticalSquadComponent* Squad = GetSquadManager();
+        for (AActor* Enemy : PerceivedEnemies)
+        {
+            Squad->ReportEnemy(Member->GetSquadName(), Enemy, Enemy->GetActorLocation());
+        }
+    }
+}
+
+Result: All squad members share enemy intel</code></pre>
+
+<h3>UService_TacticalStrategy</h3>
+
+<pre><code>Purpose: Leader synthesizes squad strategy
+
+void UService_TacticalStrategy::TickService(float DeltaTime)
+{
+    // Only leaders run strategy
+    if (!GetMember()->IsSquadLeader())
+        return;
+    
+    // Analyze situation
+    FSquadState Squad = GetSquadState();
+    int32 EnemyCount = Squad.KnownEnemies.Num();
+    int32 MemberCount = Squad.Members.Num();
+    
+    // Synthesize strategy
+    ESquadStrategy NewStrategy = ESquadStrategy::Search;
+    if (EnemyCount == 0)
+        NewStrategy = ESquadStrategy::Search;
+    else if (EnemyCount > MemberCount * 2)
+        NewStrategy = ESquadStrategy::Retreat;
+    else if (EnemiesInCover())
+        NewStrategy = ESquadStrategy::Flank;
+    else
+        NewStrategy = ESquadStrategy::Assault;
+    
+    // Set squad strategy
+    GetSquadManager()->SetSquadStrategy(GetSquadName(), NewStrategy, 1.0f);
+}
+
+Result: Leader adapts strategy to situation, members follow</code></pre>
+
+<h2>Best Practices</h2>
+
+<div class="callout tip">
+  <span class="icon"><i data-lucide="check-square"></i></span>
+  <div>
+    <strong>Squad System Best Practices:</strong>
+    <ul class="compact">
+      <li>✅ One leader per squad (bIsLeader = true)</li>
+      <li>✅ Same SquadName for all members</li>
+      <li>✅ Same TeamID for squad cohesion</li>
+      <li>✅ Leader runs TacticalStrategy service</li>
+      <li>✅ All members run TacticalSense service</li>
+      <li>✅ Use InputProvider to read squad state</li>
+      <li>✅ Design actions that use squad inputs</li>
+      <li>❌ Don't forget TacticalSquadComponent (subsystem)</li>
+      <li>❌ Don't create multiple leaders per squad</li>
+      <li>❌ Don't mix TeamIDs within squad</li>
+    </ul>
+  </div>
+</div>
+
+<h2>Next Steps</h2>
+
+<div class="next-steps">
+  <a class="button primary" href="#/docs/squad-setup">
+    <i data-lucide="users"></i>
+    Squad Setup Guide
+  </a>
+  <a class="button" href="#/docs/service-api">
+    <i data-lucide="cog"></i>
+    Service API Reference
+  </a>
+</div>
+
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="#/docs/squad-setup"><i data-lucide="users"></i> Squad Setup</a> - Complete setup guide</li>
+  <li><a href="#/docs/tactical-services"><i data-lucide="radio"></i> Tactical Services</a> - TacticalSense & TacticalStrategy</li>
+  <li><a href="#/docs/perception-setup"><i data-lucide="eye"></i> Perception Setup</a> - Integrate with perception</li>
+  <li><a href="#/docs/service-api"><i data-lucide="cog"></i> Service API</a> - Service base class</li>
+</ul>
+
+<script>lucide.createIcons();</script>

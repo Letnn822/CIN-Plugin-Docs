@@ -1,0 +1,335 @@
+<h1>Perception System</h1>
+<p>CIN Plugin integrates UAIPerception with Utility AI through <code>Service_PerceptionMonitor</code>, automatically publishing 20+ perception-based inputs for action scoring.</p>
+
+<h2>Quick Start (3 Steps)</h2>
+
+<h3>1. Add UAIPerceptionComponent to AIController</h3>
+<pre><code>// C++ or Blueprint
+AIController:
+  └─ UAIPerceptionComponent
+     ├─ Sight Config (Range: 3000, FOV: 90°)
+     ├─ Hearing Config (Range: 2000)
+     └─ Damage Config (always detect)</code></pre>
+
+<h3>2. Add Service_PerceptionMonitor to Brain</h3>
+<pre><code>// In your Archetype or Brain Preset
+Services:
+  └─ Service_PerceptionMonitor
+     ├─ StimulusMemoryDuration: 10s
+     ├─ bPublishEnemyInputs: ✓
+     ├─ bPublishThreatInputs: ✓
+     └─ bDebugVisualize: ✓ (dev only)</code></pre>
+
+<h3>3. Set GenericTeamId</h3>
+<pre><code>// On your AI Controller or Pawn
+GenericTeamId = 1  // Your team
+Target.GenericTeamId = 2  // Enemy team</code></pre>
+
+<div class="callout tip">
+  <span class="icon" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="9"></circle>
+      <path d="M12 10v6"></path>
+      <path d="M12 8h.01"></path>
+    </svg>
+  </span>
+  <div>
+    <strong>Done!</strong> Perception data now auto-populates to all your actions. No manual input setting required.
+  </div>
+</div>
+
+<h2>Published Named Inputs (20+)</h2>
+
+<h3>Enemy Detection</h3>
+<ul>
+  <li><code>HasKnownEnemy</code> (0/1) - Any enemy known (visible or remembered)</li>
+  <li><code>EnemyCount</code> (0-1) - Number of known enemies (normalized)</li>
+  <li><code>HasVisibleEnemy</code> (0/1) - Currently seeing an enemy</li>
+  <li><code>VisibleEnemyCount</code> (0-1) - Number of visible enemies</li>
+  <li><code>NearestEnemyDistance</code> (0-1) - Distance to closest enemy (0 = max range, 1 = very close)</li>
+  <li><code>DistanceToEnemy</code> (0-1) - Same as above (legacy)</li>
+  <li><code>HasLineOfSight</code> (0/1) - Clear line of sight to nearest enemy</li>
+  <li><code>CanSeeEnemy</code> (0/1) - Same as HasLineOfSight</li>
+</ul>
+
+<h3>Ally Detection</h3>
+<ul>
+  <li><code>AllyCount</code> (0-1) - Number of visible allies</li>
+  <li><code>NearestAllyDistance</code> (0-1) - Distance to closest ally</li>
+</ul>
+
+<h3>Threat Assessment</h3>
+<ul>
+  <li><code>ThreatLevel</code> (0-1) - Composite threat: distance + visibility + recency</li>
+  <li><code>UnderFire</code> (0/1) - Received damage recently (UnderFireWindow)</li>
+</ul>
+
+<h3>Stimulus Memory</h3>
+<ul>
+  <li><code>TimeSinceLastSawEnemy</code> (0-1) - Time since lost sight (0 = just lost, 1 = memory expired)</li>
+  <li><code>LastKnownEnemyLocationX/Y/Z</code> (world coords) - Last seen position</li>
+  <li><code>DistanceToLastKnownEnemy</code> (0-1) - Distance to last known position</li>
+</ul>
+
+<h3>Sound Detection</h3>
+<ul>
+  <li><code>HeardSuspiciousSound</code> (0/1) - Heard something suspicious</li>
+  <li><code>HasSuspiciousLocation</code> (0/1) - Sound location available</li>
+  <li><code>SuspiciousLocationDistance</code> (0-1) - Distance to sound source</li>
+</ul>
+
+<h2>Configuration Options</h2>
+
+<h3>Service_PerceptionMonitor Settings</h3>
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Default</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>StimulusMemoryDuration</code></td>
+      <td>10.0s</td>
+      <td>How long to remember last known positions (5-60s recommended)</td>
+    </tr>
+    <tr>
+      <td><code>CloseThreatDistance</code></td>
+      <td>500</td>
+      <td>Distance considered "close" for threat assessment</td>
+    </tr>
+    <tr>
+      <td><code>MediumThreatDistance</code></td>
+      <td>1500</td>
+      <td>Distance considered "medium" for threat assessment</td>
+    </tr>
+    <tr>
+      <td><code>UnderFireWindow</code></td>
+      <td>2.0s</td>
+      <td>Time window for "UnderFire" status</td>
+    </tr>
+    <tr>
+      <td><code>bPublishEnemyInputs</code></td>
+      <td>✓</td>
+      <td>Publish enemy detection inputs</td>
+    </tr>
+    <tr>
+      <td><code>bPublishAllyInputs</code></td>
+      <td>✓</td>
+      <td>Publish ally detection inputs</td>
+    </tr>
+    <tr>
+      <td><code>bPublishThreatInputs</code></td>
+      <td>✓</td>
+      <td>Publish threat assessment inputs</td>
+    </tr>
+    <tr>
+      <td><code>bPublishSoundInputs</code></td>
+      <td>✓</td>
+      <td>Publish sound-based inputs</td>
+    </tr>
+    <tr>
+      <td><code>bPublishMemoryInputs</code></td>
+      <td>✓</td>
+      <td>Publish stimulus memory inputs</td>
+    </tr>
+    <tr>
+      <td><code>bDebugVisualize</code></td>
+      <td>false</td>
+      <td>Draw debug visualization (red = enemies, orange = memory, green = allies)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Archetype Integration</h2>
+
+<h3>BaseCombat</h3>
+<ul>
+  <li><strong>Sight</strong>: 3000 range, 90° FOV</li>
+  <li><strong>Hearing</strong>: 2000 range</li>
+  <li><strong>Damage</strong>: Always detect</li>
+  <li><strong>Memory</strong>: 10s (standard)</li>
+  <li><strong>Use Case</strong>: Combat AI with balanced perception</li>
+</ul>
+
+<h3>BaseStealth</h3>
+<ul>
+  <li><strong>Sight</strong>: 2500 range, 120° FOV (wider awareness)</li>
+  <li><strong>Hearing</strong>: 3000 range (enhanced)</li>
+  <li><strong>Damage</strong>: Always detect</li>
+  <li><strong>Memory</strong>: 30s (long memory for investigation)</li>
+  <li><strong>Use Case</strong>: Investigation, patrol, alert states</li>
+</ul>
+
+<h3>BaseCreature</h3>
+<ul>
+  <li><strong>Sight</strong>: 1500 range, 180° FOV (wide peripheral vision)</li>
+  <li><strong>Hearing</strong>: 1000 range</li>
+  <li><strong>Damage</strong>: Always detect</li>
+  <li><strong>Memory</strong>: 5s (short, animal-like)</li>
+  <li><strong>Use Case</strong>: Territorial behavior, quick reactions</li>
+</ul>
+
+<h3>BaseSquadCombat</h3>
+<ul>
+  <li><strong>Same as BaseCombat</strong> + squad intel sharing</li>
+  <li><strong>Integration</strong>: Personal perception + shared enemy intel via TacticalSense</li>
+  <li><strong>Use Case</strong>: Coordinated team combat</li>
+</ul>
+
+<h2>Common Patterns</h2>
+
+<h3>Pattern 1: Sight-Based Attack</h3>
+<pre><code>Action: Attack
+Inputs:
+  - HasVisibleEnemy (weight: 1.0, curve: Linear 0→1)
+  - NearestEnemyDistance (weight: 0.8, curve: Inverse)
+  - ThreatLevel (weight: 0.5, curve: Linear)
+
+Behavior: Attack when enemy visible and close</code></pre>
+
+<h3>Pattern 2: Memory-Based Search</h3>
+<pre><code>Action: SearchLastKnownPosition
+Inputs:
+  - HasKnownEnemy (weight: 0.8, curve: Linear)
+  - HasVisibleEnemy (weight: -1.0, curve: Linear)  // Don't search if visible!
+  - TimeSinceLastSawEnemy (weight: 0.6, curve: Inverse)
+
+Behavior: Search last known position when lost sight</code></pre>
+
+<h3>Pattern 3: Threat-Based Cover</h3>
+<pre><code>Action: TakeCover
+Inputs:
+  - ThreatLevel (weight: 1.0, curve: Linear)
+  - UnderFire (weight: 0.9, curve: Linear)
+  - HasVisibleEnemy (weight: 0.7, curve: Linear)
+
+Behavior: Take cover when threatened or under fire</code></pre>
+
+<h3>Pattern 4: Sound Investigation</h3>
+<pre><code>Action: Investigate
+Inputs:
+  - HeardSuspiciousSound (weight: 0.9, curve: Linear)
+  - HasVisibleEnemy (weight: -1.0, curve: Linear)  // Don't investigate during combat
+  - SuspiciousLocationDistance (weight: 0.5, curve: Inverse)
+
+Behavior: Investigate sounds when not in combat</code></pre>
+
+<h2>Blueprint API</h2>
+
+<h3>Query Functions</h3>
+<pre><code>// Get known enemies
+TArray&lt;AActor*&gt; Enemies = PerceptionService-&gt;GetKnownEnemies();
+
+// Get nearest enemy
+AActor* NearestEnemy = PerceptionService-&gt;GetNearestEnemy();
+
+// Get stimulus memory for an actor
+FStimulusMemoryEntry Memory = PerceptionService-&gt;GetStimulusMemory(EnemyActor);
+
+// Check current threat level
+float Threat = PerceptionService-&gt;GetCurrentThreatLevel();  // 0.0 - 1.0
+
+// Check if under fire
+bool bUnderFire = PerceptionService-&gt;IsUnderFire();</code></pre>
+
+<h3>Runtime Configuration</h3>
+<pre><code>// Adjust memory duration during gameplay
+PerceptionService-&gt;StimulusMemoryDuration = 15.0f;
+
+// Toggle input categories
+PerceptionService-&gt;bPublishSoundInputs = false;  // Disable sound inputs
+
+// Enable debug visualization
+PerceptionService-&gt;bDebugVisualize = true;</code></pre>
+
+<h2>Debugging</h2>
+
+<h3>Visual Debug</h3>
+<p>Enable <code>bDebugVisualize</code> to see:</p>
+<ul>
+  <li><strong>Red Spheres</strong>: Visible enemies</li>
+  <li><strong>Orange Spheres</strong>: Last known enemy positions (memory)</li>
+  <li><strong>Green Spheres</strong>: Visible allies</li>
+  <li><strong>Lines</strong>: Line of sight connections</li>
+</ul>
+
+<h3>Console Commands</h3>
+<pre><code>// Show all NamedInputs (includes perception)
+CINAIShowNamedInputs
+
+// Inspect nearest AI agent
+CINAIInspectNearest
+
+// Enable debug visualization on all AI
+CINAIEnableDebug</code></pre>
+
+<h3>Common Issues</h3>
+
+<h4>Perception Not Working</h4>
+<ol>
+  <li>✓ AIController has <code>UAIPerceptionComponent</code></li>
+  <li>✓ Perception senses configured (Sight, Hearing, etc.)</li>
+  <li>✓ <code>Service_PerceptionMonitor</code> added to Brain/Preset</li>
+  <li>✓ <code>GenericTeamId</code> set on AI and targets (different teams = enemies)</li>
+  <li>✓ AI and targets are in perception range</li>
+</ol>
+
+<h4>Enemies Not Detected</h4>
+<ol>
+  <li>Check <code>GenericTeamId</code> values (must be different)</li>
+  <li>Verify sight range and FOV settings</li>
+  <li>Enable <code>bDebugVisualize</code> to see perception cones</li>
+  <li>Check for line-of-sight blockers</li>
+</ol>
+
+<h4>Memory Not Working</h4>
+<ol>
+  <li>Ensure <code>bPublishMemoryInputs = true</code></li>
+  <li>Check <code>StimulusMemoryDuration</code> (not too short)</li>
+  <li>Verify enemy was actually visible before being lost</li>
+</ol>
+
+<h2>Performance Optimization</h2>
+
+<h3>Input Filtering</h3>
+<pre><code>// Disable unused input categories
+Service_PerceptionMonitor:
+  bPublishSoundInputs = false     // If not using sound
+  bPublishAllyInputs = false      // If not using allies
+  bPublishMemoryInputs = false    // If not using memory</code></pre>
+
+<h3>Update Frequency</h3>
+<pre><code>// Reduce service update rate for background AI
+Service_PerceptionMonitor:
+  MinInterval = 0.5f  // Update every 0.5s instead of every frame</code></pre>
+
+<h3>Memory Management</h3>
+<pre><code>// Shorter memory for simple AI
+StimulusMemoryDuration = 5.0f   // Instead of default 10s
+
+// Longer memory for investigation AI
+StimulusMemoryDuration = 30.0f  // For stealth/patrol AI</code></pre>
+
+<div class="callout note">
+  <span class="icon" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10"></circle>
+      <line x1="12" y1="16" x2="12" y2="12"></line>
+      <line x1="12" y1="8" x2="12.01" y2="8"></line>
+    </svg>
+  </span>
+  <div>
+    <strong>Best Practice:</strong> Service_PerceptionMonitor is designed for the CINAI Utility AI system. For the advanced CINCore system, use <code>UCINPerceptionComponent</code> with parameter bindings instead.
+  </div>
+</div>
+
+<h2>See Also</h2>
+<ul>
+  <li><a href="services.html">Services & Input Providers</a> - Service system overview</li>
+  <li><a href="tactical-squad.html">Tactical Squad System</a> - Squad perception sharing</li>
+  <li><a href="debug-tools.html">Debug & Visualization Tools</a> - Debugging perception</li>
+  <li><a href="../CIN_Perception_System_Guide.md">Complete Perception Guide</a> - 15-page detailed guide</li>
+</ul>

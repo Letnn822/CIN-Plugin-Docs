@@ -1,0 +1,597 @@
+<h1>Squad Coordination</h1>
+<p class="note">Enable coordinated squad behavior with shared intelligence, tactical strategy, and role-based actions. Perfect for FPS, RTS, and tactical games where AI teams must work together.</p>
+
+<div class="page-meta">
+  <span class="time"><i data-lucide="clock"></i> 15 minutes</span>
+  <span class="difficulty"><i data-lucide="bar-chart-2"></i> Intermediate</span>
+</div>
+
+<div class="callout tip">
+  <span class="icon"><i data-lucide="lightbulb"></i></span>
+  <div>
+    <strong>Squad Philosophy:</strong> Individual agents make their own decisions, but share intelligence and respond to team strategy. This creates emergent, believable squad behavior without complex coordination code.
+  </div>
+</div>
+
+<h2>Squad System Architecture</h2>
+
+<pre><code>Squad Coordination Stack:
+┌────────────────────────────────────────────────┐
+│ UTacticalSquadComponent (Squad Manager)        │
+│ ├─ Tracks all squad members                    │
+│ ├─ Aggregates intel from all members           │
+│ ├─ Stores current squad strategy               │
+│ └─ Manages leadership                          │
+└───────────────┬────────────────────────────────┘
+                ▼
+┌────────────────────────────────────────────────┐
+│ UService_TacticalSense (Member Service)        │
+│ ├─ Individual perception                       │
+│ ├─ Reports enemies to squad                    │
+│ └─ Shares intel with team                      │
+└───────────────┬────────────────────────────────┘
+                ▼
+┌────────────────────────────────────────────────┐
+│ UService_TacticalStrategy (Leader Service)     │
+│ ├─ Leader analyzes squad state                 │
+│ ├─ Determines strategy (Search/Assault/etc.)   │
+│ ├─ Publishes strategy to all members           │
+│ └─ TTL-based strategy updates                  │
+└───────────────┬────────────────────────────────┘
+                ▼
+┌────────────────────────────────────────────────┐
+│ Individual Brains (All Members)                │
+│ ├─ Read squad inputs (SquadStrategy, etc.)     │
+│ ├─ Score actions based on role + strategy      │
+│ └─ Execute coordinated behaviors               │
+└────────────────────────────────────────────────┘</code></pre>
+
+<h2>Quick Setup (BaseSquadCombat Archetype)</h2>
+
+<h3>Step 1: Use BaseSquadCombat Preset</h3>
+
+<p>The fastest way to get squad AI working:</p>
+
+<pre><code>1. Create Agent Preset: DA_SquadSoldier
+   └─ Archetype: BaseSquadCombat
+      ├─ Inherits: Attack, TakeCover, Reload, Retreat
+      ├─ Adds: FlankLeft, FlankRight
+      └─ Services: PerceptionMonitor, TacticalSense, TacticalStrategy
+
+2. Apply to AI Controller
+   BP_SquadAIController
+   └─ CINQuickSetupComponent
+      └─ Agent Preset: DA_SquadSoldier
+
+3. Configure Squad Name
+   In Pawn or Controller:
+   └─ UTacticalMemberComponent
+      └─ Squad Name: "Alpha"</code></pre>
+
+<div class="callout success">
+  <span class="icon"><i data-lucide="check-circle"></i></span>
+  <div>
+    <strong>That's It!</strong> Agents with the same Squad Name automatically form a squad and coordinate.
+  </div>
+</div>
+
+<h2>Manual Setup (Full Control)</h2>
+
+<h3>Step 1: Add Squad Components</h3>
+
+<p><strong>To AI Controller or Pawn:</strong></p>
+
+<pre><code>// Blueprint: Add Components
+1. UTacticalMemberComponent
+   └─ Auto-Join Squad By Name: "Alpha"
+   └─ Team ID: 1 (enemies)
+
+2. UTacticalSquadComponent (Add once per squad)
+   └─ Usually on squad leader or game mode
+
+// C++ Example
+// YourAIController.h
+#include "Components/TacticalMemberComponent.h"
+
+UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+UTacticalMemberComponent* TacticalMember;
+
+// YourAIController.cpp
+AYourAIController::AYourAIController()
+{
+    TacticalMember = CreateDefaultSubobject<UTacticalMemberComponent>(TEXT("TacticalMember"));
+    TacticalMember->SquadName = FName("Alpha");
+    TacticalMember->TeamID = 1;
+}</code></pre>
+
+<h3>Step 2: Add Squad Services</h3>
+
+<p><strong>Add to Agent Preset:</strong></p>
+
+<pre><code>DA_YourSquadAI_Preset
+└─ Extra Services
+   ├─ UService_PerceptionMonitor (required)
+   │  └─ MinInterval: 0.2
+   │
+   ├─ UService_TacticalSense (required)
+   │  └─ MinInterval: 0.5
+   │  └─ bPublishInputs: false (let PerceptionMonitor handle)
+   │
+   └─ UService_TacticalStrategy (required)
+      └─ MinInterval: 1.0
+      └─ StrategyTTL: 5.0
+      └─ bOnlyLeaderEvaluates: true</code></pre>
+
+<h3>Step 3: Configure Squad Manager</h3>
+
+<p><strong>Add UTacticalSquadComponent to game:</strong></p>
+
+<p>Option A: On first squad member (auto-created)</p>
+<pre><code>// Automatic - members auto-create squad if none exists</code></pre>
+
+<p>Option B: On squad leader</p>
+<pre><code>BP_SquadLeader
+└─ Add Component: TacticalSquadComponent
+   └─ Squad Name: "Alpha"</code></pre>
+
+<p>Option C: On Game Mode (centralized)</p>
+<pre><code>BP_GameMode
+└─ Create squads at spawn
+   └─ Spawn UTacticalSquadComponent actors per squad</code></pre>
+
+<h2>Squad Strategies</h2>
+
+<p>The leader evaluates squad state and sets one of 5 strategies:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Strategy</th>
+      <th>Value</th>
+      <th>When Used</th>
+      <th>Member Behavior</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Search</strong></td>
+      <td>0.0</td>
+      <td>No enemies known</td>
+      <td>Patrol, spread out, look for targets</td>
+    </tr>
+    <tr>
+      <td><strong>Assault</strong></td>
+      <td>0.25</td>
+      <td>Healthy, outnumber enemies</td>
+      <td>Aggressive push, coordinated attack</td>
+    </tr>
+    <tr>
+      <td><strong>Flank</strong></td>
+      <td>0.5</td>
+      <td>Need tactical advantage</td>
+      <td>Split and flank, pincer movement</td>
+    </tr>
+    <tr>
+      <td><strong>Hold</strong></td>
+      <td>0.75</td>
+      <td>Defensive, even odds</td>
+      <td>Hold position, suppression fire</td>
+    </tr>
+    <tr>
+      <td><strong>Retreat</strong></td>
+      <td>1.0</td>
+      <td>Low health, outnumbered</td>
+      <td>Fall back, tactical withdrawal</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Strategy Selection Logic</h3>
+
+<pre><code>// Simplified strategy evaluation
+if (SquadEnemyCount == 0)
+{
+    Strategy = SEARCH;
+}
+else if (AvgSquadHealth > 0.6 && SquadSize >= EnemyCount)
+{
+    Strategy = ASSAULT;
+}
+else if (NeedTacticalAdvantage && HasFlankOpportunity)
+{
+    Strategy = FLANK;
+}
+else if (AvgSquadHealth > 0.4 && UnderPressure)
+{
+    Strategy = HOLD;
+}
+else // Low health or outnumbered
+{
+    Strategy = RETREAT;
+}</code></pre>
+
+<h2>Auto-Published Squad Inputs</h2>
+
+<p>All squad members automatically receive these inputs:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Input Name</th>
+      <th>Type</th>
+      <th>Range</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>SquadStrategy</code></td>
+      <td>Enum</td>
+      <td>0-1</td>
+      <td>Current squad strategy (0=Search, 0.25=Assault, etc.)</td>
+    </tr>
+    <tr>
+      <td><code>IsSquadLeader</code></td>
+      <td>Bool</td>
+      <td>0 or 1</td>
+      <td>Is this agent the squad leader?</td>
+    </tr>
+    <tr>
+      <td><code>SquadMemberIndex</code></td>
+      <td>Normalized</td>
+      <td>0-1</td>
+      <td>Position in squad (0=first, 1=last)</td>
+    </tr>
+    <tr>
+      <td><code>SquadEnemyCount</code></td>
+      <td>Normalized</td>
+      <td>0-1</td>
+      <td>Total enemies known to squad / 10</td>
+    </tr>
+    <tr>
+      <td><code>SquadMemberCount</code></td>
+      <td>Normalized</td>
+      <td>0-1</td>
+      <td>Number of alive members / MaxSquadSize</td>
+    </tr>
+    <tr>
+      <td><code>SquadAvgHealth</code></td>
+      <td>Float</td>
+      <td>0-1</td>
+      <td>Average health of all squad members</td>
+    </tr>
+    <tr>
+      <td><code>NearestSquadMateDistance</code></td>
+      <td>Normalized</td>
+      <td>0-1</td>
+      <td>Distance to nearest ally</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Role-Based Actions</h2>
+
+<h3>Strategy-Conditional Actions</h3>
+
+<p>Actions that only execute during specific strategies:</p>
+
+<pre><code>Action: AggressivePush
+  Base Score: 65.0
+  Considerations:
+    - SquadStrategy: 0.25→100, else→0 (only during ASSAULT)
+    - HasVisibleEnemy: 0→0, 1→100
+    - Health: 0→20, 1→100 (prefer when healthy)
+  
+  Result: Only pushes during assault strategy</code></pre>
+
+<pre><code>Action: TacticalFlank
+  Base Score: 60.0
+  Considerations:
+    - SquadStrategy: 0.5→100, else→0 (only during FLANK)
+    - SquadMemberIndex: Use for left/right split
+      └─ Index 0,1: Flank left
+      └─ Index 2,3: Flank right
+    - HasFlankRoute: 0→0, 1→100
+  
+  Result: Coordinated flanking based on member index</code></pre>
+
+<pre><code>Action: DefensivePosition
+  Base Score: 70.0
+  Considerations:
+    - SquadStrategy: 0.75→100, else→20 (prefer during HOLD)
+    - HasCover: 0→0, 1→100
+    - Health: 0→100, 1→50 (more urgent when injured)
+  
+  Result: Takes defensive positions during hold</code></pre>
+
+<h3>Leader-Specific Actions</h3>
+
+<pre><code>Action: DirectSquad (Leader only)
+  Base Score: 55.0
+  Considerations:
+    - IsSquadLeader: 0→0, 1→100 (only leader)
+    - SquadEnemyCount: 0→0, 1→100 (enemies known)
+    - TimeSinceLastOrder: Increase over time
+  
+  Result: Leader periodically issues directives</code></pre>
+
+<h2>Squad Patterns</h2>
+
+<h3>Pattern 1: Formation Movement</h3>
+
+<pre><code>Action: MaintainFormation
+  Base Score: 40.0
+  Considerations:
+    - SquadStrategy: 0.0→80, 0.25→50, else→30 (prefer during search)
+    - NearestSquadMateDistance: 0.2→100, 0.5→80, 1→20
+    - HasKnownEnemy: 0→100, 1→20 (less important in combat)
+  
+Effect: Squad stays together during patrol, spreads in combat</code></pre>
+
+<h3>Pattern 2: Coordinated Assault</h3>
+
+<pre><code>Action: CoordinatedAttack
+  Base Score: 70.0
+  Considerations:
+    - SquadStrategy: 0.25→100, else→40 (boost during assault)
+    - SquadMemberCount: 0→20, 1→100 (stronger with more members)
+    - HasVisibleEnemy: 0→0, 1→100
+  
+Effect: Squad attacks together when at full strength</code></pre>
+
+<h3>Pattern 3: Suppression Fire</h3>
+
+<pre><code>Action: SuppressEnemy
+  Base Score: 55.0
+  Considerations:
+    - SquadStrategy: 0.75→100, else→30 (prefer during hold)
+    - AmmoCount: 0→0, 0.3→80, 1→100
+    - HasLineOfSight: 0→0, 1→100
+    - IsSquadLeader: 0→70, 1→100 (leader initiates)
+  
+Effect: Squad pins enemies with suppression</code></pre>
+
+<h3>Pattern 4: Tactical Retreat</h3>
+
+<pre><code>Action: CoveringRetreat
+  Base Score: 75.0
+  Considerations:
+    - SquadStrategy: 1.0→100, else→0 (only during retreat)
+    - Health: 0→100, 1→30 (urgent when injured)
+    - SquadMemberIndex: Alternating (0,2 retreat, 1,3 cover)
+  
+Effect: Members alternate between retreating and covering</code></pre>
+
+<h2>Advanced: Dynamic Roles</h2>
+
+<h3>Assign Roles at Runtime</h3>
+
+<pre><code>// In Squad Manager or Leader
+void AssignSquadRoles()
+{
+    for (int32 i = 0; i < SquadMembers.Num(); ++i)
+    {
+        UUtilityBrainComponent* Brain = GetBrainFromMember(SquadMembers[i]);
+        if (!Brain) continue;
+        
+        // Assign roles based on index
+        if (i == 0)
+        {
+            Brain->SetNamedInputValue(TEXT("Role_PointMan"), 1.0f);
+            Brain->SetNamedInputValue(TEXT("Role_Support"), 0.0f);
+        }
+        else if (i == SquadMembers.Num() - 1)
+        {
+            Brain->SetNamedInputValue(TEXT("Role_RearGuard"), 1.0f);
+        }
+        else
+        {
+            Brain->SetNamedInputValue(TEXT("Role_Support"), 1.0f);
+        }
+    }
+}</code></pre>
+
+<h3>Role-Based Action Scoring</h3>
+
+<pre><code>Action: TakePoint (Point Man)
+  Base Score: 65.0
+  Considerations:
+    - Role_PointMan: 0→0, 1→100
+    - SquadStrategy: 0.0→100, else→50
+    - Health: 0→20, 1→100 (needs to be healthy)
+  
+Action: ProvideSupport (Support)
+  Base Score: 60.0
+  Considerations:
+    - Role_Support: 0→0, 1→100
+    - NearestSquadMateDistance: 0→20, 0.5→100 (stay in support range)
+  
+Action: CoverRear (Rear Guard)
+  Base Score: 55.0
+  Considerations:
+    - Role_RearGuard: 0→0, 1→100
+    - HasThreatBehind: 0→20, 1→100</code></pre>
+
+<h2>Debugging Squad Behavior</h2>
+
+<h3>Gameplay Debugger (Squad Info)</h3>
+
+<pre><code>Press ' → 5 → Select Squad Member
+
+SQUAD INFO section shows:
+  Squad: Alpha (4 members)
+  Strategy: ASSAULT (TTL: 3.2s)
+  Leader: EnemySoldier_0
+  Members: 
+    • Self [Leader] (Health: 85%)
+    • EnemySoldier_1 (Health: 92%)
+    • EnemySoldier_2 (Health: 68%)
+    • EnemySoldier_3 (Health: 71%)
+  Known Enemies: 2
+  Avg Health: 79%</code></pre>
+
+<h3>CINDebugComponent (Overhead Display)</h3>
+
+<pre><code>Enable: bShowSquadInfo = true
+
+Shows above agent:
+  [ALPHA-1] ASSAULT
+  Attack (Score: 68.5)
+  Leader: No
+  Enemies: 2</code></pre>
+
+<h3>Console Commands</h3>
+
+<pre><code>// Show all squads
+CIN.Debug.ShowSquads 1
+
+// Show squad strategies
+CIN.Debug.ShowStrategies 1
+
+// Force strategy change (testing)
+CIN.Debug.SetSquadStrategy Alpha Flank</code></pre>
+
+<h2>Performance Considerations</h2>
+
+<h3>Squad Size Recommendations</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Squad Size</th>
+      <th>Use Case</th>
+      <th>Notes</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>2-4</td>
+      <td>Small tactical teams</td>
+      <td>Optimal performance, tight coordination</td>
+    </tr>
+    <tr>
+      <td>5-8</td>
+      <td>Standard infantry squads</td>
+      <td>Good balance, manageable</td>
+    </tr>
+    <tr>
+      <td>9-12</td>
+      <td>Large squads, platoons</td>
+      <td>Consider sub-squads</td>
+    </tr>
+    <tr>
+      <td>13+</td>
+      <td>RTS units, crowds</td>
+      <td>Use hierarchical squads or LOD</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Optimization Tips</h3>
+
+<pre><code>✅ DO: Stagger service updates
+  Leader: Tick every 1.0s
+  Members: Tick every 0.5s (offset by member index)
+
+✅ DO: Use strategy TTL
+  Don't recalculate strategy every frame
+  5-10 second TTL is usually sufficient
+
+✅ DO: Share perception data
+  Members report to squad, all benefit
+  More efficient than individual perception
+
+❌ DON'T: Update all members every frame
+  Use MinInterval on services
+  Stagger updates across squad</code></pre>
+
+<h2>Common Configurations</h2>
+
+<h3>FPS Squad (4 members)</h3>
+
+<pre><code>Squad Size: 4
+Strategy Update: 1.0s
+Member Update: 0.5s (staggered)
+Services:
+  ├─ PerceptionMonitor (0.2s)
+  ├─ TacticalSense (0.5s)
+  └─ TacticalStrategy (1.0s, leader only)
+Roles: Point, Support × 2, Rear Guard</code></pre>
+
+<h3>RTS Combat Group (8 members)</h3>
+
+<pre><code>Squad Size: 8
+Strategy Update: 2.0s
+Member Update: 1.0s
+Services:
+  ├─ PerceptionMonitor (0.5s)
+  ├─ TacticalSense (1.0s)
+  └─ TacticalStrategy (2.0s, leader only)
+Formation: Diamond or wedge</code></pre>
+
+<h3>Stealth Team (3 members)</h3>
+
+<pre><code>Squad Size: 3
+Strategy Update: 0.5s (fast response)
+Member Update: 0.25s
+Services:
+  ├─ PerceptionMonitor (0.2s, enhanced)
+  ├─ TacticalSense (0.5s)
+  └─ TacticalStrategy (0.5s, leader only)
+Roles: Point, Infiltrator, Overwatch</code></pre>
+
+<h2>Troubleshooting</h2>
+
+<h3>Issue: "Squad members not coordinating"</h3>
+
+<p><strong>Checklist:</strong></p>
+<ol>
+  <li>✓ All members have same SquadName?</li>
+  <li>✓ All members have TacticalMemberComponent?</li>
+  <li>✓ TacticalSense service added?</li>
+  <li>✓ TacticalStrategy service added?</li>
+  <li>✓ Actions configured to read SquadStrategy input?</li>
+</ol>
+
+<h3>Issue: "Strategy always SEARCH"</h3>
+
+<p><strong>Diagnosis:</strong></p>
+<ul>
+  <li>TacticalSense not reporting enemies</li>
+  <li>Check: PerceptionMonitor working?</li>
+  <li>Check: Team IDs set correctly?</li>
+  <li>Check: Leader has TacticalStrategy service?</li>
+</ul>
+
+<h3>Issue: "All members doing same thing"</h3>
+
+<p><strong>Solution:</strong></p>
+<ul>
+  <li>Use SquadMemberIndex for differentiation</li>
+  <li>Assign different roles to members</li>
+  <li>Add variety to action scoring based on role</li>
+  <li>Avoid identical action sets</li>
+</ul>
+
+<h2>Next Steps</h2>
+
+<div class="next-steps">
+  <a class="button primary" href="#/docs/tuning">
+    <i data-lucide="sliders"></i>
+    Tuning & Balancing
+  </a>
+  <a class="button" href="#/docs/optimization">
+    <i data-lucide="activity"></i>
+    Performance Optimization
+  </a>
+</div>
+
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="#/docs/service-tactical-sense"><i data-lucide="eye"></i> TacticalSense Service</a> - Complete API</li>
+  <li><a href="#/docs/service-tactical-strategy"><i data-lucide="target"></i> TacticalStrategy Service</a> - Strategy evaluation</li>
+  <li><a href="#/docs/archetypes"><i data-lucide="layers"></i> BaseSquadCombat Archetype</a> - Reference</li>
+  <li><a href="#/examples/squad-coordination"><i data-lucide="users"></i> Squad Example</a> - Working implementation</li>
+</ul>
+
+<script>lucide.createIcons();</script>

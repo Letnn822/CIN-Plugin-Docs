@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CIN Plugin Docs</title>
+  <!-- Fonts: UI (Inter/DM Sans), Headings (Space Grotesk/Orbitron) with swap -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;600;700&family=Orbitron:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <meta name="theme-color" content="#0B1024" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">CIN</div>
+      <div class="titles">
+        <h1>CIN Plugin</h1>
+        <p>Documentation & Guides</p>
+      </div>
+    </div>
+    <nav class="primary-nav">
+      <button class="nav-tab" data-section="docs">Documentation</button>
+      <button class="nav-tab" data-section="examples">Guides</button>
+    </nav>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <input id="filter" type="search" placeholder="Filter topics..." aria-label="Filter" />
+      </div>
+      <nav id="sidebar-nav" class="sidebar-nav" aria-label="Section navigation">
+        <!-- Filled by app.js from manifest.json -->
+      </nav>
+    </aside>
+
+    <main id="content" class="content" tabindex="-1">
+      <nav id="breadcrumbs" class="breadcrumbs" aria-label="Breadcrumb"></nav>
+      <div id="content-body">
+        <!-- Content is injected here -->
+        <div class="loading">Loading...</div>
+      </div>
+    </main>
+  </div>
+
+  <footer class="footer">
+    <div>
+      <strong>CIN Plugin</strong> for Unreal Engine 5.6+ — Documentation Website
+    </div>
+    <div>
+      © <span id="year"></span> Code Furnace. Sample combat is project-side code, plugin ships generic AI only.
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

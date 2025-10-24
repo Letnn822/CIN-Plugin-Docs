@@ -1,0 +1,566 @@
+<h1>Intelligence Layers</h1>
+<p class="note">Understand CIN's three-tier intelligence architecture. Learn how reactive, tactical, and strategic layers work together to create believable, adaptive AI behavior.</p>
+
+<div class="page-meta">
+  <span class="time"><i data-lucide="clock"></i> 12 minutes</span>
+  <span class="difficulty"><i data-lucide="bar-chart-2"></i> Advanced</span>
+</div>
+
+<div class="callout tip">
+  <span class="icon"><i data-lucide="lightbulb"></i></span>
+  <div>
+    <strong>Architecture Philosophy:</strong> CIN separates intelligence into layers with different timescales and responsibilities. This creates emergent complexity from simple components.
+  </div>
+</div>
+
+<h2>Three-Tier Intelligence Architecture</h2>
+
+<pre><code>Intelligence Layer Stack:
+┌────────────────────────────────────────────────┐
+│ STRATEGIC LAYER (1-10 seconds)                 │
+│ ├─ High-level goals and plans                  │
+│ ├─ Squad-level coordination                    │
+│ ├─ Long-term decision making                   │
+│ └─ Examples: Strategy selection, role assignment│
+└────────────────┬───────────────────────────────┘
+                 ▼
+┌────────────────────────────────────────────────┐
+│ TACTICAL LAYER (0.5-2 seconds)                 │
+│ ├─ Action selection and execution              │
+│ ├─ Consideration evaluation                    │
+│ ├─ Behavior adaptation                         │
+│ └─ Examples: Attack, TakeCover, Flank          │
+└────────────────┬───────────────────────────────┘
+                 ▼
+┌────────────────────────────────────────────────┐
+│ REACTIVE LAYER (0.05-0.2 seconds)              │
+│ ├─ Immediate sensory processing                │
+│ ├─ Threat detection                            │
+│ ├─ Input gathering                             │
+│ └─ Examples: Perception, damage response       │
+└────────────────────────────────────────────────┘</code></pre>
+
+<h2>Layer 1: Reactive Intelligence</h2>
+
+<h3>Purpose</h3>
+<p>Fast, immediate responses to environmental stimuli. No complex decision-making, just sensory processing and urgent reactions.</p>
+
+<h3>Components</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Component</th>
+      <th>Update Rate</th>
+      <th>Purpose</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>UAIPerceptionComponent</strong></td>
+      <td>0.1-0.2s</td>
+      <td>Raw sensory input (sight, sound, damage)</td>
+    </tr>
+    <tr>
+      <td><strong>UService_PerceptionMonitor</strong></td>
+      <td>0.2s</td>
+      <td>Process stimuli, assess immediate threats</td>
+    </tr>
+    <tr>
+      <td><strong>Stimulus Memory</strong></td>
+      <td>Real-time</td>
+      <td>Track last known positions</td>
+    </tr>
+    <tr>
+      <td><strong>Threat Assessment</strong></td>
+      <td>0.2s</td>
+      <td>Evaluate danger level (0-1)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Design Principles</h3>
+
+<pre><code>✅ DO:
+  - Keep processing minimal (< 0.5ms)
+  - Publish raw data as inputs
+  - React to immediate threats
+  - Update frequently (5-10 Hz)
+
+❌ DON'T:
+  - Make complex decisions
+  - Plan future actions
+  - Evaluate multiple options
+  - Store long-term state</code></pre>
+
+<h3>Example: Reactive Perception</h3>
+
+<pre><code>// Reactive Layer processes raw stimuli
+void UService_PerceptionMonitor::TickService(float DeltaTime)
+{
+    // Fast sensory processing
+    TArray<AActor*> VisibleEnemies;
+    GetVisibleEnemies(VisibleEnemies);
+    
+    // Immediate threat assessment
+    float ThreatLevel = CalculateThreatLevel(VisibleEnemies);
+    
+    // Publish for tactical layer
+    Brain->SetNamedInputValue(TEXT("ThreatLevel"), ThreatLevel);
+    Brain->SetNamedInputValue(TEXT("HasVisibleEnemy"), VisibleEnemies.Num() > 0 ? 1.0f : 0.0f);
+    
+    // No decision-making here - just data processing
+}</code></pre>
+
+<h2>Layer 2: Tactical Intelligence</h2>
+
+<h3>Purpose</h3>
+<p>Action selection and execution. Evaluates options, chooses best action, manages execution. This is where Utility AI operates.</p>
+
+<h3>Components</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Component</th>
+      <th>Update Rate</th>
+      <th>Purpose</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>UUtilityBrainComponent</strong></td>
+      <td>0.5-1.0s</td>
+      <td>Evaluate and select actions</td>
+    </tr>
+    <tr>
+      <td><strong>UUtilityActionAsset</strong></td>
+      <td>On demand</td>
+      <td>Individual action scoring</td>
+    </tr>
+    <tr>
+      <td><strong>Momentum System</strong></td>
+      <td>Real-time</td>
+      <td>Prevent rapid switching</td>
+    </tr>
+    <tr>
+      <td><strong>Replace Resistance</strong></td>
+      <td>Real-time</td>
+      <td>Commit to current action</td>
+    </tr>
+    <tr>
+      <td><strong>Task Locking</strong></td>
+      <td>Real-time</td>
+      <td>Prevent failed retries</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Design Principles</h3>
+
+<pre><code>✅ DO:
+  - Evaluate multiple actions (10-20)
+  - Consider current context
+  - Commit to chosen action
+  - Adapt based on feedback
+  - Use anti-thrashing mechanisms
+
+❌ DON'T:
+  - Plan far into future
+  - Coordinate with others (that's strategic)
+  - Make permanent decisions
+  - Ignore reactive inputs</code></pre>
+
+<h3>Example: Tactical Action Selection</h3>
+
+<pre><code>// Tactical Layer selects actions based on reactive inputs
+void UUtilityBrainComponent::EvaluateAndRunBestAction()
+{
+    // Gather inputs from reactive layer
+    GatherInputs();
+    
+    // Score all available actions
+    float BestScore = -1.0f;
+    UUtilityActionAsset* BestAction = nullptr;
+    
+    for (UUtilityActionAsset* Action : AvailableActions)
+    {
+        // Check momentum (prevents spam)
+        float Momentum = GetActionMomentum(Action);
+        
+        // Score with considerations
+        float Score = ComputeActionScore(Action) - Momentum;
+        
+        // Check replace resistance (prevents thrashing)
+        if (CurrentAction && Score <= CurrentActionScore * CurrentAction->ReplaceResistance)
+            continue; // Not enough to switch
+        
+        if (Score > BestScore)
+        {
+            BestScore = Score;
+            BestAction = Action;
+        }
+    }
+    
+    // Execute best tactical action
+    if (BestAction && BestAction != CurrentAction)
+    {
+        ExecuteAction(BestAction);
+    }
+}</code></pre>
+
+<h2>Layer 3: Strategic Intelligence</h2>
+
+<h3>Purpose</h3>
+<p>High-level planning and coordination. Squad strategies, role assignment, long-term goals. Slow but far-reaching decisions.</p>
+
+<h3>Components</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Component</th>
+      <th>Update Rate</th>
+      <th>Purpose</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>UService_TacticalStrategy</strong></td>
+      <td>1.0-2.0s</td>
+      <td>Squad-level strategy selection</td>
+    </tr>
+    <tr>
+      <td><strong>UTacticalSquadComponent</strong></td>
+      <td>1.0s</td>
+      <td>Squad state management</td>
+    </tr>
+    <tr>
+      <td><strong>Role Assignment</strong></td>
+      <td>On change</td>
+      <td>Assign roles to squad members</td>
+    </tr>
+    <tr>
+      <td><strong>Strategy TTL</strong></td>
+      <td>5-10s</td>
+      <td>Strategy persistence</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Design Principles</h3>
+
+<pre><code>✅ DO:
+  - Think 5-10 seconds ahead
+  - Coordinate multiple agents
+  - Set team-level goals
+  - Persist decisions (TTL)
+  - Consider squad composition
+
+❌ DON'T:
+  - React to immediate threats (that's reactive)
+  - Choose specific actions (that's tactical)
+  - Update every frame
+  - Make individual decisions</code></pre>
+
+<h3>Example: Strategic Decision Making</h3>
+
+<pre><code>// Strategic Layer decides squad-level approach
+void UService_TacticalStrategy::EvaluateStrategy()
+{
+    // Gather squad-level intelligence
+    int32 SquadSize = Squad->GetMemberCount();
+    int32 EnemyCount = Squad->GetKnownEnemyCount();
+    float AvgHealth = Squad->GetAverageHealth();
+    
+    // High-level strategic decision
+    ETacticalStrategy NewStrategy;
+    
+    if (EnemyCount == 0)
+    {
+        NewStrategy = ETacticalStrategy::SEARCH;
+    }
+    else if (AvgHealth > 0.6f && SquadSize >= EnemyCount)
+    {
+        // Strong position - push aggressively
+        NewStrategy = ETacticalStrategy::ASSAULT;
+    }
+    else if (AvgHealth > 0.4f && HasFlankOpportunity())
+    {
+        // Need advantage - coordinate flank
+        NewStrategy = ETacticalStrategy::FLANK;
+    }
+    else if (AvgHealth < 0.3f || SquadSize < EnemyCount)
+    {
+        // Weak position - fall back
+        NewStrategy = ETacticalStrategy::RETREAT;
+    }
+    else
+    {
+        // Even odds - hold position
+        NewStrategy = ETacticalStrategy::HOLD;
+    }
+    
+    // Persist strategy with TTL (5 seconds)
+    Squad->SetStrategy(NewStrategy, 5.0f);
+    
+    // Tactical layer reads strategy and adapts actions accordingly
+}</code></pre>
+
+<h2>Layer Integration</h2>
+
+<h3>Information Flow</h3>
+
+<pre><code>Bottom-Up (Fast):
+  Reactive → Tactical → Strategic
+  
+  Perception detects enemy
+  → Tactical evaluates "Attack" action
+  → Strategic updates squad threat assessment
+
+Top-Down (Slow):
+  Strategic → Tactical → Reactive
+  
+  Strategy changes to "ASSAULT"
+  → Tactical actions boost aggressive scores
+  → Reactive layer unchanged (still processes stimuli)
+
+Bidirectional:
+  Each layer informs the others
+  Fast reactions influence slow planning
+  Slow plans guide fast reactions</code></pre>
+
+<h3>Practical Example: Combat Encounter</h3>
+
+<pre><code>Timeline of Three-Layer Response:
+
+t=0.0s: REACTIVE
+  └─ Perception: Enemy spotted at 2000 units
+  └─ ThreatLevel: 0.4 (medium distance)
+  └─ Publish: HasVisibleEnemy = 1.0
+
+t=0.2s: TACTICAL  
+  └─ Brain evaluates actions
+  └─ Attack scores: 60 × 1.0 (enemy) × 0.7 (distance) = 42
+  └─ Approach scores: 55 × 1.0 (enemy) × 0.3 (need closer) = 16.5
+  └─ Execute: Attack (winner)
+
+t=1.0s: STRATEGIC
+  └─ Squad leader checks status
+  └─ 1 enemy, 4 squad members, avg health 85%
+  └─ Decision: ASSAULT strategy
+  └─ Publish: SquadStrategy = 0.25
+
+t=1.2s: TACTICAL (reacts to strategy change)
+  └─ Attack recalculates with strategy bonus
+  └─ Attack: 60 × 1.5 (assault bonus) = 90
+  └─ More aggressive behavior
+
+t=2.0s: REACTIVE (enemy moves closer)
+  └─ ThreatLevel: 0.8 (close range)
+  └─ UnderFire: 1.0 (taking damage)
+
+t=2.2s: TACTICAL (responds to threat)
+  └─ TakeCover scores: 70 × 0.8 (threat) × 1.0 (under fire) = 56
+  └─ Attack: 90 × 0.5 (under fire penalty) = 45
+  └─ Execute: TakeCover (winner)
+
+Result: Layers work together seamlessly</code></pre>
+
+<h2>Designing for Layers</h2>
+
+<h3>Reactive Layer Design</h3>
+
+<pre><code>Focus: Speed and accuracy
+Update: 5-10 Hz (every 0.1-0.2s)
+Budget: < 0.5ms per agent
+
+Implement:
+  - Fast sensory processing
+  - Immediate threat detection
+  - Raw data publishing
+  - Minimal logic
+
+Example Service:
+  UService_PerceptionMonitor (0.2s interval)
+  UService_DamageMonitor (event-driven)
+  UService_ProximityCheck (0.1s interval)</code></pre>
+
+<h3>Tactical Layer Design</h3>
+
+<pre><code>Focus: Decision quality
+Update: 1-2 Hz (every 0.5-1.0s)
+Budget: 1-2ms per agent
+
+Implement:
+  - Action scoring
+  - Consideration evaluation
+  - Momentum/resistance/locking
+  - Behavior execution
+
+Example Actions:
+  Attack (scores on reactive inputs)
+  TakeCover (reacts to ThreatLevel)
+  Reload (manages ammo tactically)
+  Retreat (emergency response)</code></pre>
+
+<h3>Strategic Layer Design</h3>
+
+<pre><code>Focus: Coordination and planning
+Update: 0.5-1 Hz (every 1-2s)
+Budget: 2-3ms per squad
+
+Implement:
+  - Squad strategy selection
+  - Role assignment
+  - Formation management
+  - Long-term goals
+
+Example Services:
+  UService_TacticalStrategy (1.0s interval)
+  UService_FormationManager (2.0s interval)
+  UService_ObjectiveTracker (5.0s interval)</code></pre>
+
+<h2>Anti-Patterns</h2>
+
+<h3>❌ Layer Confusion</h3>
+
+<pre><code>WRONG: Strategic decisions in reactive layer
+void UService_PerceptionMonitor::TickService()
+{
+    if (HasEnemy)
+    {
+        // Don't do this - this is strategic thinking!
+        DetermineSquadStrategy();
+        AssignRoles();
+        PlanFlankingManeuver();
+    }
+}
+
+RIGHT: Reactive publishes data, strategic reads it
+void UService_PerceptionMonitor::TickService()
+{
+    // Just publish what we sense
+    Brain->SetNamedInputValue(TEXT("HasEnemy"), HasEnemy ? 1.0f : 0.0f);
+}
+
+void UService_TacticalStrategy::TickService()
+{
+    // Strategic reads reactive data and plans
+    float HasEnemy = Brain->GetNamedInputValue(TEXT("HasEnemy"));
+    if (HasEnemy > 0.5f)
+    {
+        DetermineSquadStrategy();
+    }
+}</code></pre>
+
+<h3>❌ Wrong Update Rates</h3>
+
+<pre><code>WRONG: Reactive too slow
+  UService_PerceptionMonitor: MinInterval = 2.0s
+  → Can't react to threats fast enough
+
+WRONG: Strategic too fast
+  UService_TacticalStrategy: MinInterval = 0.1s
+  → Wastes CPU, thrashes strategy
+
+RIGHT: Appropriate rates per layer
+  Reactive: 0.1-0.2s
+  Tactical: 0.5-1.0s
+  Strategic: 1.0-2.0s</code></pre>
+
+<h3>❌ Bypassing Layers</h3>
+
+<pre><code>WRONG: Perception directly controls actions
+void UService_PerceptionMonitor::OnEnemyDetected()
+{
+    // Bypasses tactical layer!
+    ExecuteAction(AttackAction);
+}
+
+RIGHT: Layers communicate through data
+void UService_PerceptionMonitor::OnEnemyDetected()
+{
+    // Reactive publishes data
+    Brain->SetNamedInputValue(TEXT("HasEnemy"), 1.0f);
+}
+
+// Tactical reads data and decides
+Action: Attack
+  Considerations:
+    - HasEnemy: 0→0, 1→100</code></pre>
+
+<h2>Performance Impact</h2>
+
+<h3>Layer Costs</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Layer</th>
+      <th>Cost/Agent</th>
+      <th>Frequency</th>
+      <th>Total/Frame</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Reactive</td>
+      <td>0.3-0.5ms</td>
+      <td>5-10 Hz</td>
+      <td>0.15-0.25ms avg</td>
+    </tr>
+    <tr>
+      <td>Tactical</td>
+      <td>1.0-2.0ms</td>
+      <td>1-2 Hz</td>
+      <td>0.5-1.0ms avg</td>
+    </tr>
+    <tr>
+      <td>Strategic</td>
+      <td>2-3ms</td>
+      <td>0.5-1 Hz</td>
+      <td>1-1.5ms avg (squad-shared)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Optimization Strategy</h3>
+
+<pre><code>1. Reactive: Optimize for speed
+   - Minimal processing
+   - Cache frequently accessed data
+   - Use spatial partitioning
+
+2. Tactical: Optimize for accuracy
+   - Limit action count (< 20)
+   - Efficient consideration curves
+   - Smart action ordering
+
+3. Strategic: Optimize for sharing
+   - One leader per squad
+   - Share results with members
+   - Long TTL on decisions</code></pre>
+
+<h2>Next Steps</h2>
+
+<div class="next-steps">
+  <a class="button primary" href="#/docs/momentum">
+    <i data-lucide="trending-up"></i>
+    Task Momentum
+  </a>
+  <a class="button" href="#/docs/resistance">
+    <i data-lucide="shield"></i>
+    Replace Resistance
+  </a>
+</div>
+
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="#/docs/perception-setup"><i data-lucide="eye"></i> Perception Setup</a> - Reactive layer implementation</li>
+  <li><a href="#/docs/action-patterns"><i data-lucide="target"></i> Action Patterns</a> - Tactical layer design</li>
+  <li><a href="#/docs/squad-setup"><i data-lucide="users"></i> Squad Setup</a> - Strategic layer coordination</li>
+  <li><a href="#/docs/optimization"><i data-lucide="activity"></i> Performance</a> - Layer-specific optimization</li>
+</ul>
+
+<script>lucide.createIcons();</script>

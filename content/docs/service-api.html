@@ -1,0 +1,564 @@
+<h1>Service API Reference</h1>
+<p class="note">Complete C++ API reference for UUtilityService. Learn how to create custom services that gather inputs, process data, and integrate with the Utility AI brain.</p>
+
+<div class="page-meta">
+  <span class="time"><i data-lucide="clock"></i> 20 minutes</span>
+  <span class="difficulty"><i data-lucide="bar-chart-3"></i> Reference</span>
+</div>
+
+<h2>Class Overview</h2>
+
+<pre><code>Class: UUtilityService
+Parent: UObject
+Module: CINAI
+Header: Public/UtilityService.h
+
+Purpose:
+  Base class for services that gather and publish data
+  to the Utility AI brain. Services run periodically and
+  provide inputs that actions use for scoring.
+
+Key Responsibilities:
+  - Gather data from various sources
+  - Process and normalize data
+  - Publish NamedInputs to brain
+  - Manage lifecycle (start/stop/tick)</code></pre>
+
+<h2>Core Properties</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Default</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>ServiceName</code></td>
+      <td>FName</td>
+      <td>None</td>
+      <td>Unique identifier for this service</td>
+    </tr>
+    <tr>
+      <td><code>bEnabled</code></td>
+      <td>bool</td>
+      <td>true</td>
+      <td>Is service active?</td>
+    </tr>
+    <tr>
+      <td><code>MinInterval</code></td>
+      <td>float</td>
+      <td>0.5</td>
+      <td>Minimum time between ticks (seconds)</td>
+    </tr>
+    <tr>
+      <td><code>OwningBrain</code></td>
+      <td>UUtilityBrainComponent*</td>
+      <td>nullptr</td>
+      <td>Brain that owns this service</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Service Lifecycle</h2>
+
+<h3>Virtual Functions to Override</h3>
+
+<h4>InitializeService</h4>
+
+<pre><code>virtual void InitializeService(UUtilityBrainComponent* InBrain);
+
+Parameters:
+  InBrain - The brain component that owns this service
+
+Description:
+  Called once when service is added to brain.
+  Use for one-time setup, caching references, etc.
+
+Example:
+void UMyService::InitializeService(UUtilityBrainComponent* InBrain)
+{
+    Super::InitializeService(InBrain);
+    
+    // Cache references
+    OwningPawn = Cast<APawn>(InBrain->GetOwner());
+    PerceptionComponent = OwningPawn->FindComponentByClass<UAIPerceptionComponent>();
+    
+    // Subscribe to events
+    if (OwningPawn)
+    {
+        OwningPawn->OnTakeAnyDamage.AddDynamic(this, &UMyService::OnDamageTaken);
+    }
+}</code></pre>
+
+<h4>UninitializeService</h4>
+
+<pre><code>virtual void UninitializeService();
+
+Description:
+  Called when service is removed from brain.
+  Use for cleanup, unsubscribing events, etc.
+
+Example:
+void UMyService::UninitializeService()
+{
+    // Unsubscribe from events
+    if (OwningPawn)
+    {
+        OwningPawn->OnTakeAnyDamage.RemoveDynamic(this, &UMyService::OnDamageTaken);
+    }
+    
+    Super::UninitializeService();
+}</code></pre>
+
+<h4>TickService</h4>
+
+<pre><code>virtual void TickService(float DeltaTime);
+
+Parameters:
+  DeltaTime - Time since last tick
+
+Description:
+  Called periodically based on MinInterval.
+  Main work happens here - gather data, publish inputs.
+
+Example:
+void UMyService::TickService(float DeltaTime)
+{
+    Super::TickService(DeltaTime);
+    
+    // Gather data
+    float Health = GetHealthPercent();
+    float Ammo = GetAmmoPercent();
+    
+    // Publish to brain
+    OwningBrain->SetNamedInputValue(TEXT("Health"), Health);
+    OwningBrain->SetNamedInputValue(TEXT("AmmoCount"), Ammo);
+    OwningBrain->SetNamedInputValue(TEXT("IsHealthLow"), Health < 0.3f ? 1.0f : 0.0f);
+}</code></pre>
+
+<h4>OnServiceStart</h4>
+
+<pre><code>virtual void OnServiceStart();
+
+Description:
+  Called when service conditions are met and service activates.
+  Only called if service has StartConditions configured.
+
+Example:
+void UMyService::OnServiceStart()
+{
+    Super::OnServiceStart();
+    
+    UE_LOG(LogAI, Log, TEXT("Service activated!"));
+    
+    // Setup state for active period
+    bIsTracking = true;
+    StartTime = GetWorld()->GetTimeSeconds();
+}</code></pre>
+
+<h4>OnServiceStop</h4>
+
+<pre><code>virtual void OnServiceStop();
+
+Description:
+  Called when service conditions fail and service deactivates.
+  Only called if bStopWhenConditionsFail is true.
+
+Example:
+void UMyService::OnServiceStop()
+{
+    Super::OnServiceStop();
+    
+    UE_LOG(LogAI, Log, TEXT("Service deactivated!"));
+    
+    // Cleanup state
+    bIsTracking = false;
+    ClearCache();
+}</code></pre>
+
+<h2>Service Conditions</h2>
+
+<h3>Condition Structure</h3>
+
+<pre><code>USTRUCT(BlueprintType)
+struct FServiceCondition
+{
+    GENERATED_BODY()
+    
+    UPROPERTY(EditAnywhere)
+    FName InputName;
+    
+    UPROPERTY(EditAnywhere)
+    EServiceConditionType ConditionType;
+    
+    UPROPERTY(EditAnywhere)
+    float Threshold = 0.5f;
+    
+    UPROPERTY(EditAnywhere)
+    float MinValue = 0.0f; // For InRange
+    
+    UPROPERTY(EditAnywhere)
+    float MaxValue = 1.0f; // For InRange
+};</code></pre>
+
+<h3>Condition Types</h3>
+
+<pre><code>UENUM(BlueprintType)
+enum class EServiceConditionType : uint8
+{
+    GreaterThan,      // Input > Threshold
+    LessThan,         // Input < Threshold
+    Equal,            // Input == Threshold (with tolerance)
+    NotEqual,         // Input != Threshold
+    GreaterOrEqual,   // Input >= Threshold
+    LessOrEqual,      // Input <= Threshold
+    InRange           // MinValue <= Input <= MaxValue
+};</code></pre>
+
+<h3>Condition Properties</h3>
+
+<pre><code>UPROPERTY(EditAnywhere, Category = "Conditions")
+TArray<FServiceCondition> StartConditions;
+
+UPROPERTY(EditAnywhere, Category = "Conditions")
+bool bStopWhenConditionsFail = false;</code></pre>
+
+<h2>Helper Functions</h2>
+
+<h3>GetWorld</h3>
+
+<pre><code>UWorld* GetWorld() const override;
+
+Returns:
+  World context from owning brain
+
+Description:
+  Returns the world context for this service.
+
+Example:
+  float CurrentTime = GetWorld()->GetTimeSeconds();</code></pre>
+
+<h3>GetOwningPawn</h3>
+
+<pre><code>APawn* GetOwningPawn() const;
+
+Returns:
+  Pawn that owns the brain, or nullptr
+
+Description:
+  Convenience function to get the AI pawn.
+
+Example:
+  APawn* MyPawn = GetOwningPawn();
+  if (MyPawn)
+  {
+      FVector Location = MyPawn->GetActorLocation();
+  }</code></pre>
+
+<h3>GetOwningController</h3>
+
+<pre><code>AAIController* GetOwningController() const;
+
+Returns:
+  AI controller, or nullptr
+
+Description:
+  Convenience function to get the AI controller.
+
+Example:
+  if (AAIController* Controller = GetOwningController())
+  {
+      UBlackboardComponent* BB = Controller->GetBlackboardComponent();
+  }</code></pre>
+
+<h2>Built-In Services Reference</h2>
+
+<h3>UService_PerceptionMonitor</h3>
+
+<pre><code>Path: Services/PerceptionMonitorService.h
+
+Purpose:
+  Bridges UAIPerception to Utility AI brain.
+  Tracks enemies, allies, threat levels, stimulus memory.
+
+Published Inputs (20+):
+  HasKnownEnemy, EnemyCount, HasVisibleEnemy, VisibleEnemyCount,
+  NearestEnemyDistance, DistanceToEnemy, HasLineOfSight,
+  AllyCount, NearestAllyDistance, ThreatLevel, UnderFire,
+  TimeSinceLastSawEnemy, LastKnownEnemyLocationX/Y/Z,
+  DistanceToLastKnownEnemy, HeardSuspiciousSound,
+  HasSuspiciousLocation, SuspiciousLocationDistance
+
+Key Properties:
+  StimulusMemoryDuration (10s default)
+  CloseThreatDistance (500 units)
+  MediumThreatDistance (1500 units)
+  UnderFireWindow (2s)
+  bPublishEnemyInputs, bPublishAllyInputs, bPublishThreatInputs
+  bPublishSoundInputs, bPublishMemoryInputs
+  bDebugVisualize
+
+Usage:
+  Add UAIPerceptionComponent to AIController
+  Add Service_PerceptionMonitor to brain
+  Set GenericTeamId on pawn for team affiliation</code></pre>
+
+<h3>UService_TacticalSense</h3>
+
+<pre><code>Path: Services/TacticalSenseService.h
+
+Purpose:
+  Squad-level perception. Shares enemy intel with squad,
+  aggregates threat data across squad members.
+
+Published Inputs:
+  Squad-level enemy tracking
+  Shared threat assessment
+  Formation awareness
+
+Key Properties:
+  bShareIntelWithSquad
+  IntelShareRadius
+
+Usage:
+  Add UTacticalMemberComponent to pawn
+  Add Service_TacticalSense to brain
+  Works with UTacticalSquadComponent</code></pre>
+
+<h3>UService_TacticalStrategy</h3>
+
+<pre><code>Path: Services/TacticalStrategyService.h
+
+Purpose:
+  Squad leader synthesizes strategy based on situation.
+  Publishes strategy flags to all squad members.
+
+Published Inputs:
+  SquadStrategy (Search/Assault/Flank/Hold/Retreat)
+  SquadStrategyConfidence
+  IsSquadLeader
+
+Strategies:
+  Search: No enemies, patrol
+  Assault: Enemies visible, engage
+  Flank: Enemies in cover, maneuver
+  Hold: Defensive position
+  Retreat: Overwhelmed, fall back
+
+Usage:
+  Only squad leader runs strategy synthesis
+  Members read published strategy via UTacticalSquadInputProviderComponent</code></pre>
+
+<h2>Creating Custom Services</h2>
+
+<h3>Minimal Service Template</h3>
+
+<pre><code>// MyCustomService.h
+#pragma once
+#include "UtilityService.h"
+#include "MyCustomService.generated.h"
+
+UCLASS()
+class YOURGAME_API UMyCustomService : public UUtilityService
+{
+    GENERATED_BODY()
+    
+public:
+    UMyCustomService();
+    
+protected:
+    virtual void InitializeService(UUtilityBrainComponent* InBrain) override;
+    virtual void TickService(float DeltaTime) override;
+    
+    UPROPERTY(EditAnywhere, Category = "My Service")
+    float SomeParameter = 100.0f;
+};
+
+// MyCustomService.cpp
+#include "MyCustomService.h"
+#include "UtilityBrainComponent.h"
+
+UMyCustomService::UMyCustomService()
+{
+    ServiceName = TEXT("MyCustomService");
+    MinInterval = 0.5f;
+    bEnabled = true;
+}
+
+void UMyCustomService::InitializeService(UUtilityBrainComponent* InBrain)
+{
+    Super::InitializeService(InBrain);
+    // One-time setup
+}
+
+void UMyCustomService::TickService(float DeltaTime)
+{
+    Super::TickService(DeltaTime);
+    
+    // Gather and publish data
+    float Value = CalculateSomeValue();
+    OwningBrain->SetNamedInputValue(TEXT("MyInput"), Value);
+}</code></pre>
+
+<h3>Service with Conditions</h3>
+
+<pre><code>UCLASS()
+class UMyConditionalService : public UUtilityService
+{
+    GENERATED_BODY()
+    
+public:
+    UPROPERTY(EditAnywhere, Category = "Conditions")
+    TArray<FServiceCondition> StartConditions;
+    
+    UPROPERTY(EditAnywhere, Category = "Conditions")
+    bool bStopWhenConditionsFail = true;
+    
+protected:
+    virtual void OnServiceStart() override;
+    virtual void OnServiceStop() override;
+    virtual void TickService(float DeltaTime) override;
+};
+
+void UMyConditionalService::OnServiceStart()
+{
+    Super::OnServiceStart();
+    // Service just activated
+}
+
+void UMyConditionalService::OnServiceStop()
+{
+    Super::OnServiceStop();
+    // Service just deactivated
+}
+
+void UMyConditionalService::TickService(float DeltaTime)
+{
+    Super::TickService(DeltaTime);
+    // Only runs while conditions met
+}</code></pre>
+
+<h3>Service with Event Handling</h3>
+
+<pre><code>UCLASS()
+class UMyEventService : public UUtilityService
+{
+    GENERATED_BODY()
+    
+protected:
+    virtual void InitializeService(UUtilityBrainComponent* InBrain) override;
+    virtual void UninitializeService() override;
+    
+    UFUNCTION()
+    void OnDamageTaken(AActor* DamagedActor, float Damage, 
+                       const UDamageType* DamageType,
+                       AController* InstigatedBy, AActor* DamageCauser);
+};
+
+void UMyEventService::InitializeService(UUtilityBrainComponent* InBrain)
+{
+    Super::InitializeService(InBrain);
+    
+    if (APawn* Pawn = GetOwningPawn())
+    {
+        Pawn->OnTakeAnyDamage.AddDynamic(this, &UMyEventService::OnDamageTaken);
+    }
+}
+
+void UMyEventService::UninitializeService()
+{
+    if (APawn* Pawn = GetOwningPawn())
+    {
+        Pawn->OnTakeAnyDamage.RemoveDynamic(this, &UMyEventService::OnDamageTaken);
+    }
+    
+    Super::UninitializeService();
+}
+
+void UMyEventService::OnDamageTaken(AActor* DamagedActor, float Damage, 
+                                     const UDamageType* DamageType,
+                                     AController* InstigatedBy, AActor* DamageCauser)
+{
+    // Immediate response to damage
+    OwningBrain->SetNamedInputValue(TEXT("UnderFire"), 1.0f);
+    OwningBrain->SetNamedInputValue(TEXT("RecentDamage"), Damage / 100.0f);
+}</code></pre>
+
+<h2>Performance Best Practices</h2>
+
+<div class="callout tip">
+  <span class="icon"><i data-lucide="check-square"></i></span>
+  <div>
+    <strong>Service Performance Guidelines:</strong>
+    <ul class="compact">
+      <li>✅ Set MinInterval appropriately (0.5-1.0s for most services)</li>
+      <li>✅ Cache expensive queries between ticks</li>
+      <li>✅ Use conditions to disable inactive services</li>
+      <li>✅ Normalize outputs to 0-1 range when possible</li>
+      <li>✅ Profile with "stat game" and identify bottlenecks</li>
+      <li>❌ Don't query every frame (MinInterval = 0.016)</li>
+      <li>❌ Don't perform expensive operations in TickService</li>
+      <li>❌ Don't create objects every tick (cache them)</li>
+      <li>❌ Don't forget to clean up in UninitializeService</li>
+    </ul>
+  </div>
+</div>
+
+<h2>Debugging Services</h2>
+
+<h3>Gameplay Debugger</h3>
+
+<pre><code>Press ' → 5 → Select Agent
+
+SERVICES:
+  ✓ PerceptionMonitor (Active, 0.5s)
+    Published: 23 inputs
+    Last Tick: 0.12s ago
+    
+  ✓ TacticalSense (Active, 0.3s)
+    Published: 8 inputs
+    Last Tick: 0.05s ago
+    
+  × MyCustomService (Inactive - conditions not met)
+    Waiting for: Health < 0.5</code></pre>
+
+<h3>Logging</h3>
+
+<pre><code>// Service logging
+UE_LOG(LogAI, Log, TEXT("[%s] TickService called"), *ServiceName.ToString());
+
+// Enable verbose logging
+LogUtilityAI Verbose
+
+Output:
+  [PerceptionMonitor] TickService: Found 3 enemies
+  [PerceptionMonitor] Publishing: HasKnownEnemy=1.0
+  [PerceptionMonitor] Publishing: EnemyCount=0.3
+  [TacticalSense] Sharing intel with squad</code></pre>
+
+<h2>Next Steps</h2>
+
+<div class="next-steps">
+  <a class="button primary" href="#/docs/custom-services">
+    <i data-lucide="tool"></i>
+    Creating Custom Services
+  </a>
+  <a class="button" href="#/docs/service-configuration">
+    <i data-lucide="settings"></i>
+    Service Configuration
+  </a>
+</div>
+
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="#/docs/custom-services"><i data-lucide="tool"></i> Custom Services Tutorial</a> - Step-by-step guide</li>
+  <li><a href="#/docs/service-conditions"><i data-lucide="git-merge"></i> Service Conditions</a> - Conditional activation</li>
+  <li><a href="#/docs/perception-setup"><i data-lucide="eye"></i> Perception Service</a> - Complete perception integration</li>
+  <li><a href="#/docs/named-inputs"><i data-lucide="database"></i> Named Inputs</a> - Publishing data</li>
+</ul>
+
+<script>lucide.createIcons();</script>

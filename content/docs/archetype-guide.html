@@ -1,0 +1,321 @@
+<h1>Choose Your Archetype</h1>
+<p class="note">Archetypes are foundational AI patterns that you extend via Blueprint inheritance. Choose the archetype that best matches your AI's primary role, then customize it for your game.</p>
+
+<div class="page-meta">
+  <span class="time"><i data-lucide="clock"></i> 3 minutes</span>
+  <span class="difficulty"><i data-lucide="bar-chart-2"></i> Beginner</span>
+</div>
+
+<div class="callout tip">
+  <span class="icon"><i data-lucide="lightbulb"></i></span>
+  <div>
+    <strong>Philosophy:</strong> Archetypes are <em>building blocks</em>, not finished products. Think of them as starter templates you'll customize with your game's specific actions and behaviors.
+  </div>
+</div>
+
+<h2>Decision Tree</h2>
+<p>Answer these questions to find your ideal starting archetype:</p>
+
+<div class="decision-tree">
+  <div class="decision-node">
+    <h3><i data-lucide="help-circle"></i> Is your AI combat-focused?</h3>
+    
+    <div class="decision-branch yes">
+      <h4><i data-lucide="check-circle"></i> YES - Combat AI</h4>
+      
+      <div class="decision-subnode">
+        <p><strong>Does it work in coordinated squads?</strong></p>
+        <div class="archetype-choice">
+          <i data-lucide="users"></i>
+          <strong>YES →</strong> <a href="#/docs/archetypes#basesquadcombat">BaseSquadCombat</a>
+          <p>Soldiers, military units, coordinated enemies</p>
+        </div>
+        
+        <div class="archetype-choice">
+          <i data-lucide="crosshair"></i>
+          <strong>NO →</strong> What's the combat style?
+          <ul>
+            <li><a href="#/docs/archetypes#basecombat">BaseCombat</a> - Melee fighters, close combat</li>
+            <li><a href="#/docs/archetypes#baseranged">BaseRanged</a> - Archers, snipers, gunners</li>
+            <li><a href="#/docs/archetypes#basecaster">BaseCaster</a> - Mages, spell users</li>
+            <li><a href="#/docs/archetypes#baseboss">BaseBoss</a> - Boss encounters, elite enemies</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    
+    <div class="decision-branch no">
+      <h4><i data-lucide="x-circle"></i> NO - Non-Combat AI</h4>
+      
+      <div class="decision-subnode">
+        <p><strong>What's the AI's primary behavior?</strong></p>
+        
+        <div class="archetype-choice">
+          <i data-lucide="search"></i>
+          <strong>Patrol & Investigate →</strong> <a href="#/docs/archetypes#basestealth">BaseStealth</a>
+          <p>Guards, stealth enemies, investigators</p>
+        </div>
+        
+        <div class="archetype-choice">
+          <i data-lucide="users"></i>
+          <strong>Follow Player →</strong> <a href="#/docs/archetypes#basecompanion">BaseCompanion</a>
+          <p>Followers, pets, allies, sidekicks</p>
+        </div>
+        
+        <div class="archetype-choice">
+          <i data-lucide="message-circle"></i>
+          <strong>Interact with Player →</strong> <a href="#/docs/archetypes#basenpc">BaseNPC</a>
+          <p>Civilians, quest NPCs, vendors, ambient characters</p>
+        </div>
+        
+        <div class="archetype-choice">
+          <i data-lucide="wind"></i>
+          <strong>Animal/Monster →</strong> <a href="#/docs/archetypes#basecreature">BaseCreature</a>
+          <p>Wildlife, monsters, territorial creatures</p>
+        </div>
+        
+        <div class="archetype-choice">
+          <i data-lucide="settings"></i>
+          <strong>Completely Custom →</strong> <a href="#/docs/archetypes#baseagent">BaseAgent</a>
+          <p>Minimal foundation for unique AI</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h2>Quick Reference</h2>
+
+<table class="archetype-table">
+  <thead>
+    <tr>
+      <th>Archetype</th>
+      <th>Best For</th>
+      <th>Core Actions</th>
+      <th>Key Services</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong><i data-lucide="crosshair"></i> BaseCombat</strong></td>
+      <td>Melee fighters, soldiers</td>
+      <td>Attack, TakeCover, Reload, Retreat</td>
+      <td>PerceptionMonitor</td>
+    </tr>
+    <tr>
+      <td><strong><i data-lucide="users"></i> BaseSquadCombat</strong></td>
+      <td>Military units, teams</td>
+      <td>+ Flank, Suppress, HoldPosition</td>
+      <td>+ TacticalSense, TacticalStrategy</td>
+    </tr>
+    <tr>
+      <td><strong><i data-lucide="target"></i> BaseRanged</strong></td>
+      <td>Archers, snipers</td>
+      <td>RangedAttack, Kite, OptimalRange</td>
+      <td>PerceptionMonitor</td>
+    </tr>
+    <tr>
+      <td><strong><i data-lucide="sparkles"></i> BaseCaster</strong></td>
+      <td>Mages, spell users</td>
+      <td>CastSpell, ManageResource, Position</td>
+      <td>PerceptionMonitor</td>
+    </tr>
+    <tr>
+      <td><strong><i data-lucide="crown"></i> BaseBoss</strong></td>
+      <td>Boss encounters</td>
+      <td>PhaseTransition, Summon, Enrage</td>
+      <td>PerceptionMonitor, EnvironmentalMemory</td>
+    </tr>
+    <tr>
+      <td><strong><i data-lucide="search"></i> BaseStealth</strong></td>
+      <td>Guards, investigators</td>
+      <td>Patrol, Investigate, Alert, Search</td>
+      <td>PerceptionMonitor (long memory)</td>
+    </tr>
+    <tr>
+      <td><strong><i data-lucide="heart"></i> BaseCompanion</strong></td>
+      <td>Followers, allies</td>
+      <td>Follow, Assist, Wait, Interact</td>
+      <td>PerceptionMonitor</td>
+    </tr>
+    <tr>
+      <td><strong><i data-lucide="user"></i> BaseNPC</strong></td>
+      <td>Civilians, vendors</td>
+      <td>Idle, Wander, Dialogue, Flee</td>
+      <td>PerceptionMonitor (minimal)</td>
+    </tr>
+    <tr>
+      <td><strong><i data-lucide="wind"></i> BaseCreature</strong></td>
+      <td>Animals, monsters</td>
+      <td>Roam, Hunt, Territorial, Flee</td>
+      <td>PerceptionMonitor (short memory)</td>
+    </tr>
+    <tr>
+      <td><strong><i data-lucide="box"></i> BaseAgent</strong></td>
+      <td>Completely custom AI</td>
+      <td>None (you add all)</td>
+      <td>None (you configure)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Understanding Archetype Inheritance</h2>
+
+<div class="callout info">
+  <span class="icon"><i data-lucide="info"></i></span>
+  <div>
+    <strong>How It Works:</strong> Archetypes provide a <em>recommended starting point</em>. When you create a <code>UCIN_AgentPreset</code> and select an archetype, you get pre-configured actions and services. You then extend this in Blueprint to add game-specific behaviors.
+  </div>
+</div>
+
+<pre><code>// Archetype inheritance pattern
+DA_Soldier_Preset (CIN_AgentPreset)
+  └─ Archetype: BaseCombat
+     ├─ Includes: Attack, TakeCover, Reload, Retreat
+     ├─ Includes: PerceptionMonitor service
+     └─ You add: ThrowGrenade, CallForBackup, MeleeFinisher
+
+BP_Soldier (Blueprint, extends BaseCombat)
+  └─ Customizes: Weapon type, animation sets, audio
+  └─ Adds: Game-specific logic and visuals</code></pre>
+
+<h2>Common Combinations</h2>
+
+<h3><i data-lucide="gamepad-2"></i> FPS Game</h3>
+<ul>
+  <li><strong>Player Enemies:</strong> BaseSquadCombat (coordinated soldiers)</li>
+  <li><strong>Guards:</strong> BaseStealth (patrol and investigate)</li>
+  <li><strong>Boss:</strong> BaseBoss (multi-phase encounter)</li>
+</ul>
+
+<h3><i data-lucide="sword"></i> RPG Game</h3>
+<ul>
+  <li><strong>Companions:</strong> BaseCompanion (follow and assist)</li>
+  <li><strong>Town NPCs:</strong> BaseNPC (dialogue and schedules)</li>
+  <li><strong>Enemies:</strong> BaseCombat, BaseRanged, BaseCaster (varied combat)</li>
+  <li><strong>Wildlife:</strong> BaseCreature (ambient life)</li>
+</ul>
+
+<h3><i data-lucide="eye-off"></i> Stealth Game</h3>
+<ul>
+  <li><strong>Patrols:</strong> BaseStealth (investigation behaviors)</li>
+  <li><strong>Alerted Guards:</strong> BaseCombat (when player detected)</li>
+  <li><strong>Civilians:</strong> BaseNPC (avoid and react)</li>
+</ul>
+
+<h2>What You Get with Each Archetype</h2>
+
+<div class="archetype-details">
+  <h3 id="basecombat"><i data-lucide="crosshair"></i> BaseCombat</h3>
+  <p><strong>Purpose:</strong> Foundation for combat-oriented AI with attack, defense, and tactical behaviors.</p>
+  
+  <p><strong>Included Actions:</strong></p>
+  <ul>
+    <li><strong>Attack</strong> - Engage visible enemy with weapon</li>
+    <li><strong>TakeCover</strong> - Move to cover when under threat</li>
+    <li><strong>Reload</strong> - Reload weapon when ammo low</li>
+    <li><strong>Retreat</strong> - Fall back when low health</li>
+  </ul>
+  
+  <p><strong>Included Services:</strong></p>
+  <ul>
+    <li><strong>PerceptionMonitor</strong> - Sight 3000, Hearing 2000, Damage sense</li>
+  </ul>
+  
+  <p><strong>Auto-Published Inputs:</strong></p>
+  <ul>
+    <li>Health, AmmoCount, HasKnownEnemy, ThreatLevel, NearestEnemyDistance</li>
+  </ul>
+  
+  <p><strong>Extend With:</strong></p>
+  <ul>
+    <li>Weapon-specific actions (ThrowGrenade, MeleeAttack, AimDownSights)</li>
+    <li>Cover evaluation (find best cover point)</li>
+    <li>Team communication (CallForBackup, ReportEnemy)</li>
+  </ul>
+</div>
+
+<div class="archetype-details">
+  <h3 id="basesquadcombat"><i data-lucide="users"></i> BaseSquadCombat</h3>
+  <p><strong>Purpose:</strong> Extends BaseCombat with squad coordination and tactical behaviors.</p>
+  
+  <p><strong>Includes Everything from BaseCombat, Plus:</strong></p>
+  <ul>
+    <li><strong>FlankLeft/FlankRight</strong> - Coordinated flanking maneuvers</li>
+    <li><strong>HoldPosition</strong> - Defensive stance</li>
+    <li><strong>SuppressFire</strong> - Cover fire for teammates</li>
+  </ul>
+  
+  <p><strong>Additional Services:</strong></p>
+  <ul>
+    <li><strong>TacticalSense</strong> - Reports squad intel</li>
+    <li><strong>TacticalStrategy</strong> - Leader synthesizes strategy</li>
+  </ul>
+  
+  <p><strong>Additional Inputs:</strong></p>
+  <ul>
+    <li>SquadStrategy, IsSquadLeader, SquadMemberIndex, SquadEnemyCount</li>
+  </ul>
+  
+  <p><strong>Extend With:</strong></p>
+  <ul>
+    <li>Formation behaviors (MaintainFormation, ReformOnLeader)</li>
+    <li>Advanced tactics (Bounding overwatch, room clearing)</li>
+  </ul>
+</div>
+
+<div class="archetype-details">
+  <h3 id="basestealth"><i data-lucide="search"></i> BaseStealth</h3>
+  <p><strong>Purpose:</strong> Guards and investigators with patrol and alert behaviors.</p>
+  
+  <p><strong>Included Actions:</strong></p>
+  <ul>
+    <li><strong>Patrol</strong> - Follow patrol route</li>
+    <li><strong>Investigate</strong> - Check suspicious location</li>
+    <li><strong>Alert</strong> - Raise alarm when enemy confirmed</li>
+    <li><strong>Search</strong> - Search area for lost target</li>
+  </ul>
+  
+  <p><strong>Perception Configuration:</strong></p>
+  <ul>
+    <li>Long memory: 30 seconds (remembers last known positions)</li>
+    <li>Enhanced hearing: 3000 units (sound-focused)</li>
+    <li>Sound inputs critical for investigation</li>
+  </ul>
+  
+  <p><strong>Extend With:</strong></p>
+  <ul>
+    <li>Alarm systems (ActivateAlarm, CallReinforcements)</li>
+    <li>Environmental memory (CheckDoors, InspectObjects)</li>
+    <li>Communication (RadioIn, RequestBackup)</li>
+  </ul>
+</div>
+
+<h2>Next Steps</h2>
+
+<div class="callout success">
+  <span class="icon"><i data-lucide="check-circle"></i></span>
+  <div>
+    <strong>Decision Made?</strong> Great! Now proceed to the <a href="#/docs/setup-workflow">15-Minute Setup</a> to create your first AI with your chosen archetype.
+  </div>
+</div>
+
+<div class="next-steps">
+  <a class="button primary" href="#/docs/setup-workflow">
+    <i data-lucide="zap"></i>
+    Continue to Setup Workflow
+  </a>
+  <a class="button" href="#/docs/archetypes">
+    <i data-lucide="book-open"></i>
+    See All 11 Archetypes (Detailed)
+  </a>
+</div>
+
+<h3>Related Pages</h3>
+<ul>
+  <li><a href="#/docs/archetype-inheritance"><i data-lucide="git-branch"></i> Archetype Inheritance</a> - Learn how to extend archetypes in Blueprint</li>
+  <li><a href="#/docs/best-practices"><i data-lucide="star"></i> Best Practices</a> - Patterns for using archetypes effectively</li>
+  <li><a href="#/examples/combat-setup"><i data-lucide="crosshair"></i> Combat AI Example</a> - See BaseCombat in action</li>
+</ul>
+
+<script>lucide.createIcons();</script>

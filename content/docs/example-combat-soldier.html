@@ -1,0 +1,464 @@
+<h1>Example: Combat Soldier AI</h1>
+<p class="note">Complete working example of a combat soldier AI using BaseCombat archetype. Includes full action configuration, perception setup, and combat behaviors.</p>
+
+<div class="page-meta">
+  <span class="time"><i data-lucide="clock"></i> 25 minutes</span>
+  <span class="difficulty"><i data-lucide="code"></i> Example</span>
+</div>
+
+<div class="callout tip">
+  <span class="icon"><i data-lucide="lightbulb"></i></span>
+  <div>
+    <strong>What You'll Build:</strong> A complete FPS soldier AI that attacks enemies, takes cover when threatened, reloads when low on ammo, and retreats when critically injured. Uses BaseCombat archetype with custom tuning.
+  </div>
+</div>
+
+<h2>Final Result</h2>
+
+<pre><code>Soldier AI Behavior:
+├─ Idle: Patrol when no enemies (BaseScore: 30)
+├─ Attack: Engage visible enemies (BaseScore: 60)
+├─ TakeCover: Seek cover when threatened (BaseScore: 70, Priority: 80)
+├─ Reload: Reload when ammo low (BaseScore: 55, Priority: 60)
+└─ Retreat: Flee when critically injured (BaseScore: 80, Priority: 100)
+
+Features:
+✓ Perception-based enemy detection
+✓ Threat-based cover seeking
+✓ Smart ammo management
+✓ Health-based retreat
+✓ Momentum prevents attack spam
+✓ Replace resistance keeps cover stable</code></pre>
+
+<h2>Step 1: Create AI Pawn</h2>
+
+<h3>Blueprint: BP_Soldier</h3>
+
+<pre><code>Parent Class: Character
+
+Components:
+  + Skeletal Mesh (soldier model)
+  + AIPerception (UAIPerceptionComponent)
+    Senses:
+      - AISense_Sight (3000 radius, 90° FOV)
+      - AISense_Hearing (2000 radius)
+      - AISense_Damage (always detects)
+  + CINQuickSetup (UCINQuickSetupComponent)
+    AgentType: BaseCombat
+    bAutoInitialize: true
+    bEnableDebugVisualization: true (for testing)
+
+Variables:
+  + Health (float): 100.0
+  + MaxHealth (float): 100.0
+  + AmmoCount (int32): 30
+  + MaxAmmo (int32): 30
+  + bIsInCover (bool): false</code></pre>
+
+<h3>AIController: BP_SoldierController</h3>
+
+<pre><code>Parent Class: AAIController
+
+Event OnPossess
+  → Set Generic Team ID (1) // For perception
+  → (Quick Setup auto-initializes brain)</code></pre>
+
+<h2>Step 2: Configure Actions</h2>
+
+<h3>Action 1: DA_Action_Soldier_Attack</h3>
+
+<pre><code>ActionName: "Attack"
+DisplayName: "Attack Enemy"
+BaseScore: 60.0
+Priority: 50
+
+Considerations:
+  1. HasKnownEnemy
+     InputName: "HasKnownEnemy"
+     ResponseCurve: (0,0) → (1,100)
+     Weight: 1.0
+     
+  2. DistanceToEnemy
+     InputName: "DistanceToEnemy"
+     ResponseCurve: 
+       (0, 30)    // Too close
+       (0.3, 100) // Optimal range
+       (0.7, 80)  // Still good
+       (1, 20)    // Too far
+     Weight: 1.0
+     
+  3. Health
+     InputName: "Health"
+     ResponseCurve: (0,20) → (0.5,80) → (1,100)
+     Weight: 1.0
+
+Momentum:
+  MaxMomentum: 3.0
+  MomentumScoreReduction: 5.0
+  MomentumDecayTime: 3.0
+
+Replace Resistance: 1.1
+bInterruptible: true
+UnlockTime: -1.0 (no locking)
+
+Executor: Behavior Tree
+  BehaviorTree: BT_Soldier_Attack
+  bRestartOnReselect: false</code></pre>
+
+<h3>Action 2: DA_Action_Soldier_TakeCover</h3>
+
+<pre><code>ActionName: "TakeCover"
+DisplayName: "Take Cover"
+BaseScore: 70.0
+Priority: 80 (high priority for defense)
+
+Considerations:
+  1. ThreatLevel
+     InputName: "ThreatLevel"
+     ResponseCurve: (0,0) → (0.5,50) → (1,100)
+     Weight: 1.0
+     
+  2. Health
+     InputName: "Health"
+     ResponseCurve: (0,100) → (0.3,80) → (1,20) 
+     bInvertCurve: true // Lower health = higher score
+     Weight: 1.0
+     
+  3. HasKnownEnemy
+     InputName: "HasKnownEnemy"
+     ResponseCurve: (0,0) → (1,100)
+     Weight: 1.0
+
+Momentum: None (MaxMomentum: 0)
+Replace Resistance: 2.0 (hard to interrupt)
+bInterruptible: false
+UnlockTime: 0.0 (unlock on success)
+
+Executor: Behavior Tree
+  BehaviorTree: BT_Soldier_TakeCover</code></pre>
+
+<h3>Action 3: DA_Action_Soldier_Reload</h3>
+
+<pre><code>ActionName: "Reload"
+DisplayName: "Reload Weapon"
+BaseScore: 55.0
+Priority: 60
+
+Considerations:
+  1. AmmoLevel
+     InputName: "AmmoLevel"
+     ResponseCurve: (0,100) → (0.3,80) → (1,0)
+     Weight: 1.0
+     
+  2. ThreatLevel
+     InputName: "ThreatLevel"
+     ResponseCurve: (0,100) → (1,20) 
+     bInvertCurve: true // Lower threat = more willing to reload
+     Weight: 1.0
+
+Momentum: None
+Replace Resistance: 1.0
+bInterruptible: true
+UnlockTime: 5.0 (5 second cooldown)
+
+Executor: Behavior Tree
+  BehaviorTree: BT_Soldier_Reload</code></pre>
+
+<h3>Action 4: DA_Action_Soldier_Retreat</h3>
+
+<pre><code>ActionName: "Retreat"
+DisplayName: "Retreat to Safety"
+BaseScore: 80.0
+Priority: 100 (critical - highest)
+
+Considerations:
+  1. Health
+     InputName: "Health"
+     ResponseCurve: (0,100) → (0.15,100) → (0.3,50) → (1,0)
+     Weight: 1.0
+     
+  2. HasKnownEnemy
+     InputName: "HasKnownEnemy"
+     ResponseCurve: (0,20) → (1,100)
+     Weight: 1.0
+
+Momentum: None
+Replace Resistance: 1.5
+bInterruptible: false
+UnlockTime: 10.0 (10 second cooldown)
+
+Executor: Behavior Tree
+  BehaviorTree: BT_Soldier_Retreat</code></pre>
+
+<h3>Action 5: DA_Action_Soldier_Patrol</h3>
+
+<pre><code>ActionName: "Patrol"
+DisplayName: "Patrol Area"
+BaseScore: 30.0
+Priority: 0 (fallback)
+
+Considerations:
+  1. HasKnownEnemy
+     InputName: "HasKnownEnemy"
+     ResponseCurve: (0,100) → (1,0)
+     bInvertCurve: true // Only when no enemies
+     Weight: 1.0
+
+Momentum: None
+Replace Resistance: 1.0
+bInterruptible: true
+UnlockTime: -1.0
+
+Executor: Behavior Tree
+  BehaviorTree: BT_Soldier_Patrol</code></pre>
+
+<h2>Step 3: Configure Services</h2>
+
+<h3>Service: PerceptionMonitor</h3>
+
+<pre><code>Brain Preset or Agent Preset:
+  ServiceClasses:
+    [0] UService_PerceptionMonitor
+
+Configuration:
+  StimulusMemoryDuration: 10.0
+  CloseThreatDistance: 500.0
+  MediumThreatDistance: 1500.0
+  UnderFireWindow: 2.0
+  bPublishEnemyInputs: true
+  bPublishThreatInputs: true
+  bDebugVisualize: true (for testing)</code></pre>
+
+<h3>Service: Health/Ammo Monitor (Custom)</h3>
+
+<pre><code>// Blueprint or C++
+Event Tick (UtilityBrain)
+  → Get Health Percent = Health / MaxHealth
+  → Get Ammo Level = AmmoCount / MaxAmmo
+  → Set Named Input Value ("Health", Get Health Percent)
+  → Set Named Input Value ("AmmoLevel", Get Ammo Level)
+  → Set Named Input Value ("IsHealthCritical", Health < 0.2 ? 1.0 : 0.0)</code></pre>
+
+<h2>Step 4: Create Behavior Trees</h2>
+
+<h3>BT_Soldier_Attack</h3>
+
+<pre><code>Root
+└─ Sequence
+   ├─ Find Cover Points Near Enemy
+   ├─ Move To Optimal Attack Position
+   ├─ Sequence (Attack Loop)
+   │  ├─ Rotate To Enemy
+   │  ├─ Check Line of Sight
+   │  ├─ Fire Weapon
+   │  ├─ Decrement Ammo
+   │  └─ Wait (0.2s)
+   └─ Finish Execute (Success)</code></pre>
+
+<h3>BT_Soldier_TakeCover</h3>
+
+<pre><code>Root
+└─ Sequence
+   ├─ Find Nearest Cover
+   ├─ Move To Cover
+   ├─ Set bIsInCover = true
+   ├─ Wait In Cover (3s)
+   ├─ Set bIsInCover = false
+   └─ Finish Execute (Success)</code></pre>
+
+<h3>BT_Soldier_Reload</h3>
+
+<pre><code>Root
+└─ Sequence
+   ├─ Play Reload Animation
+   ├─ Wait (2.5s) // Animation duration
+   ├─ Set AmmoCount = MaxAmmo
+   └─ Finish Execute (Success)</code></pre>
+
+<h3>BT_Soldier_Retreat</h3>
+
+<pre><code>Root
+└─ Sequence
+   ├─ Find Retreat Position (away from enemies)
+   ├─ Move To Position (run speed)
+   ├─ Wait (5s) // Recover
+   └─ Finish Execute (Success)</code></pre>
+
+<h3>BT_Soldier_Patrol</h3>
+
+<pre><code>Root
+└─ Sequence
+   ├─ Get Random Patrol Point
+   ├─ Move To Point
+   ├─ Wait (3s) // Look around
+   └─ Finish Execute (Success)</code></pre>
+
+<h2>Step 5: Test the AI</h2>
+
+<h3>Test Scenarios</h3>
+
+<pre><code>Scenario 1: Enemy Engagement
+  Setup:
+    - Spawn Soldier
+    - Spawn Enemy (TeamID 2)
+    - Enemy visible at 20m
+  Expected:
+    → Soldier detects enemy (perception)
+    → Attack action scores highest
+    → Soldier moves to optimal range
+    → Soldier fires at enemy
+
+Scenario 2: Taking Cover
+  Setup:
+    - Soldier engaged with enemy
+    - Damage soldier to 40% health
+  Expected:
+    → ThreatLevel increases
+    → TakeCover scores higher than Attack
+    → Soldier moves to cover
+    → Stays in cover briefly
+
+Scenario 3: Reloading
+  Setup:
+    - Soldier attacking
+    - Ammo drops to 5/30 (16%)
+  Expected:
+    → AmmoLevel input drops
+    → Reload scores higher
+    → Soldier reloads weapon
+    → Returns to attack
+
+Scenario 4: Retreat
+  Setup:
+    - Soldier engaged
+    - Damage to 10% health
+  Expected:
+    → Health drops to critical
+    → Retreat scores highest (Priority 100)
+    → Soldier flees from enemy
+    → Recovers before re-engaging
+
+Scenario 5: Patrol
+  Setup:
+    - No enemies nearby
+  Expected:
+    → HasKnownEnemy = 0
+    → Patrol scores highest
+    → Soldier patrols area
+    → Returns to patrol after combat</code></pre>
+
+<h2>Step 6: Tune and Polish</h2>
+
+<h3>Tuning Checklist</h3>
+
+<pre><code>□ Adjust attack distance curve for optimal engagement range
+□ Tweak cover threshold (ThreatLevel > 0.7)
+□ Balance reload timing (ammo < 30%)
+□ Set appropriate retreat health (< 15%)
+□ Test momentum prevents attack spam
+□ Verify replace resistance keeps soldier in cover
+□ Check priority ensures survival over aggression
+□ Optimize perception range/FOV
+□ Adjust service tick rates
+□ Profile performance with stat game</code></pre>
+
+<h3>Common Adjustments</h3>
+
+<pre><code>Too Aggressive:
+  - Increase TakeCover BaseScore (70 → 75)
+  - Lower Attack BaseScore (60 → 55)
+  - Increase Retreat health threshold (0.15 → 0.25)
+
+Too Defensive:
+  - Decrease TakeCover BaseScore (70 → 65)
+  - Increase Attack BaseScore (60 → 65)
+  - Lower Retreat health threshold (0.15 → 0.10)
+
+Reload Issues:
+  - Adjust AmmoLevel curve breakpoint (0.3 → 0.4)
+  - Increase Reload priority (60 → 70)
+  - Reduce reload cooldown (5s → 3s)</code></pre>
+
+<h2>Full Configuration Summary</h2>
+
+<pre><code>BP_Soldier:
+  Components:
+    - AIPerception (sight, hearing, damage)
+    - CINQuickSetup (BaseCombat, auto-init)
+  Variables:
+    - Health, AmmoCount, bIsInCover
+
+BP_SoldierController:
+  - Sets TeamID on possess
+
+Actions:
+  1. Attack (60, P:50, Momentum:3)
+  2. TakeCover (70, P:80, Resistance:2.0)
+  3. Reload (55, P:60, Lock:5s)
+  4. Retreat (80, P:100, Lock:10s)
+  5. Patrol (30, P:0, Fallback)
+
+Services:
+  - PerceptionMonitor (20+ inputs)
+  - Health/Ammo Monitor (custom)
+
+Behavior Trees:
+  - BT_Soldier_Attack
+  - BT_Soldier_TakeCover
+  - BT_Soldier_Reload
+  - BT_Soldier_Retreat
+  - BT_Soldier_Patrol</code></pre>
+
+<h2>Extending the Example</h2>
+
+<h3>Add Grenades</h3>
+
+<pre><code>Action: DA_Action_Soldier_ThrowGrenade
+  BaseScore: 50
+  Priority: 65
+  Considerations:
+    - EnemyCount > 2
+    - Distance optimal (medium range)
+  UnlockTime: 15.0 (cooldown)
+  Executor: BT_ThrowGrenade</code></pre>
+
+<h3>Add Suppressive Fire</h3>
+
+<pre><code>Action: DA_Action_Soldier_Suppress
+  BaseScore: 45
+  Considerations:
+    - Enemy in cover
+    - Ammo > 50%
+  Executor: BT_SuppressiveFire</code></pre>
+
+<h3>Add Callouts</h3>
+
+<pre><code>Action: DA_Action_Soldier_CallOut
+  BaseScore: 35
+  Considerations:
+    - Enemy detected
+    - Allies nearby
+  Executor: BT_RadioCallout</code></pre>
+
+<h2>Next Steps</h2>
+
+<div class="next-steps">
+  <a class="button primary" href="#/docs/example-stealth-guard">
+    <i data-lucide="eye-off"></i>
+    Stealth Guard Example
+  </a>
+  <a class="button" href="#/docs/example-squad">
+    <i data-lucide="users"></i>
+    Squad Coordination Example
+  </a>
+</div>
+
+<h3>Related Examples</h3>
+<ul>
+  <li><a href="#/docs/example-stealth-guard"><i data-lucide="eye-off"></i> Stealth Guard</a> - Investigation AI</li>
+  <li><a href="#/docs/example-squad"><i data-lucide="users"></i> Squad AI</a> - Coordinated team</li>
+  <li><a href="#/docs/example-boss"><i data-lucide="skull"></i> Boss AI</a> - Multi-phase boss</li>
+  <li><a href="#/docs/first-combat-ai"><i data-lucide="rocket"></i> First Combat AI</a> - Beginner tutorial</li>
+</ul>
+
+<script>lucide.createIcons();</script>

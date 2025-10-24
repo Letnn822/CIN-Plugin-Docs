@@ -1,0 +1,76 @@
+<h1>Glossary of Terms</h1>
+<p class="note">Complete reference of terminology used in CIN Plugin and Utility AI systems.</p>
+
+<div class="page-meta">
+  <span class="time"><i data-lucide="clock"></i> 10 minutes</span>
+  <span class="difficulty"><i data-lucide="book-open"></i> Reference</span>
+</div>
+
+<h2>Core Concepts</h2>
+
+<h3>Action</h3>
+<p>A behavior the AI can choose to perform. Contains considerations for scoring and an executor for implementation.</p>
+
+<h3>Archetype</h3>
+<p>Pre-configured AI template providing foundational behaviors (BaseCombat, BaseStealth, etc.).</p>
+
+<h3>Base Score</h3>
+<p>Starting score value for an action before considerations are applied (typically 30-90).</p>
+
+<h3>Brain</h3>
+<p>The UUtilityBrainComponent that manages action evaluation and execution.</p>
+
+<h3>Consideration</h3>
+<p>A single factor in action scoring. Maps an input value through a response curve to affect final score.</p>
+
+<h3>Executor</h3>
+<p>Component that implements action behavior (Behavior Tree, Blueprint, or custom C++).</p>
+
+<h3>Input Provider</h3>
+<p>Component that publishes data to Named Inputs for use in action scoring.</p>
+
+<h3>Momentum</h3>
+<p>Penalty applied to recently-executed actions to prevent repetitive behavior.</p>
+
+<h3>Named Input</h3>
+<p>Key-value pair (FName → float) representing world state, published by services.</p>
+
+<h3>Preset</h3>
+<p>Configuration asset containing actions, services, and settings for an AI type.</p>
+
+<h3>Priority</h3>
+<p>Tie-breaker value when actions have equal scores (0-100).</p>
+
+<h3>Replace Resistance</h3>
+<p>Multiplier requiring new action to score higher to interrupt current action (reduces thrashing).</p>
+
+<h3>Response Curve</h3>
+<p>Curve mapping input value (0-1) to score contribution (0-100) in a consideration.</p>
+
+<h3>Service</h3>
+<p>Component that runs periodically to gather data and publish Named Inputs.</p>
+
+<h3>Squad</h3>
+<p>Group of AI agents coordinating via TacticalSquadComponent and related services.</p>
+
+<h3>Utility AI</h3>
+<p>AI architecture using score-based decision making instead of priority or rule-based systems.</p>
+
+<h2>Advanced Terms</h2>
+
+<h3>Task Locking</h3>
+<p>Preventing an action from being selected for a duration after failure or abortion.</p>
+
+<h3>Score Modifier</h3>
+<p>Runtime multiplier applied to action score for dynamic behavior adjustment.</p>
+
+<h3>Stimulus Memory</h3>
+<p>Remembered perceptions (enemy last-known positions) maintained by PerceptionMonitor service.</p>
+
+<h3>Threat Level</h3>
+<p>Calculated danger assessment (0-1) based on enemy distance, count, and visibility.</p>
+
+<h3>Tactical Strategy</h3>
+<p>Squad-level decision (Search/Assault/Flank/Hold/Retreat) synthesized by leader.</p>
+
+<script>lucide.createIcons();</script>

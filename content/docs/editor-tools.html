@@ -1,0 +1,76 @@
+<h1>Editor Automation: Create Demo AI Trees + Blackboard</h1>
+<p>This editor tool generates a demo-ready Blackboard and Behavior Trees for quick iteration and testing. It is fully implemented in C++ and requires no manual setup after running.</p>
+
+<h2>Menu Path</h2>
+<p><strong>Tools → CIN → Create Demo AI Trees + Blackboard</strong></p>
+
+<h2>What it creates</h2>
+<ul>
+  <li><strong>Folder</strong>: <code>/Game/CIN/Demo/AI</code></li>
+  <li><strong>Blackboard</strong>: <code>BB_Soldier</code></li>
+  <li><strong>Behavior Trees</strong>: <code>BT_Soldier_Search</code>, <code>BT_Soldier_FlankLeft</code>, <code>BT_Soldier_FlankRight</code></li>
+</ul>
+
+<h2>Blackboard keys ensured</h2>
+<ul>
+  <li><code>TargetLocation</code> (Vector)</li>
+  <li><code>HasKnownEnemy</code> (Bool)</li>
+  <li><code>StrategyName</code> (Name)</li>
+  <li><code>IsLeader</code> (Bool)</li>
+  <li><code>RoleIndexNormalized</code> (Float)</li>
+  <li><code>KnownEnemiesCount</code> (Int)</li>
+  <li><code>LastKnownEnemyDistance</code> (Float)</li>
+</ul>
+
+<h2>Behavior Tree scaffolding</h2>
+<p>Each created BT is assigned to <code>BB_Soldier</code> and gets a root <em>Sequence</em> with the <code>UBTService_SquadBlackboard</code> service attached. The service key selectors are set to the Blackboard keys listed above.</p>
+
+<h3>Default nodes</h3>
+<ul>
+  <li><strong>Search</strong>: <em>MoveTo(TargetLocation, 250)</em> → <em>Wait(1.5s)</em>
+    <ul>
+      <li>Blackboard decorator on <code>HasKnownEnemy</code>: <em>Not Set</em></li>
+    </ul>
+  </li>
+  <li><strong>FlankLeft</strong> / <strong>FlankRight</strong>: <em>MoveTo(TargetLocation, 200)</em>
+    <ul>
+      <li>Blackboard decorator on <code>HasKnownEnemy</code>: <em>Set</em></li>
+    </ul>
+  </li>
+</ul>
+
+<div class="note callout">
+  <span class="icon" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="9"></circle>
+      <path d="M12 10v6"></path>
+      <path d="M12 8h.01"></path>
+    </svg>
+  </span>
+  <div>
+    <strong>Idempotent behavior:</strong> Scaffolding happens only if a BT has no children. If you hand-edit a BT later, re-running the tool will not duplicate nodes.
+  </div>
+</div>
+
+<h2>Strategy profile wiring</h2>
+<p>The tool updates your strategy profile <code>CIN_Demo_Strategy</code> with mappings:</p>
+<ul>
+  <li><strong>Search</strong> → <code>BT_Soldier_Search</code></li>
+  <li><strong>FlankLeft</strong> → <code>BT_Soldier_FlankLeft</code></li>
+  <li><strong>FlankRight</strong> → <code>BT_Soldier_FlankRight</code></li>
+  <li><strong>Assault</strong> → <code>BT_Soldier_Assault</code> (only if that BT already exists)</li>
+</ul>
+<p>It also stores the common Blackboard key names into the profile&#39;s <code>BlackboardKeys</code> struct for convenience.</p>
+
+<h2>How to validate</h2>
+<ol>
+  <li>Open <code>/Game/CIN/Demo/AI/BB_Soldier</code> and verify the keys listed above.</li>
+  <li>Open each BT and confirm the root <em>Sequence</em>, service, and default nodes were added as described.</li>
+  <li>Open <code>/Game/CIN/Demo/CIN_Demo_Strategy</code> and verify strategy mappings and Blackboard key names.</li>
+</ol>
+
+<h2>Troubleshooting</h2>
+<ul>
+  <li><strong>No assets created?</strong> Ensure the project builds and the editor module has dependencies: <code>AIModule</code>, <code>BehaviorTreeEditor</code>.</li>
+  <li><strong>Want different defaults?</strong> You can change acceptable radius or wait time later by editing the BTs manually.</li>
+</ul>

@@ -1,0 +1,400 @@
+<h1>Example: RTS/Strategy AI</h1>
+<p class="note">Complete working example of RTS unit AI with resource gathering, base building, and tactical decisions. Perfect for strategy games and management systems.</p>
+
+<div class="page-meta">
+  <span class="time"><i data-lucide="clock"></i> 25 minutes</span>
+  <span class="difficulty"><i data-lucide="code"></i> Example</span>
+</div>
+
+<div class="callout tip">
+  <span class="icon"><i data-lucide="lightbulb"></i></span>
+  <div>
+    <strong>What You'll Build:</strong> An RTS unit AI that gathers resources, builds structures, defends territory, and makes strategic decisions based on game state. Adaptable for worker units, combat units, or strategic commanders.
+  </div>
+</div>
+
+<h2>Final Result</h2>
+
+<pre><code>RTS AI Behaviors:
+├─ Gather: Collect resources
+├─ Build: Construct buildings
+├─ Repair: Fix damaged structures
+├─ Defend: Protect base
+├─ Attack: Assault enemy base
+├─ Scout: Explore map
+└─ Idle: Return to rally point
+
+Features:
+✓ Resource management
+✓ Build prioritization
+✓ Base defense
+✓ Strategic decisions
+✓ Unit coordination
+✓ Map awareness</code></pre>
+
+<h2>Step 1: Create Worker Unit</h2>
+
+<h3>Blueprint: BP_WorkerUnit</h3>
+
+<pre><code>Parent Class: Character
+
+Components:
+  + Skeletal Mesh (worker model)
+  + AIPerception
+    Senses:
+      - AISight (2000 radius)
+  + CINQuickSetup
+    AgentType: Custom
+    bAutoInitialize: true
+
+Variables:
+  + CurrentResources (int32): 0
+  + MaxCarryCapacity (int32): 10
+  + HomeBase (AActor*): nullptr
+  + CurrentTask (EWorkerTask): Idle
+  + AssignedBuilding (AActor*): nullptr
+  
+Enums:
+  EWorkerTask:
+    - Idle
+    - Gathering
+    - Building
+    - Repairing
+    - Defending</code></pre>
+
+<h2>Step 2: Resource Gathering</h2>
+
+<h3>Action: DA_Worker_Gather</h3>
+
+<pre><code>ActionName: "Gather"
+DisplayName: "Gather Resources"
+BaseScore: 70.0
+Priority: 55
+
+Considerations:
+  1. ResourcesNeeded
+     InputName: "BaseNeedsResources"
+     ResponseCurve: (0,0) → (1,100)
+     Weight: 1.5
+     
+  2. NotFull
+     InputName: "CarryingResources"
+     ResponseCurve: (0,100) → (0.5,100) → (1,0)
+     Weight: 1.0
+     Comment: Gather until full
+     
+  3. ResourceNearby
+     InputName: "DistanceToResource"
+     ResponseCurve: (0,100) → (0.5,100) → (1,0)
+     Weight: 1.2
+
+Executor: BT_Worker_Gather</code></pre>
+
+<h3>Gathering Behavior Tree</h3>
+
+<pre><code>BT_Worker_Gather:
+
+Root
+└─ Sequence
+   ├─ Find Resource Node
+   │  → Query for nearest resource
+   │  → Gold, Wood, Stone, etc.
+   ├─ Move To Resource
+   ├─ Gather Animation
+   │  → Play gather anim (2 sec)
+   │  → Add resources to inventory
+   ├─ Check If Full
+   │  → CarryingResources >= MaxCapacity?
+   ├─ If Full
+   │  → Return To Base
+   │  → Deposit Resources
+   │  → Success
+   └─ If Not Full
+      → Continue Gathering
+
+Resource Types:
+  Gold: High value, rare
+  Wood: Medium value, common
+  Stone: Low value, abundant</code></pre>
+
+<h2>Step 3: Building Construction</h2>
+
+<h3>Action: DA_Worker_Build</h3>
+
+<pre><code>ActionName: "Build"
+DisplayName: "Construct Building"
+BaseScore: 75.0
+Priority: 60
+
+Considerations:
+  1. BuildOrderExists
+     InputName: "HasBuildOrder"
+     ResponseCurve: (0,0) → (1,100)
+     Weight: 2.0
+     
+  2. HasResources
+     InputName: "BaseHasResources"
+     ResponseCurve: (0,0) → (0.5,100) → (1,100)
+     Weight: 1.5
+
+Executor: BT_Worker_Build
+
+Build Priority:
+  1. Defensive structures (towers, walls)
+  2. Resource buildings (mine, lumber mill)
+  3. Production facilities (barracks, factory)
+  4. Utility buildings (storage, housing)</code></pre>
+
+<h3>Build System</h3>
+
+<pre><code>// Build queue management
+void UService_BuildManager::TickService(float DeltaTime)
+{
+    // Check build queue
+    TArray<FBuildOrder> BuildQueue = GetBaseBuildQueue();
+    
+    if (BuildQueue.Num() > 0)
+    {
+        FBuildOrder NextBuild = BuildQueue[0];
+        
+        // Check if resources available
+        bool bCanAfford = HasResourcesFor(NextBuild);
+        
+        // Publish build inputs
+        Brain->SetNamedInputValue(TEXT("HasBuildOrder"), 1.0f);
+        Brain->SetNamedInputValue(TEXT("BaseHasResources"), bCanAfford ? 1.0f : 0.0f);
+        Brain->SetNamedInputValue(TEXT("BuildPriority"), NextBuild.Priority / 10.0f);
+    }
+    else
+    {
+        Brain->SetNamedInputValue(TEXT("HasBuildOrder"), 0.0f);
+    }
+}
+
+Building Construction:
+  1. Deduct resources from base
+  2. Place foundation
+  3. Worker moves to site
+  4. Progress bar (0-100%)
+  5. Complete building
+  6. Building becomes functional</code></pre>
+
+<h2>Step 4: Base Defense</h2>
+
+<h3>Action: DA_Worker_Defend</h3>
+
+<pre><code>ActionName: "Defend"
+DisplayName: "Defend Base"
+BaseScore: 85.0
+Priority: 75
+
+Considerations:
+  1. BaseUnderAttack
+     InputName: "BaseUnderAttack"
+     ResponseCurve: (0,0) → (1,100)
+     Weight: 2.0
+     
+  2. EnemyNearBase
+     InputName: "EnemyDistanceToBase"
+     ResponseCurve: (0,100) → (0.3,100) → (1,0)
+     Weight: 1.5
+
+Executor: BT_Worker_Defend
+
+Defense Behavior:
+  → Move to threatened area
+  → Attack nearest enemy
+  → Repair damaged structures
+  → Call for reinforcements
+  → Return when safe</code></pre>
+
+<h2>Step 5: Strategic AI (Commander)</h2>
+
+<h3>Commander AI Brain</h3>
+
+<pre><code>// Strategic decision maker
+UStrategicCommanderBrain
+
+High-Level Decisions:
+  1. Economy Focus
+     → Train more workers
+     → Build resource buildings
+     → Expand to new resources
+     
+  2. Military Focus
+     → Train combat units
+     → Build barracks/factories
+     → Research upgrades
+     
+  3. Defense Focus
+     → Build walls/towers
+     → Position units defensively
+     → Stockpile resources
+     
+  4. Expansion Focus
+     → Build new bases
+     → Secure territory
+     → Control map
+
+Decision Factors:
+  - Current resources
+  - Enemy strength
+  - Base health
+  - Map control
+  - Game time</code></pre>
+
+<h3>Strategic Actions</h3>
+
+<pre><code>Action: DA_Strategy_Expand
+
+Considerations:
+  1. ResourcesAbundant
+     InputName: "ResourceStockpile"
+     ResponseCurve: (0,0) → (0.7,50) → (1,100)
+     Weight: 1.5
+     
+  2. NoImmediateThreats
+     InputName: "ThreatLevel"
+     ResponseCurve: (0,100) → (0.3,50) → (1,0)
+     Weight: 1.3
+     
+  3. MapControlLow
+     InputName: "MapControl"
+     ResponseCurve: (0,100) → (0.5,100) → (1,0)
+     Weight: 1.2
+
+Result: Build expansion base
+
+Action: DA_Strategy_Rush
+
+Considerations:
+  1. EarlyGame
+     InputName: "GameTime"
+     ResponseCurve: (0,100) → (0.3,100) → (1,0)
+     Weight: 1.8
+     
+  2. EnemyWeak
+     InputName: "EnemyMilitaryStrength"
+     ResponseCurve: (0,100) → (0.5,50) → (1,0)
+     Weight: 1.5
+
+Result: Build combat units, attack early</code></pre>
+
+<h2>Step 6: Unit Coordination</h2>
+
+<pre><code>// RTS squad coordination
+void UService_RTSSquadCoordinator::AssignTasks()
+{
+    TArray<AWorkerUnit*> IdleWorkers = GetIdleWorkers();
+    
+    // Task distribution
+    int32 GathererCount = CalculateOptimalGatherers();
+    int32 BuilderCount = GetBuildQueueSize();
+    int32 DefenderCount = CalculateDefenseNeeds();
+    
+    // Assign roles
+    for (int32 i = 0; i < IdleWorkers.Num(); ++i)
+    {
+        AWorkerUnit* Worker = IdleWorkers[i];
+        
+        if (i < GathererCount)
+            AssignRole(Worker, EWorkerTask::Gathering);
+        else if (i < GathererCount + BuilderCount)
+            AssignRole(Worker, EWorkerTask::Building);
+        else if (i < GathererCount + BuilderCount + DefenderCount)
+            AssignRole(Worker, EWorkerTask::Defending);
+        else
+            AssignRole(Worker, EWorkerTask::Idle);
+    }
+}
+
+Optimal Distribution:
+  Early Game: 80% gathering, 20% building
+  Mid Game: 60% gathering, 30% building, 10% defense
+  Late Game: 40% gathering, 30% building, 30% defense</code></pre>
+
+<h2>Step 7: Scouting & Map Awareness</h2>
+
+<h3>Action: DA_Worker_Scout</h3>
+
+<pre><code>ActionName: "Scout"
+DisplayName: "Scout Map"
+BaseScore: 55.0
+Priority: 40
+
+Considerations:
+  1. UnexploredAreas
+     InputName: "MapExploration"
+     ResponseCurve: (0,100) → (0.7,100) → (1,0)
+     Weight: 1.3
+     
+  2. SafeToScout
+     InputName: "ThreatLevel"
+     ResponseCurve: (0,100) → (0.5,50) → (1,0)
+     Weight: 1.0
+
+Executor: BT_Worker_Scout
+
+Scouting Pattern:
+  → Move to unexplored area
+  → Reveal fog of war
+  → Look for:
+     - Enemy bases
+     - Resource nodes
+     - Strategic locations
+  → Return to base
+  → Report findings</code></pre>
+
+<h2>Complete Configuration Summary</h2>
+
+<pre><code>Worker Unit: BP_WorkerUnit
+  MaxCarryCapacity: 10
+  GatherRate: 1 resource/second
+  BuildSpeed: 1.0
+  Speed: 400
+  
+Strategic Commander Brain:
+  Evaluation Rate: 1.0 second
+  Decision Types:
+    - Economy
+    - Military
+    - Defense
+    - Expansion
+
+Worker Actions (7 total):
+  Gather (P:55, resource collection)
+  Build (P:60, construction)
+  Repair (P:50, maintenance)
+  Defend (P:75, base protection)
+  Scout (P:40, exploration)
+  Deliver (P:65, transport resources)
+  Idle (P:30, fallback)
+
+Commander Actions (5 total):
+  Expand (P:50, new bases)
+  Rush (P:60, early attack)
+  Defend (P:70, consolidate)
+  Tech (P:55, research)
+  Mass (P:65, army buildup)
+
+Resource Types:
+  Gold: 100 value
+  Wood: 50 value
+  Stone: 25 value
+
+Result: Intelligent RTS AI system</code></pre>
+
+<h2>Next Steps</h2>
+
+<div class="next-steps">
+  <a class="button primary" href="#/docs/example-combat-soldier">
+    <i data-lucide="crosshair"></i>
+    Combat Example
+  </a>
+  <a class="button" href="#/docs/archetype-guide">
+    <i data-lucide="layers"></i>
+    Archetype Guide
+  </a>
+</div>
+
+<script>lucide.createIcons();</script>

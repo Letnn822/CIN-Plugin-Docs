@@ -1,0 +1,341 @@
+<h1>Core Concepts</h1>
+<p>Understanding the fundamental building blocks of CIN Plugin's Utility AI architecture.</p>
+
+<h2>The Big Picture</h2>
+<p>CIN Plugin implements a sophisticated Utility AI system where agents continuously evaluate actions based on context, execute the best choice, and adapt to changing situations. Here's how it all fits together:</p>
+
+<div class="architecture-map">
+  <h3 class="map-title">System Architecture</h3>
+  
+  <div class="arch-row">
+    <div class="arch-box controller">
+      <div class="box-header">AI Controller</div>
+      <div class="box-content">
+        <div class="component primary">
+          <span class="comp-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M12 1v6m0 6v6"></path>
+              <path d="M17 4l-3 3m-5 5l-3 3M23 12h-6m-6 0H1"></path>
+              <path d="M20 4l-3 3m-5 5l-3 3M20 20l-3-3m-5-5l-3-3M4 20l3-3m5-5l3-3"></path>
+            </svg>
+          </span>
+          <span class="comp-name">UtilityBrainComponent</span>
+        </div>
+        <div class="component">
+          <span class="comp-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+              <circle cx="12" cy="12" r="3"></circle>
+            </svg>
+          </span>
+          <span class="comp-name">AIPerceptionComponent</span>
+        </div>
+      </div>
+    </div>
+    
+    <div class="arch-connector">⟷</div>
+    
+    <div class="arch-box pawn">
+      <div class="box-header">Pawn / Character</div>
+      <div class="box-content">
+        <div class="component">
+          <span class="comp-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+              <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+          </span>
+          <span class="comp-name">Game Components</span>
+          <span class="comp-desc">Health, Weapon, Stats</span>
+        </div>
+        <div class="component">
+          <span class="comp-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+              <circle cx="9" cy="7" r="4"></circle>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+            </svg>
+          </span>
+          <span class="comp-name">TacticalMemberComponent</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="arch-flow-down">
+    <div class="flow-arrow">↓</div>
+    <div class="flow-label">Gathers Context Every Tick</div>
+  </div>
+  
+  <div class="arch-row">
+    <div class="arch-box services">
+      <div class="box-header">Services (Input Publishers)</div>
+      <div class="box-content">
+        <div class="service-item">Service_PerceptionMonitor</div>
+        <div class="service-item">Service_EnvironmentalMemory</div>
+        <div class="service-item">Service_TacticalSense</div>
+        <div class="service-item">Service_TacticalStrategy</div>
+        <div class="service-item">Service_TagToInput</div>
+      </div>
+    </div>
+    
+    <div class="arch-connector">→</div>
+    
+    <div class="arch-box inputs">
+      <div class="box-header">Named Inputs (0-1)</div>
+      <div class="box-content">
+        <div class="input-item"><span class="input-key">Health:</span> <span class="input-val">0.7</span></div>
+        <div class="input-item"><span class="input-key">AmmoCount:</span> <span class="input-val">0.3</span></div>
+        <div class="input-item"><span class="input-key">HasKnownEnemy:</span> <span class="input-val">1.0</span></div>
+        <div class="input-item"><span class="input-key">ThreatLevel:</span> <span class="input-val">0.8</span></div>
+        <div class="input-item"><span class="input-key">NearestEnemyDist:</span> <span class="input-val">0.4</span></div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="arch-flow-down">
+    <div class="flow-arrow">↓</div>
+    <div class="flow-label">Actions Score Themselves</div>
+  </div>
+  
+  <div class="arch-row">
+    <div class="arch-box actions">
+      <div class="box-header">Actions (Behaviors)</div>
+      <div class="box-content">
+        <div class="action-item">
+          <span class="action-name">Attack</span>
+          <span class="action-score">Score: 150</span>
+        </div>
+        <div class="action-item">
+          <span class="action-name">TakeCover</span>
+          <span class="action-score">Score: 85</span>
+        </div>
+        <div class="action-item winner">
+          <span class="action-name">Reload</span>
+          <span class="action-score">Score: 170 ✓</span>
+        </div>
+        <div class="action-item">
+          <span class="action-name">Patrol</span>
+          <span class="action-score">Score: 20</span>
+        </div>
+      </div>
+    </div>
+    
+    <div class="arch-connector">→</div>
+    
+    <div class="arch-box scoring">
+      <div class="box-header">Scoring Engine</div>
+      <div class="box-content">
+        <div class="scoring-feature">✓ Curve Evaluation</div>
+        <div class="scoring-feature">✓ Momentum Penalties</div>
+        <div class="scoring-feature">✓ Replace Resistance</div>
+        <div class="scoring-feature">✓ Task Locking</div>
+        <div class="scoring-feature">✓ Priority Ties</div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="arch-flow-down">
+    <div class="flow-arrow">↓</div>
+    <div class="flow-label">Execute Best Choice</div>
+  </div>
+  
+  <div class="arch-row center">
+    <div class="arch-box execution">
+      <div class="box-header">Action Execution</div>
+      <div class="box-content">
+        <div class="exec-method">BehaviorTree Executor</div>
+        <div class="exec-method">Blueprint Logic</div>
+        <div class="exec-method">Animation Montage</div>
+        <div class="exec-method">GAS Ability</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h2>1. Named Inputs (The Context)</h2>
+<p>Named Inputs are normalized 0-1 values representing the agent's world state. Think of them as sensor readings that actions use for decision-making.</p>
+
+<h3>Examples</h3>
+<ul>
+  <li><code>Health</code>: 1.0 = full health, 0.0 = dead</li>
+  <li><code>AmmoCount</code>: 1.0 = full clip, 0.0 = empty</li>
+  <li><code>HasKnownEnemy</code>: 1.0 = enemy detected, 0.0 = no threats</li>
+  <li><code>NearestEnemyDistance</code>: 1.0 = very close, 0.0 = very far</li>
+  <li><code>ThreatLevel</code>: 1.0 = extreme danger, 0.0 = safe</li>
+</ul>
+
+<div class="callout tip">
+  <span class="icon" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
+    </svg>
+  </span>
+  <div>
+    <strong>Why Normalize?</strong> Using 0-1 values makes scoring math simple and portable. A "low health retreat" action works the same whether your game has 100 HP or 10,000 HP.
+  </div>
+</div>
+
+<h2>2. Services (The Publishers)</h2>
+<p>Services automatically populate Named Inputs by reading game state. They're the bridge between your game systems and the Utility AI brain.</p>
+
+<h3>Built-in Services</h3>
+<table class="comparison">
+  <thead>
+    <tr>
+      <th>Service</th>
+      <th>Publishes</th>
+      <th>Use Case</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>Service_PerceptionMonitor</code></td>
+      <td>20+ enemy/ally inputs</td>
+      <td>Combat, awareness, threat assessment</td>
+    </tr>
+    <tr>
+      <td><code>Service_EnvironmentalMemory</code></td>
+      <td>Object states, changes</td>
+      <td>Investigation, patrol, security</td>
+    </tr>
+    <tr>
+      <td><code>Service_TacticalSense</code></td>
+      <td>Squad intel</td>
+      <td>Team coordination, shared knowledge</td>
+    </tr>
+    <tr>
+      <td><code>Service_TacticalStrategy</code></td>
+      <td>Squad strategy flags</td>
+      <td>Leader decision-making, roles</td>
+    </tr>
+    <tr>
+      <td><code>Service_TagToInput</code></td>
+      <td>GameplayTag values</td>
+      <td>Dynamic state from GAS or tags</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>3. Actions (The Behaviors)</h2>
+<p>Actions are discrete behaviors the agent can perform. Each action scores itself based on current Named Inputs.</p>
+
+<h3>Action Anatomy</h3>
+<pre><code>Action: "Attack"
+├─ Base Score: 50.0
+├─ Scoring Curves:
+│  ├─ HasKnownEnemy → 0.0 = 0 points, 1.0 = 100 points
+│  ├─ AmmoCount → 0.0 = -50 points, 1.0 = 0 points
+│  └─ ThreatLevel → 0.0 = -20 points, 1.0 = 20 points
+├─ Properties:
+│  ├─ MaxMomentum: 3.0 (penalty after repeated use)
+│  ├─ ReplaceResistance: 1.5x (hard to interrupt)
+│  └─ UnlockTime: 2.0s (if failed, lock briefly)
+└─ Executor:
+   └─ BehaviorTree: BT_Attack</code></pre>
+
+<h2>4. Brain Component (The Decision Engine)</h2>
+<p>The Brain lives on your AI Controller and orchestrates everything:</p>
+
+<h3>Every Tick, the Brain:</h3>
+<ol>
+  <li><strong>Gathers Inputs</strong>: Runs all services to populate Named Inputs</li>
+  <li><strong>Scores Actions</strong>: Each action computes its score using curves and inputs</li>
+  <li><strong>Applies Anti-Thrashing</strong>: Momentum penalties, replace resistance, locks</li>
+  <li><strong>Picks Best</strong>: Executes highest-scoring unlocked action</li>
+  <li><strong>Monitors Execution</strong>: Watches for completion, failure, or better options</li>
+</ol>
+
+<h2>5. Agent Presets (The Package)</h2>
+<p>Presets bundle everything into a single asset for easy configuration:</p>
+
+<pre><code>Preset: "Soldier_Preset"
+├─ Archetype: BaseCombat
+├─ Actions:
+│  ├─ DA_Action_Attack
+│  ├─ DA_Action_TakeCover
+│  ├─ DA_Action_Reload
+│  └─ DA_Action_Patrol
+├─ Services:
+│  ├─ Service_PerceptionMonitor
+│  └─ Service_TacticalSense
+├─ Named Input Overrides:
+│  └─ Courage: 0.8
+└─ Squad Settings:
+   ├─ SquadName: "AlphaSquad"
+   └─ TeamID: 1</code></pre>
+
+<h2>Decision Flow Example</h2>
+<p>Here's how a combat soldier decides to reload:</p>
+
+<div class="callout note">
+  <span class="icon" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10"></circle>
+      <line x1="12" y1="16" x2="12" y2="12"></line>
+      <line x1="12" y1="8" x2="12.01" y2="8"></line>
+    </svg>
+  </span>
+  <div>
+    <strong>Scenario:</strong> Soldier in combat, ammo running low
+  </div>
+</div>
+
+<pre><code>Frame N:
+  Named Inputs:
+    HasKnownEnemy: 1.0
+    AmmoCount: 0.2 (low!)
+    Health: 0.7
+    InCover: 0.0
+  
+  Action Scores:
+    Attack:     50 + (100 × 1.0) + (-50 × 0.8) = 110 points
+    Reload:     50 + (150 × 0.8) = 170 points ← WINNER!
+    TakeCover:  40 + (80 × 0.3) = 64 points
+  
+  Decision: Execute "Reload"
+
+Frame N+60 (3 seconds later):
+  Named Inputs:
+    AmmoCount: 1.0 (reloaded!)
+    HasKnownEnemy: 1.0
+  
+  Action Scores:
+    Attack:     50 + (100 × 1.0) + (0 × 1.0) = 150 points ← WINNER!
+    Reload:     LOCKED (just completed, momentum penalty)
+  
+  Decision: Execute "Attack"</code></pre>
+
+<h2>Key Design Principles</h2>
+
+<h3>1. Normalized Everything</h3>
+<p>Keep all inputs 0-1. Makes scoring portable and math predictable.</p>
+
+<h3>2. Services Own Data</h3>
+<p>Don't manually set inputs in code—let services publish them automatically.</p>
+
+<h3>3. Actions Are Stateless</h3>
+<p>Actions shouldn't remember past executions. Use momentum/locking for continuity.</p>
+
+<h3>4. Brain Is Dumb</h3>
+<p>Brain just picks highest score. Intelligence comes from action scoring curves and services.</p>
+
+<h3>5. Presets Over Code</h3>
+<p>Configure agents with data assets, not hardcoded logic. Designers iterate faster.</p>
+
+<h2>Next Steps</h2>
+<div class="hero-cta">
+  <a class="button primary" href="#/docs/utility-ai">Utility AI Deep Dive</a>
+  <a class="button" href="#/docs/actions">Create Actions</a>
+  <a class="button" href="#/docs/services">Add Services</a>
+</div>
+
+<h3>Recommended Reading Order</h3>
+<ul>
+  <li><strong>Understand the System:</strong> <a href="#/docs/utility-ai">Utility AI System</a>, <a href="#/docs/brain">Brain Component</a></li>
+  <li><strong>Build Your Agent:</strong> <a href="#/docs/actions">Actions</a>, <a href="#/docs/services">Services</a>, <a href="#/docs/presets">Presets</a></li>
+  <li><strong>Add Advanced Features:</strong> <a href="#/docs/perception">Perception</a>, <a href="#/docs/tactical-squad">Squad Tactics</a></li>
+  <li><strong>Learn Patterns:</strong> <a href="#/examples/combat-setup">Combat Example</a>, <a href="#/examples/stealth-patrol">Stealth Example</a></li>
+</ul>

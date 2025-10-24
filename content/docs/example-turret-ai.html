@@ -1,0 +1,450 @@
+<h1>Example: Turret AI</h1>
+<p class="note">Complete working example of stationary turret/sentry AI. Includes target acquisition, threat prioritization, ammunition management, and multi-barrel systems.</p>
+
+<div class="page-meta">
+  <span class="time"><i data-lucide="clock"></i> 20 minutes</span>
+  <span class="difficulty"><i data-lucide="code"></i> Example</span>
+</div>
+
+<div class="callout tip">
+  <span class="icon"><i data-lucide="lightbulb"></i></span>
+  <div>
+    <strong>What You'll Build:</strong> A smart turret AI that tracks targets, prioritizes threats, manages ammunition, handles overheating, and coordinates with other turrets. Perfect for defense systems, boss encounters, or automated sentries.
+  </div>
+</div>
+
+<h2>Final Result</h2>
+
+<pre><code>Turret AI Behaviors:
+├─ Scan: Search for targets
+├─ Track: Follow target with aim
+├─ Fire: Engage primary target
+├─ SuppressFire: Area denial
+├─ Reload: Ammunition management
+├─ Overheat: Cooling system
+└─ Idle: Return to rest position
+
+Features:
+✓ 360° rotation
+✓ Elevation limits
+✓ Lead targeting
+✓ Threat prioritization
+✓ Ammo tracking
+✓ Overheat management
+✓ Multi-turret coordination</code></pre>
+
+<h2>Step 1: Create Turret Pawn</h2>
+
+<h3>Blueprint: BP_DefenseTurret</h3>
+
+<pre><code>Parent Class: Pawn
+
+Components:
+  + Turret Base (Static Mesh)
+  + Turret Barrel (Static Mesh, attached to base)
+    Rotation: Can rotate 360°
+    Elevation: -10° to +85°
+  + Weapon Component
+    Weapon Type: AutoCannon
+    FireRate: 5/sec
+    AmmoCapacity: 200
+  + AIPerception
+    Senses:
+      - AISight (5000 radius, 360° FOV)
+      - AIHearing (2000 radius)
+  + CINQuickSetup
+    AgentType: Custom
+    bAutoInitialize: true
+
+Variables:
+  + CurrentAmmo (int32): 200
+  + MaxAmmo (int32): 200
+  + HeatLevel (float): 0.0 // 0-1
+  + MaxHeat (float): 1.0
+  + CurrentTarget (AActor*): nullptr
+  + RestRotation (FRotator): (0,0,0)
+  + TrackingSpeed (float): 90.0 // degrees/sec
+  + bOverheated (bool): false</code></pre>
+
+<h2>Step 2: Target Acquisition</h2>
+
+<h3>Service: UService_TurretTargeting</h3>
+
+<pre><code>// Custom service for turret targeting
+void UService_TurretTargeting::TickService(float DeltaTime)
+{
+    Super::TickService(DeltaTime);
+    
+    ATurretPawn* Turret = GetTurretPawn();
+    
+    // Get all perceived enemies
+    TArray<AActor*> Enemies = GetPerceivedEnemies();
+    
+    if (Enemies.Num() == 0)
+    {
+        // No targets
+        Turret->CurrentTarget = nullptr;
+        Brain->SetNamedInputValue(TEXT("HasTarget"), 0.0f);
+        return;
+    }
+    
+    // Prioritize targets
+    AActor* BestTarget = SelectBestTarget(Enemies);
+    Turret->CurrentTarget = BestTarget;
+    
+    // Publish targeting inputs
+    float Distance = FVector::Dist(Turret->GetActorLocation(), BestTarget->GetActorLocation());
+    float NormalizedDistance = Distance / 5000.0f;
+    
+    Brain->SetNamedInputValue(TEXT("HasTarget"), 1.0f);
+    Brain->SetNamedInputValue(TEXT("DistanceToTarget"), NormalizedDistance);
+    Brain->SetNamedInputValue(TEXT("TargetThreat"), CalculateThreat(BestTarget));
+    Brain->SetNamedInputValue(TEXT("TargetInRange"), Distance < 3000.0f ? 1.0f : 0.0f);
+}
+
+AActor* SelectBestTarget(const TArray<AActor*>& Enemies)
+{
+    AActor* BestTarget = nullptr;
+    float HighestPriority = 0.0f;
+    
+    for (AActor* Enemy : Enemies)
+    {
+        float Priority = CalculateTargetPriority(Enemy);
+        if (Priority > HighestPriority)
+        {
+            HighestPriority = Priority;
+            BestTarget = Enemy;
+        }
+    }
+    
+    return BestTarget;
+}
+
+float CalculateTargetPriority(AActor* Enemy)
+{
+    // Priority factors:
+    float Distance = FVector::Dist(GetOwner()->GetActorLocation(), Enemy->GetActorLocation());
+    float DistanceFactor = 1.0f - (Distance / 5000.0f); // Closer = higher
+    
+    float Threat = GetThreatLevel(Enemy); // 0-1
+    
+    bool bInRange = Distance < 3000.0f;
+    float RangeFactor = bInRange ? 1.5f : 0.5f;
+    
+    return (DistanceFactor * 0.4f + Threat * 0.4f) * RangeFactor;
+}</code></pre>
+
+<h2>Step 3: Tracking Action</h2>
+
+<h3>Action: DA_Turret_Track</h3>
+
+<pre><code>ActionName: "Track"
+DisplayName: "Track Target"
+BaseScore: 70.0
+Priority: 55
+
+Considerations:
+  1. HasTarget
+     InputName: "HasTarget"
+     ResponseCurve: (0,0) → (1,100)
+     Weight: 1.5
+     
+  2. TargetInRange
+     InputName: "TargetInRange"
+     ResponseCurve: (0,50) → (1,100)
+     Weight: 1.0
+     
+  3. NotOverheated
+     InputName: "Overheated"
+     ResponseCurve: (0,100) → (1,0)
+     bInvertCurve: true
+     Weight: 1.2
+
+Momentum:
+  MaxMomentum: 1.0
+  MomentumDecayTime: 2.0
+
+Replace Resistance: 1.0
+bInterruptible: true
+UnlockTime: 0.0
+
+Executor: BT_Turret_Track</code></pre>
+
+<h3>Tracking Behavior Tree</h3>
+
+<pre><code>BT_Turret_Track:
+
+Root
+└─ Sequence
+   ├─ Get Target Location
+   ├─ Calculate Lead
+   │  → Predict target movement
+   │  → Account for projectile travel time
+   ├─ Rotate Barrel To Target
+   │  → Smooth rotation
+   │  → Respect rotation limits
+   ├─ Check Aim Accuracy
+   │  → Within tolerance?
+   └─ Ready to Fire
+
+Lead Targeting:
+  FVector TargetVelocity = Target->GetVelocity();
+  float ProjectileSpeed = 3000.0f;
+  float TimeToHit = Distance / ProjectileSpeed;
+  FVector LeadOffset = TargetVelocity * TimeToHit;
+  FVector AimPoint = TargetLocation + LeadOffset;
+  
+Smooth Rotation:
+  FRotator TargetRot = (AimPoint - BarrelLocation).Rotation();
+  FRotator CurrentRot = Barrel->GetComponentRotation();
+  FRotator NewRot = FMath::RInterpConstantTo(CurrentRot, TargetRot, DeltaTime, TrackingSpeed);
+  Barrel->SetWorldRotation(NewRot);</code></pre>
+
+<h2>Step 4: Fire Action</h2>
+
+<h3>Action: DA_Turret_Fire</h3>
+
+<pre><code>ActionName: "Fire"
+DisplayName: "Fire Weapons"
+BaseScore: 80.0
+Priority: 65
+
+Considerations:
+  1. HasTarget
+     InputName: "HasTarget"
+     ResponseCurve: (0,0) → (1,100)
+     Weight: 1.5
+     
+  2. AimAccurate
+     InputName: "AimAccuracy"
+     ResponseCurve: (0,0) → (0.9,100) → (1,100)
+     Weight: 1.8
+     Comment: Only fire when aimed
+     
+  3. HasAmmo
+     InputName: "AmmoLevel"
+     ResponseCurve: (0,0) → (0.1,100) → (1,100)
+     Weight: 1.5
+     
+  4. NotOverheated
+     InputName: "HeatLevel"
+     ResponseCurve: (0,100) → (0.8,100) → (1,0)
+     Weight: 1.3
+
+Momentum: None
+Replace Resistance: 1.2
+bInterruptible: true
+UnlockTime: 0.1
+
+Executor: BT_Turret_Fire</code></pre>
+
+<h3>Fire Control</h3>
+
+<pre><code>BT_Turret_Fire:
+
+Root
+└─ Parallel
+   ├─ Maintain Track
+   │  → Continue tracking target
+   └─ Fire Weapon
+      Sequence:
+        ├─ Check Can Fire
+        │  → Ammo > 0
+        │  → Not overheated
+        │  → Aim accurate
+        ├─ Fire Projectile
+        │  → Spawn projectile
+        │  → Consume ammo
+        │  → Generate heat
+        ├─ Apply Recoil
+        ├─ Wait (fire rate delay)
+        └─ Loop
+
+Fire Implementation:
+  if (CurrentAmmo > 0 && !bOverheated && IsAimAccurate())
+  {
+      // Spawn projectile
+      SpawnProjectile(BarrelMuzzleLocation, BarrelForward);
+      
+      // Consume resources
+      CurrentAmmo--;
+      HeatLevel += 0.05f; // +5% heat per shot
+      
+      // Visual effects
+      PlayMuzzleFlash();
+      PlayFireSound();
+      ApplyRecoil();
+  }</code></pre>
+
+<h2>Step 5: Ammunition & Cooling</h2>
+
+<h3>Action: DA_Turret_Reload</h3>
+
+<pre><code>ActionName: "Reload"
+DisplayName: "Reload Ammunition"
+BaseScore: 75.0
+Priority: 70
+
+Considerations:
+  1. LowAmmo
+     InputName: "AmmoLevel"
+     ResponseCurve: (0,100) → (0.3,100) → (1,0)
+     bInvertCurve: true
+     Weight: 2.0
+     Comment: Reload when low
+
+Momentum: None
+Replace Resistance: 1.5
+bInterruptible: false
+UnlockTime: 5.0 // Long cooldown
+
+Executor: BT_Turret_Reload</code></pre>
+
+<h3>Cooling System</h3>
+
+<pre><code>// Heat management service
+void UService_TurretHeat::TickService(float DeltaTime)
+{
+    ATurretPawn* Turret = GetTurretPawn();
+    
+    // Passive cooling
+    if (!Turret->IsFiring())
+    {
+        Turret->HeatLevel -= CoolingRate * DeltaTime;
+        Turret->HeatLevel = FMath::Max(0.0f, Turret->HeatLevel);
+    }
+    
+    // Check overheat
+    if (Turret->HeatLevel >= 1.0f && !Turret->bOverheated)
+    {
+        Turret->bOverheated = true;
+        OnOverheat();
+    }
+    else if (Turret->HeatLevel < 0.3f && Turret->bOverheated)
+    {
+        Turret->bOverheated = false;
+        OnCooledDown();
+    }
+    
+    // Publish heat status
+    Brain->SetNamedInputValue(TEXT("HeatLevel"), Turret->HeatLevel);
+    Brain->SetNamedInputValue(TEXT("Overheated"), Turret->bOverheated ? 1.0f : 0.0f);
+}
+
+Cooling Rates:
+  Passive: 0.1/second (10% per second)
+  Active (venting): 0.3/second
+  Forced (cooldown action): 0.5/second</code></pre>
+
+<h2>Step 6: Scan Pattern</h2>
+
+<h3>Action: DA_Turret_Scan</h3>
+
+<pre><code>ActionName: "Scan"
+DisplayName: "Scan for Targets"
+BaseScore: 50.0
+Priority: 30
+
+Considerations:
+  1. NoTarget
+     InputName: "HasTarget"
+     ResponseCurve: (0,100) → (1,0)
+     bInvertCurve: true
+     Weight: 1.5
+
+Executor: BT_Turret_Scan</code></pre>
+
+<h3>Scan Implementation</h3>
+
+<pre><code>BT_Turret_Scan:
+
+Root
+└─ Sequence
+   ├─ Calculate Next Scan Position
+   │  → Sweep pattern (left-right or 360°)
+   ├─ Rotate To Scan Position
+   ├─ Pause and Look
+   │  → Wait 1 second
+   │  → Check for targets
+   ├─ If No Target Found
+   │  → Continue scan
+   └─ Loop
+
+Scan Pattern Types:
+
+1. Sweeping (180°):
+   Angle = RestAngle + Sin(Time) * 90°
+   
+2. Rotating (360°):
+   Angle += RotationSpeed * DeltaTime
+   
+3. Priority Sectors:
+   Focus on high-traffic areas
+   Weight sectors by threat history</code></pre>
+
+<h2>Step 7: Multi-Turret Coordination</h2>
+
+<pre><code>// Turret network coordination
+void UTurretCoordinationComponent::AssignTargets()
+{
+    // Get all turrets in network
+    TArray<ATurretPawn*> Turrets = GetNetworkTurrets();
+    
+    // Get all detected enemies
+    TArray<AActor*> Enemies = GetAllDetectedEnemies();
+    
+    // Assign one turret per enemy (if possible)
+    for (int32 i = 0; i < FMath::Min(Turrets.Num(), Enemies.Num()); ++i)
+    {
+        Turrets[i]->AssignTarget(Enemies[i]);
+    }
+    
+    // Prevent target stealing
+    // Turrets prefer their assigned target over others
+}</code></pre>
+
+<h2>Complete Configuration Summary</h2>
+
+<pre><code>Turret Pawn: BP_DefenseTurret
+  MaxAmmo: 200
+  FireRate: 5/sec
+  TrackingSpeed: 90°/sec
+  Range: 3000 units
+  Elevation: -10° to +85°
+  
+Services:
+  [0] TurretTargeting (custom)
+  [1] TurretHeat (custom)
+  [2] AmmoTracking (custom)
+  [3] PerceptionMonitor
+
+Actions (6 total):
+  Scan (P:30, no target)
+  Track (P:55, acquiring)
+  Fire (P:65, engaged)
+  Reload (P:70, low ammo)
+  Cooldown (P:75, overheated)
+  Idle (P:20, fallback)
+
+Targeting Priority:
+  1. Closest threat
+  2. Highest threat level
+  3. In weapon range
+  4. Clear line of fire
+
+Result: Intelligent, responsive turret AI</code></pre>
+
+<h2>Next Steps</h2>
+
+<div class="next-steps">
+  <a class="button primary" href="#/docs/example-combat-soldier">
+    <i data-lucide="crosshair"></i>
+    Combat Example
+  </a>
+  <a class="button" href="#/docs/archetype-guide">
+    <i data-lucide="layers"></i>
+    Archetype Guide
+  </a>
+</div>
+
+<script>lucide.createIcons();</script>

@@ -1,0 +1,527 @@
+<h1>Consideration API</h1>
+<p class="note">Complete reference for FConsideration struct. Master response curves, weighting, and advanced scoring techniques for action evaluation.</p>
+
+<div class="page-meta">
+  <span class="time"><i data-lucide="clock"></i> 18 minutes</span>
+  <span class="difficulty"><i data-lucide="bar-chart-3"></i> Reference</span>
+</div>
+
+<h2>Struct Overview</h2>
+
+<pre><code>USTRUCT(BlueprintType)
+struct FConsideration
+{
+    GENERATED_BODY()
+    
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    FName InputName;
+    
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    FRuntimeFloatCurve ResponseCurve;
+    
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    float Weight = 1.0f;
+    
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    bool bInvertCurve = false;
+};
+
+Purpose:
+  Maps an input value to a score contribution using a curve.
+  Multiple considerations combine to determine action score.</code></pre>
+
+<h2>Properties</h2>
+
+<h3>InputName</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>InputName</code></td>
+      <td>FName</td>
+      <td>Name of input to read from brain</td>
+    </tr>
+  </tbody>
+</table>
+
+<pre><code>InputName: "Health"
+  → Reads brain->GetNamedInputValue(TEXT("Health"))
+  → Returns value 0.0-1.0 (typically)
+
+Common Input Names:
+  - Health, AmmoLevel, StaminaLevel
+  - HasKnownEnemy, EnemyCount, DistanceToEnemy
+  - ThreatLevel, UnderFire
+  - IsInCover, HasCoverNearby
+  - SquadStrategy_*, IsSquadLeader</code></pre>
+
+<h3>ResponseCurve</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>ResponseCurve</code></td>
+      <td>FRuntimeFloatCurve</td>
+      <td>Maps input → output score</td>
+    </tr>
+  </tbody>
+</table>
+
+<pre><code>Curve Structure:
+  X-Axis (Input): Normalized input value (0.0-1.0)
+  Y-Axis (Output): Score contribution (0.0-100.0)
+
+Example Curves:
+  Linear:    (0,0) → (1,100)
+  Threshold: (0,0) → (0.5,0) → (0.5,100) → (1,100)
+  Inverse:   (0,100) → (1,0)
+  Bell:      (0,0) → (0.5,100) → (1,0)</code></pre>
+
+<h3>Weight</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Range</th>
+      <th>Default</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>Weight</code></td>
+      <td>float</td>
+      <td>0.1 - 3.0</td>
+      <td>1.0</td>
+    </tr>
+  </tbody>
+</table>
+
+<pre><code>Purpose: Scale importance of this consideration
+
+Weight = 1.0: Normal importance
+Weight = 2.0: Double importance (more impact)
+Weight = 0.5: Half importance (less impact)
+
+Formula:
+  WeightedOutput = CurveOutput * Weight</code></pre>
+
+<h3>bInvertCurve</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Default</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>bInvertCurve</code></td>
+      <td>bool</td>
+      <td>false</td>
+    </tr>
+  </tbody>
+</table>
+
+<pre><code>Purpose: Flip curve output vertically
+
+bInvertCurve = false: Use curve as-is
+bInvertCurve = true:  Output = 100 - CurveOutput
+
+Use Case:
+  Prefer LOW values instead of HIGH values
+  Example: Distance (closer = better)</code></pre>
+
+<h2>Scoring Algorithm</h2>
+
+<h3>Single Consideration Evaluation</h3>
+
+<pre><code>1. Read input value
+   Input = Brain->GetNamedInputValue(InputName)
+   Example: Input = 0.75 (75% health)
+
+2. Evaluate curve at input
+   Output = ResponseCurve.Evaluate(Input)
+   Example: Output = 80.0
+
+3. Apply inversion (if enabled)
+   if (bInvertCurve)
+       Output = 100.0 - Output
+   Example: Output = 80.0 (no inversion)
+
+4. Apply weight
+   WeightedOutput = Output * Weight
+   Example: WeightedOutput = 80.0 * 1.0 = 80.0
+
+5. Return weighted output
+   Result: 80.0</code></pre>
+
+<h3>Multiple Considerations Combination</h3>
+
+<pre><code>Action with 3 considerations:
+
+Consideration 1: Health
+  Input: 0.75
+  Curve Output: 80
+  Weight: 1.0
+  Final: 80
+
+Consideration 2: DistanceToEnemy
+  Input: 0.5
+  Curve Output: 90
+  Weight: 1.0
+  Final: 90
+
+Consideration 3: HasKnownEnemy
+  Input: 1.0
+  Curve Output: 100
+  Weight: 1.0
+  Final: 100
+
+Combination (Multiplicative):
+  BaseScore = 60.0
+  FinalScore = 60.0 * (80/100) * (90/100) * (100/100)
+  FinalScore = 60.0 * 0.8 * 0.9 * 1.0
+  FinalScore = 43.2</code></pre>
+
+<h2>Response Curve Patterns</h2>
+
+<h3>Pattern 1: Linear</h3>
+
+<pre><code>Curve: (0,0) → (1,100)
+
+Effect: Proportional scoring
+  Input 0.0 → Output 0
+  Input 0.5 → Output 50
+  Input 1.0 → Output 100
+
+Use Case:
+  - Simple proportional relationships
+  - Direct value mapping
+  
+Example: Ammo availability</code></pre>
+
+<h3>Pattern 2: Binary/Boolean</h3>
+
+<pre><code>Curve: (0,0) → (0.99,0) → (1,100)
+
+Effect: All-or-nothing
+  Input < 1.0 → Output 0
+  Input = 1.0 → Output 100
+
+Use Case:
+  - Required conditions
+  - Boolean gates
+  
+Example: HasWeapon, IsInSquad</code></pre>
+
+<h3>Pattern 3: Threshold</h3>
+
+<pre><code>Curve: (0,0) → (0.5,0) → (0.5,100) → (1,100)
+
+Effect: Activate at specific value
+  Input < 0.5 → Output 0
+  Input ≥ 0.5 → Output 100
+
+Use Case:
+  - Minimum requirements
+  - Trigger points
+  
+Example: Health below 50%</code></pre>
+
+<h3>Pattern 4: Exponential/Urgency</h3>
+
+<pre><code>Curve: (0,0) → (0.5,20) → (0.9,50) → (1,100)
+
+Effect: Slow start, rapid end
+  Input 0-0.5 → Gradual increase
+  Input 0.5-1.0 → Steep increase
+
+Use Case:
+  - Urgency scaling
+  - Critical thresholds
+  
+Example: Low health becomes increasingly urgent</code></pre>
+
+<h3>Pattern 5: Inverse/Penalty</h3>
+
+<pre><code>Curve: (0,100) → (1,0)
+
+Effect: Higher input = lower score
+  Input 0.0 → Output 100
+  Input 0.5 → Output 50
+  Input 1.0 → Output 0
+
+Use Case:
+  - Penalties
+  - Prefer low values
+  
+Example: Distance (closer is better)
+Alternative: Use bInvertCurve with linear</code></pre>
+
+<h3>Pattern 6: Bell Curve/Optimal Range</h3>
+
+<pre><code>Curve: (0,0) → (0.5,100) → (1,0)
+
+Effect: Peak at specific value
+  Input 0.0 → Output 0
+  Input 0.5 → Output 100
+  Input 1.0 → Output 0
+
+Use Case:
+  - Optimal range
+  - Sweet spot
+  
+Example: Combat distance (not too close, not too far)</code></pre>
+
+<h3>Pattern 7: Step Function</h3>
+
+<pre><code>Curve:
+  (0,20) → (0.25,20)
+  (0.25,50) → (0.5,50)
+  (0.5,80) → (0.75,80)
+  (0.75,100) → (1,100)
+
+Effect: Discrete tiers
+  0-0.25 → 20
+  0.25-0.5 → 50
+  0.5-0.75 → 80
+  0.75-1.0 → 100
+
+Use Case:
+  - Discrete categories
+  - Difficulty tiers
+  
+Example: Threat levels (low/medium/high/critical)</code></pre>
+
+<h2>Weight Applications</h2>
+
+<h3>Standard Weighting (1.0)</h3>
+
+<pre><code>All considerations equal importance:
+
+Consideration 1: Health (Weight: 1.0)
+Consideration 2: Ammo (Weight: 1.0)
+Consideration 3: Distance (Weight: 1.0)
+
+Each has equal impact on final score</code></pre>
+
+<h3>Emphasizing Critical Factors (>1.0)</h3>
+
+<pre><code>Make health more important:
+
+Consideration 1: Health (Weight: 2.0) ← Double impact
+Consideration 2: Ammo (Weight: 1.0)
+Consideration 3: Distance (Weight: 1.0)
+
+Example:
+  Health output: 50 * 2.0 = 100 contribution
+  Ammo output: 80 * 1.0 = 80 contribution
+  Distance output: 70 * 1.0 = 70 contribution</code></pre>
+
+<h3>De-emphasizing Factors (<1.0)</h3>
+
+<pre><code>Make distance less important:
+
+Consideration 1: Health (Weight: 1.0)
+Consideration 2: Ammo (Weight: 1.0)
+Consideration 3: Distance (Weight: 0.5) ← Half impact
+
+Distance has less influence on decision</code></pre>
+
+<h3>Fine-Tuning Balance</h3>
+
+<pre><code>Balanced action scoring:
+
+Action: Attack
+  Health (Weight: 0.8) - Slightly less important
+  Ammo (Weight: 1.5)   - More important
+  Distance (Weight: 1.0) - Normal
+
+Result: Ammo availability drives decision more than health</code></pre>
+
+<h2>Advanced Techniques</h2>
+
+<h3>Technique 1: Compound Conditions</h3>
+
+<pre><code>Require multiple conditions:
+
+Consideration 1: HasWeapon (Binary)
+  Curve: (0,0) → (1,100)
+  Weight: 1.0
+
+Consideration 2: HasAmmo (Binary)
+  Curve: (0,0) → (1,100)
+  Weight: 1.0
+
+Effect: If either is false (0), total score → 0
+This creates AND logic via multiplication</code></pre>
+
+<h3>Technique 2: Confidence Scaling</h3>
+
+<pre><code>Scale based on certainty:
+
+Consideration: EnemyDistance
+  Curve: Bell curve (optimal range)
+  Weight: 1.0
+
+Consideration: LineOfSightConfidence
+  Curve: (0,0) → (1,100)
+  Weight: 0.5 (modifier)
+
+Effect: Uncertain perception reduces overall confidence</code></pre>
+
+<h3>Technique 3: Context-Sensitive Scoring</h3>
+
+<pre><code>Different curves for different contexts:
+
+Low Difficulty:
+  Health consideration:
+    Curve: (0,50) → (1,100) (still good at low health)
+
+High Difficulty:
+  Health consideration:
+    Curve: (0,0) → (1,100) (critical at low health)
+
+Adjust at runtime or via presets</code></pre>
+
+<h3>Technique 4: Smoothing Variations</h3>
+
+<pre><code>Prevent score oscillation:
+
+Instead of: (0.3,0) → (0.31,100) (sharp edge)
+Use: (0.2,0) → (0.4,100) (gradual slope)
+
+Effect: Smooth transitions between action choices</code></pre>
+
+<h2>Common Patterns by Action Type</h2>
+
+<h3>Attack Actions</h3>
+
+<pre><code>Consideration: HasKnownEnemy
+  Curve: (0,0) → (1,100)
+  Weight: 1.0 (required)
+
+Consideration: DistanceToEnemy
+  Curve: (0,30) → (0.3,100) → (0.7,80) → (1,20)
+  Weight: 1.0 (optimal range)
+
+Consideration: Health
+  Curve: (0,20) → (0.5,80) → (1,100)
+  Weight: 0.8 (less critical)</code></pre>
+
+<h3>Defensive Actions</h3>
+
+<pre><code>Consideration: ThreatLevel
+  Curve: (0,0) → (0.7,50) → (1,100)
+  Weight: 1.5 (very important)
+
+Consideration: Health
+  Curve: (0,100) → (1,0)
+  bInvertCurve: true (lower = more defensive)
+  Weight: 1.0
+
+Consideration: HasCoverNearby
+  Curve: (0,0) → (1,100)
+  Weight: 1.0 (required)</code></pre>
+
+<h3>Utility Actions</h3>
+
+<pre><code>Consideration: ResourceLevel (ammo/health)
+  Curve: (0,100) → (0.3,80) → (1,0)
+  Weight: 1.0 (need when low)
+
+Consideration: ThreatLevel
+  Curve: (0,100) → (1,0)
+  bInvertCurve: true (safe to perform)
+  Weight: 1.2 (important safety)</code></pre>
+
+<h2>Debugging Considerations</h2>
+
+<h3>Gameplay Debugger View</h3>
+
+<pre><code>Press ' → 5 → Select Agent
+
+ACTION: Attack (Score: 43.2)
+  Considerations:
+    Health: 0.75 → 80.0 (W: 1.0)
+    Distance: 0.5 → 90.0 (W: 1.0)
+    HasEnemy: 1.0 → 100.0 (W: 1.0)
+  
+  Calculation:
+    Base: 60.0
+    60.0 * (80/100) * (90/100) * (100/100)
+    = 43.2</code></pre>
+
+<h3>Logging</h3>
+
+<pre><code>LogUtilityAI Verbose
+
+Output:
+  [UtilityAI] Evaluating Consideration: Health
+  [UtilityAI]   Input: 0.75
+  [UtilityAI]   Curve Output: 80.0
+  [UtilityAI]   Weight: 1.0
+  [UtilityAI]   Final: 80.0</code></pre>
+
+<h2>Best Practices</h2>
+
+<div class="callout tip">
+  <span class="icon"><i data-lucide="check-square"></i></span>
+  <div>
+    <strong>Consideration Best Practices:</strong>
+    <ul class="compact">
+      <li>✅ Use 2-5 considerations per action (optimal)</li>
+      <li>✅ Normalize all inputs to 0-1 range</li>
+      <li>✅ Keep curves simple (fewer points = easier to tune)</li>
+      <li>✅ Use weight to balance importance, not curve amplitude</li>
+      <li>✅ Test edge cases (input 0, 0.5, 1.0)</li>
+      <li>✅ Use bInvertCurve instead of manually flipping curves</li>
+      <li>✅ Document what each consideration represents</li>
+      <li>❌ Don't use >7 considerations (performance + complexity)</li>
+      <li>❌ Don't create overly complex curves (hard to tune)</li>
+      <li>❌ Don't forget to normalize inputs</li>
+      <li>❌ Don't use weight values >3.0 (extreme imbalance)</li>
+    </ul>
+  </div>
+</div>
+
+<h2>Next Steps</h2>
+
+<div class="next-steps">
+  <a class="button primary" href="#/docs/action-api">
+    <i data-lucide="target"></i>
+    Action Asset API
+  </a>
+  <a class="button" href="#/docs/action-patterns">
+    <i data-lucide="layers"></i>
+    Action Patterns
+  </a>
+</div>
+
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="#/docs/action-api"><i data-lucide="target"></i> Action Asset API</a> - Complete action reference</li>
+  <li><a href="#/docs/action-patterns"><i data-lucide="layers"></i> Action Patterns</a> - Design patterns</li>
+  <li><a href="#/docs/tuning"><i data-lucide="sliders"></i> Tuning Guide</a> - Balance considerations</li>
+  <li><a href="#/docs/named-inputs"><i data-lucide="database"></i> Named Inputs</a> - Input system</li>
+</ul>
+
+<script>lucide.createIcons();</script>

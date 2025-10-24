@@ -1,0 +1,502 @@
+<h1>Named Inputs System</h1>
+<p>Named Inputs are the "language" between Services and Actions. They represent normalized game state that Actions use for scoring.</p>
+
+<h2>What is a Named Input?</h2>
+<p>A Named Input is a key-value pair stored in the Brain:</p>
+<ul>
+  <li><strong>Key:</strong> String name (e.g., "Health", "AmmoCount", "HasKnownEnemy")</li>
+  <li><strong>Value:</strong> Float number, typically normalized to 0-1 range</li>
+  <li><strong>Published by:</strong> Services every tick</li>
+  <li><strong>Read by:</strong> Action scoring curves</li>
+</ul>
+
+<div class="callout note">
+  <span class="icon" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10"></circle>
+      <line x1="12" y1="16" x2="12" y2="12"></line>
+      <line x1="12" y1="8" x2="12.01" y2="8"></line>
+    </svg>
+  </span>
+  <div>
+    <strong>Core Principle:</strong> Named Inputs are the only way Actions "see" the world. Well-designed inputs = intelligent behavior.
+  </div>
+</div>
+
+<h2>Why Normalize to 0-1?</h2>
+
+<h3>Portability</h3>
+<pre><code>// Bad: Game-specific raw values
+Health: 567 (out of 1000?)
+Ammo: 28 (out of 30? 100?)
+Distance: 1234 (meters? units?)
+
+// Good: Normalized 0-1
+Health: 0.567 (56.7% of max)
+AmmoCount: 0.93 (93% of max)
+NearestEnemyDistance: 0.2 (20% of max sight range)</code></pre>
+
+<h3>Predictable Math</h3>
+<pre><code>// Scoring curves work the same regardless of game scale
+Action "Retreat":
+  Health curve: (0.0 → 100pts, 0.3 → 100pts, 0.31 → 0pts)
+  
+Works for:
+  - Game A: Health 0-100
+  - Game B: Health 0-10000
+  - Game C: Health percentage-based
+  
+All produce same behavior!</code></pre>
+
+<h3>Easy Reasoning</h3>
+<pre><code>0.0 = None/Empty/Minimum
+0.5 = Half/Medium
+1.0 = Full/Maximum
+
+// Intuitive scoring
+if (Health < 0.3) → Retreat urgently
+if (AmmoCount < 0.2) → Reload soon
+if (ThreatLevel > 0.8) → Take cover now</code></pre>
+
+<h2>Common Named Inputs</h2>
+
+<h3>Combat & Perception</h3>
+<table class="comparison">
+  <thead>
+    <tr>
+      <th>Input Name</th>
+      <th>Range</th>
+      <th>Meaning</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>HasKnownEnemy</td>
+      <td>0 or 1</td>
+      <td>Any enemy detected (boolean)</td>
+    </tr>
+    <tr>
+      <td>EnemyCount</td>
+      <td>0-1</td>
+      <td>Normalized to max tracked enemies</td>
+    </tr>
+    <tr>
+      <td>HasVisibleEnemy</td>
+      <td>0 or 1</td>
+      <td>Can see enemy right now</td>
+    </tr>
+    <tr>
+      <td>NearestEnemyDistance</td>
+      <td>0-1</td>
+      <td>0=very close, 1=max range</td>
+    </tr>
+    <tr>
+      <td>ThreatLevel</td>
+      <td>0-1</td>
+      <td>Calculated danger (distance+visibility+count)</td>
+    </tr>
+    <tr>
+      <td>HasLineOfSight</td>
+      <td>0 or 1</td>
+      <td>Clear LOS to nearest enemy</td>
+    </tr>
+    <tr>
+      <td>TimeSinceLastSawEnemy</td>
+      <td>0-1</td>
+      <td>Normalized to memory duration</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Resources & Stats</h3>
+<table class="comparison">
+  <thead>
+    <tr>
+      <th>Input Name</th>
+      <th>Range</th>
+      <th>Meaning</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Health</td>
+      <td>0-1</td>
+      <td>Current / Max health</td>
+    </tr>
+    <tr>
+      <td>Stamina</td>
+      <td>0-1</td>
+      <td>Current / Max stamina</td>
+    </tr>
+    <tr>
+      <td>Mana</td>
+      <td>0-1</td>
+      <td>Current / Max mana</td>
+    </tr>
+    <tr>
+      <td>AmmoCount</td>
+      <td>0-1</td>
+      <td>Current clip / Max clip</td>
+    </tr>
+    <tr>
+      <td>AmmoReserve</td>
+      <td>0-1</td>
+      <td>Reserve ammo / Max reserve</td>
+    </tr>
+    <tr>
+      <td>ShieldStrength</td>
+      <td>0-1</td>
+      <td>Current shield / Max shield</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Squad & Social</h3>
+<table class="comparison">
+  <thead>
+    <tr>
+      <th>Input Name</th>
+      <th>Range</th>
+      <th>Meaning</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>HasSquad</td>
+      <td>0 or 1</td>
+      <td>Is member of a squad</td>
+    </tr>
+    <tr>
+      <td>IsSquadLeader</td>
+      <td>0 or 1</td>
+      <td>Am I the leader?</td>
+    </tr>
+    <tr>
+      <td>SquadMemberCount</td>
+      <td>0-1</td>
+      <td>Members / Max squad size</td>
+    </tr>
+    <tr>
+      <td>SquadStrategy</td>
+      <td>0-1</td>
+      <td>Search=0, Assault=0.25, Flank=0.5, Hold=0.75, Retreat=1.0</td>
+    </tr>
+    <tr>
+      <td>AllyCount</td>
+      <td>0-1</td>
+      <td>Nearby allies (normalized)</td>
+    </tr>
+    <tr>
+      <td>NearestAllyDistance</td>
+      <td>0-1</td>
+      <td>Distance to nearest ally</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Environment & Memory</h3>
+<table class="comparison">
+  <thead>
+    <tr>
+      <th>Input Name</th>
+      <th>Range</th>
+      <th>Meaning</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>HasMemorizedObjects</td>
+      <td>0 or 1</td>
+      <td>Any objects in memory</td>
+    </tr>
+    <tr>
+      <td>HasDisplacedObjects</td>
+      <td>0 or 1</td>
+      <td>Objects moved since last seen</td>
+    </tr>
+    <tr>
+      <td>HasOpenDoors</td>
+      <td>0 or 1</td>
+      <td>Doors opened since patrol</td>
+    </tr>
+    <tr>
+      <td>SuspiciousChangeCount</td>
+      <td>0-1</td>
+      <td>Number of changes (normalized)</td>
+    </tr>
+    <tr>
+      <td>InCover</td>
+      <td>0 or 1</td>
+      <td>Currently behind cover</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Naming Conventions</h2>
+
+<div class="callout tip">
+  <span class="icon" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
+    </svg>
+  </span>
+  <div>
+    <strong>Best Practices:</strong>
+    <ul>
+      <li><strong>PascalCase:</strong> <code>HasKnownEnemy</code>, <code>NearestAllyDistance</code></li>
+      <li><strong>Boolean Prefix:</strong> <code>Has</code>, <code>Is</code>, <code>Can</code>, <code>Should</code></li>
+      <li><strong>Quantity Suffix:</strong> <code>Count</code>, <code>Amount</code>, <code>Level</code></li>
+      <li><strong>Distance Prefix:</strong> <code>NearestX</code>, <code>DistanceToX</code></li>
+      <li><strong>Time Prefix:</strong> <code>TimeSinceX</code>, <code>TimeUntilX</code></li>
+      <li><strong>Be Specific:</strong> <code>NearestEnemyDistance</code> not <code>Distance</code></li>
+      <li><strong>Avoid Abbrev:</strong> <code>AmmoCount</code> not <code>AmmoC</code> or <code>AC</code></li>
+    </ul>
+  </div>
+</div>
+
+<h3>Good Examples</h3>
+<pre><code>✓ HasKnownEnemy
+✓ NearestEnemyDistance
+✓ TimeSinceLastSawEnemy
+✓ SquadMemberCount
+✓ IsSquadLeader
+✓ CanSeeObjective
+✓ DistanceToObjective
+✓ ThreatLevel</code></pre>
+
+<h3>Bad Examples</h3>
+<pre><code>✗ Enemy (vague: count? distance? bool?)
+✗ Dist (abbreviation)
+✗ Data1 (meaningless)
+✗ X (cryptic)
+✗ EnemyDetected (use HasKnownEnemy)
+✗ ammo_count (wrong case)
+✗ THREAT_LVL (wrong case + abbrev)</code></pre>
+
+<h2>How Services Publish Inputs</h2>
+
+<h3>Blueprint Service</h3>
+<pre><code>// In Service's TickService event
+Event TickService(DeltaTime)
+  ├─ Get Health Component
+  ├─ CurrentHealth = Component->GetHealth()
+  ├─ MaxHealth = Component->GetMaxHealth()
+  ├─ Normalized = CurrentHealth / MaxHealth
+  ├─ Clamp to 0-1
+  └─ Brain->SetNamedInputValue("Health", Normalized)</code></pre>
+
+<h3>C++ Service</h3>
+<pre><code>void UMyService::TickService(float DeltaTime)
+{
+    if (!OwningBrain || !CachedPawn) return;
+    
+    // Get component
+    UHealthComponent* Health = CachedPawn->FindComponentByClass&lt;UHealthComponent&gt;();
+    if (!Health) return;
+    
+    // Normalize
+    float Normalized = Health->GetHealth() / Health->GetMaxHealth();
+    Normalized = FMath::Clamp(Normalized, 0.0f, 1.0f);
+    
+    // Publish
+    OwningBrain->SetNamedInputValue(TEXT("Health"), Normalized);
+}</code></pre>
+
+<h2>How Actions Read Inputs</h2>
+
+<p>Actions never directly call <code>GetNamedInputValue</code>. Instead, they define scoring curves that reference input names.</p>
+
+<pre><code>// Action Data Asset configuration
+Action: "Attack"
+Base Score: 50.0
+
+Scoring Curves:
+  [0] Input Name: "HasKnownEnemy"
+      Curve: [(0.0, 0.0), (1.0, 100.0)]
+      
+  [1] Input Name: "AmmoCount"
+      Curve: [(0.0, -50.0), (0.3, 0.0), (1.0, 0.0)]
+
+// At runtime, Brain evaluates:
+float HasKnownEnemy = Brain->GetNamedInputValue("HasKnownEnemy"); // 1.0
+float AmmoCount = Brain->GetNamedInputValue("AmmoCount"); // 0.4
+
+float Curve0Output = EvaluateCurve(Curve[0], HasKnownEnemy); // 100.0
+float Curve1Output = EvaluateCurve(Curve[1], AmmoCount); // 0.0
+
+float FinalScore = 50.0 + 100.0 + 0.0 = 150.0</code></pre>
+
+<h2>Blueprint API</h2>
+
+<pre><code>// Brain Component functions
+SetNamedInputValue(Name, Value)
+GetNamedInputValue(Name) → Float (returns 0.0 if not found)
+HasNamedInput(Name) → Bool
+RemoveNamedInput(Name)
+GetAllNamedInputs() → Map&lt;String, Float&gt;
+ClearAllNamedInputs()
+
+// Common patterns
+Brain->SetNamedInputValue("Health", 0.7);
+float Health = Brain->GetNamedInputValue("Health");
+if (Brain->HasNamedInput("HasKnownEnemy"))
+{
+    // Input exists
+}</code></pre>
+
+<h2>Advanced Patterns</h2>
+
+<h3>Composite Inputs</h3>
+<p>Combine multiple raw values into a single meaningful input.</p>
+
+<pre><code>// Service computes "ThreatLevel" from multiple factors
+void UThreatAssessmentService::TickService(float DeltaTime)
+{
+    float Threat = 0.0f;
+    
+    // Factor 1: Enemy presence (40% weight)
+    if (HasVisibleEnemy)
+        Threat += 0.4f;
+    
+    // Factor 2: Distance (30% weight)
+    float DistanceFactor = 1.0f - NormalizedDistance; // Closer = higher threat
+    Threat += DistanceFactor * 0.3f;
+    
+    // Factor 3: Health (30% weight)
+    float HealthFactor = 1.0f - NormalizedHealth; // Lower health = higher threat
+    Threat += HealthFactor * 0.3f;
+    
+    Threat = FMath::Clamp(Threat, 0.0f, 1.0f);
+    OwningBrain->SetNamedInputValue("ThreatLevel", Threat);
+}</code></pre>
+
+<h3>Time-Based Inputs</h3>
+<p>Normalize time values to make them useful for scoring.</p>
+
+<pre><code>// Normalize "time since last saw enemy" to 0-1
+float TimeSinceLastSeen = 15.0f; // seconds
+float MemoryDuration = 30.0f; // max memory
+float Normalized = FMath::Clamp(TimeSinceLastSeen / MemoryDuration, 0.0f, 1.0f);
+Brain->SetNamedInputValue("TimeSinceLastSawEnemy", Normalized);
+
+// Action can use this:
+// High value (0.8) = long time, maybe search
+// Low value (0.2) = recent, still alert</code></pre>
+
+<h3>Enum-Like Inputs</h3>
+<p>Represent discrete states as normalized values.</p>
+
+<pre><code>// Squad strategy as 0-1 enum
+enum class ESquadStrategy
+{
+    Search,  // 0.0
+    Assault, // 0.25
+    Flank,   // 0.5
+    Hold,    // 0.75
+    Retreat  // 1.0
+};
+
+// Publish
+float StrategyValue = (float)CurrentStrategy / (float)ESquadStrategy::Retreat;
+Brain->SetNamedInputValue("SquadStrategy", StrategyValue);
+
+// Actions can check ranges:
+// SquadStrategy < 0.3 → Search/Assault (offensive)
+// SquadStrategy > 0.7 → Hold/Retreat (defensive)</code></pre>
+
+<h2>Debugging Inputs</h2>
+
+<h3>Gameplay Debugger</h3>
+<pre><code>Press ' → Utility AI Category
+
+Named Inputs (12):
+  HasKnownEnemy: 1.0
+  EnemyCount: 0.4
+  NearestEnemyDistance: 0.3
+  ThreatLevel: 0.8
+  Health: 0.6
+  AmmoCount: 0.3
+  InCover: 0.0
+  IsSquadLeader: 1.0
+  SquadMemberCount: 0.6
+  HasMemorizedObjects: 1.0
+  TimeSinceLastSawEnemy: 0.2
+  SquadStrategy: 0.25 (Assault)</code></pre>
+
+<h3>Debug Component</h3>
+<pre><code>// Shows overhead widget with live inputs
+Add Component: UCINDebugComponent
+Properties:
+  bShowInputs: true
+  bShowServices: true
+  InputsToShow: [Health, AmmoCount, ThreatLevel]
+  UpdateInterval: 0.1</code></pre>
+
+<h3>Blueprint Logging</h3>
+<pre><code>// Print specific input
+float Health = Brain->GetNamedInputValue("Health");
+Print String: "Health: " + Health
+
+// Print all inputs
+Map AllInputs = Brain->GetAllNamedInputs();
+ForEach (Name, Value in AllInputs):
+  Print String: Name + ": " + Value</code></pre>
+
+<h2>Common Mistakes</h2>
+
+<div class="callout warn">
+  <span class="icon" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"></path>
+      <line x1="12" y1="9" x2="12" y2="13"></line>
+      <line x1="12" y1="17" x2="12.01" y2="17"></line>
+    </svg>
+  </span>
+  <div>
+    <strong>Watch Out For:</strong>
+    <ul>
+      <li><strong>Unnormalized Values:</strong> Publishing raw health (0-100) breaks portability</li>
+      <li><strong>Inconsistent Names:</strong> "HasEnemy" in service, "EnemyDetected" in action</li>
+      <li><strong>Missing Clamps:</strong> Values outside 0-1 cause unexpected scoring</li>
+      <li><strong>Typos:</strong> "HasKownEnemy" vs "HasKnownEnemy" (silent failure)</li>
+      <li><strong>Stale Inputs:</strong> Service stops but input remains at old value</li>
+      <li><strong>No Default:</strong> Action references input that service never publishes</li>
+    </ul>
+  </div>
+</div>
+
+<h2>Input Validation</h2>
+
+<pre><code>// C++ Service with validation
+void UMyService::TickService(float DeltaTime)
+{
+    float Value = ComputeValue();
+    
+    // Validate
+    if (!FMath::IsFinite(Value))
+    {
+        UE_LOG(LogUtilityAI, Error, TEXT("Invalid value computed!"));
+        Value = 0.0f;
+    }
+    
+    // Clamp
+    Value = FMath::Clamp(Value, 0.0f, 1.0f);
+    
+    // Publish
+    OwningBrain->SetNamedInputValue(TEXT("MyInput"), Value);
+}</code></pre>
+
+<h2>Next Steps</h2>
+<div class="hero-cta">
+  <a class="button primary" href="#/docs/presets">Agent Presets</a>
+  <a class="button" href="#/docs/services">Services</a>
+  <a class="button" href="#/docs/actions">Actions</a>
+</div>
+
+<h3>Related Documentation</h3>
+<ul>
+  <li><a href="#/docs/utility-ai">Utility AI</a> - How inputs drive scoring</li>
+  <li><a href="#/docs/brain">Brain Component</a> - Input storage and access</li>
+  <li><a href="#/docs/core-concepts">Core Concepts</a> - System overview</li>
+  <li><a href="#/examples/combat-setup">Combat Example</a> - Inputs in practice</li>
+</ul>

@@ -1,0 +1,464 @@
+<h1>Example: Vehicle AI</h1>
+<p class="note">Complete working example of vehicle AI for cars, tanks, or drones. Includes pathfinding, formation driving, combat maneuvers, and pursuit.</p>
+
+<div class="page-meta">
+  <span class="time"><i data-lucide="clock"></i> 25 minutes</span>
+  <span class="difficulty"><i data-lucide="code"></i> Example</span>
+</div>
+
+<div class="callout tip">
+  <span class="icon"><i data-lucide="lightbulb"></i></span>
+  <div>
+    <strong>What You'll Build:</strong> A vehicle AI that can patrol routes, pursue targets, perform combat maneuvers, maintain formation with allies, and respond to threats. Adaptable for cars, tanks, aircraft, or naval vessels.
+  </div>
+</div>
+
+<h2>Final Result</h2>
+
+<pre><code>Vehicle AI Behaviors:
+├─ Patrol: Follow waypoint routes
+├─ Pursue: Chase enemy vehicles
+├─ Attack: Engage with weapons
+├─ Evade: Defensive maneuvers
+├─ Formation: Stay in group formation
+└─ Ram: Aggressive collision attacks
+
+Features:
+✓ Physics-based movement
+✓ Pathfinding integration
+✓ Combat maneuvers
+✓ Formation driving
+✓ Speed management
+✓ Obstacle avoidance</code></pre>
+
+<h2>Step 1: Create Vehicle Pawn</h2>
+
+<h3>Blueprint: BP_CombatVehicle</h3>
+
+<pre><code>Parent Class: WheeledVehiclePawn
+
+Components:
+  + Vehicle Movement Component
+    Max Speed: 2000
+    Max Brake Force: 3000
+    Mass: 1500
+  + Weapon Component (custom)
+    Weapon Type: MachineGun
+    FireRate: 10/sec
+  + AIPerception
+    Senses:
+      - AISight (4000 radius)
+      - AIDamage
+  + CINQuickSetup
+    AgentType: Custom (vehicle-specific)
+    bAutoInitialize: true
+
+Variables:
+  + CurrentSpeed (float): 0.0
+  + TargetSpeed (float): 1000.0
+  + PatrolRoute (TArray<AActor*>): Empty
+  + CurrentWaypointIndex (int32): 0
+  + FormationOffset (FVector): Zero
+  + bInCombat (bool): false</code></pre>
+
+<h2>Step 2: Patrol Action</h2>
+
+<h3>Action: DA_Vehicle_Patrol</h3>
+
+<pre><code>ActionName: "Patrol"
+DisplayName: "Patrol Route"
+BaseScore: 55.0
+Priority: 35
+
+Considerations:
+  1. NoEnemies
+     InputName: "HasKnownEnemy"
+     ResponseCurve: (0,100) → (1,0)
+     bInvertCurve: true
+     Weight: 1.5
+     Comment: Only patrol when safe
+     
+  2. HasPatrolRoute
+     InputName: "HasPatrolRoute"
+     ResponseCurve: (0,0) → (1,100)
+     Weight: 1.0
+
+Momentum:
+  MaxMomentum: 2.0
+  MomentumDecayTime: 5.0
+
+Replace Resistance: 1.0
+bInterruptible: true
+UnlockTime: 0.0
+
+Executor: BT_Vehicle_Patrol</code></pre>
+
+<h3>Patrol Behavior Tree</h3>
+
+<pre><code>BT_Vehicle_Patrol:
+
+Root
+└─ Sequence
+   ├─ Get Next Waypoint
+   │  → Increment waypoint index
+   │  → Loop back to start if at end
+   ├─ Set Target Speed (Cruise)
+   │  → TargetSpeed = 1000
+   ├─ Drive To Waypoint
+   │  → Use AI MoveTo
+   │  → AcceptanceRadius: 500
+   ├─ Wait At Waypoint (optional)
+   │  → Wait 2-5 seconds
+   └─ Success (loops)
+
+Waypoint Navigation:
+  CurrentWaypoint = PatrolRoute[CurrentWaypointIndex];
+  AIController->MoveToLocation(CurrentWaypoint->GetActorLocation());
+  
+  // Apply throttle based on distance
+  float Distance = GetDistanceToTarget();
+  float Throttle = FMath::Clamp(Distance / 1000.0f, 0.3f, 1.0f);</code></pre>
+
+<h2>Step 3: Pursue Action</h2>
+
+<h3>Action: DA_Vehicle_Pursue</h3>
+
+<pre><code>ActionName: "Pursue"
+DisplayName: "Pursue Enemy"
+BaseScore: 75.0
+Priority: 60
+
+Considerations:
+  1. HasVisibleEnemy
+     InputName: "HasVisibleEnemy"
+     ResponseCurve: (0,0) → (1,100)
+     Weight: 1.5
+     
+  2. DistanceToEnemy
+     InputName: "DistanceToEnemy"
+     ResponseCurve: (0,30) → (0.5,100) → (1,50)
+     Weight: 1.2
+     Comment: Best at medium range
+     
+  3. VehicleHealth
+     InputName: "Health"
+     ResponseCurve: (0,20) → (0.3,100) → (1,100)
+     Weight: 0.8
+
+Momentum: None (reactive)
+Replace Resistance: 1.5
+bInterruptible: true
+UnlockTime: 1.0
+
+Executor: BT_Vehicle_Pursue</code></pre>
+
+<h3>Pursue Behavior Tree</h3>
+
+<pre><code>BT_Vehicle_Pursue:
+
+Root
+└─ Parallel
+   ├─ Chase Enemy
+   │  Sequence:
+   │    ├─ Get Enemy Location
+   │    ├─ Predict Enemy Position
+   │    │  → Lead target based on speed
+   │    ├─ Set Target Speed (Fast)
+   │    │  → TargetSpeed = MaxSpeed
+   │    └─ Move To Predicted Position
+   │
+   └─ Attack While Pursuing
+      Selector:
+        ├─ If In Weapon Range
+        │  → Fire Weapons
+        └─ Else
+           → Continue Chase
+
+Lead Target Calculation:
+  FVector EnemyVelocity = Enemy->GetVelocity();
+  float TimeToIntercept = Distance / MySpeed;
+  FVector PredictedPos = EnemyLocation + (EnemyVelocity * TimeToIntercept);</code></pre>
+
+<h2>Step 4: Combat Maneuvers</h2>
+
+<h3>Action: DA_Vehicle_Attack</h3>
+
+<pre><code>ActionName: "Attack"
+DisplayName: "Combat Attack"
+BaseScore: 80.0
+Priority: 65
+
+Considerations:
+  1. HasVisibleEnemy
+     InputName: "HasVisibleEnemy"
+     ResponseCurve: (0,0) → (1,100)
+     Weight: 1.5
+     
+  2. OptimalRange
+     InputName: "DistanceToEnemy"
+     ResponseCurve: (0,0) → (0.3,100) → (0.6,100) → (1,0)
+     Weight: 1.5
+     Comment: Stay in weapon range
+     
+  3. HasLineOfFire
+     InputName: "HasLineOfFire"
+     ResponseCurve: (0,0) → (1,100)
+     Weight: 1.2
+
+Momentum: None
+Replace Resistance: 1.3
+bInterruptible: true
+UnlockTime: 0.5
+
+Executor: BT_Vehicle_Attack</code></pre>
+
+<h3>Attack Maneuvers</h3>
+
+<pre><code>BT_Vehicle_Attack:
+
+Root
+└─ Selector
+   ├─ Strafe Attack (if mobile)
+   │  Parallel:
+   │    ├─ Circle Enemy
+   │    │  → Maintain distance
+   │    │  → Move tangentially
+   │    └─ Fire Weapons
+   │       → Lead target
+   │       → Continuous fire
+   │
+   ├─ Hit and Run (if fast)
+   │  Sequence:
+   │    ├─ Charge Enemy
+   │    ├─ Fire Burst
+   │    ├─ Break Away
+   │    └─ Reposition
+   │
+   └─ Stationary Attack (if heavy/slow)
+      Parallel:
+        ├─ Face Enemy
+        └─ Fire Weapons
+
+Strafe Pattern:
+  FVector ToEnemy = (EnemyPos - MyPos).GetSafeNormal();
+  FVector Tangent = FVector::CrossProduct(ToEnemy, FVector::UpVector);
+  FVector StrafeTarget = MyPos + Tangent * StrafeDistance;</code></pre>
+
+<h2>Step 5: Evasive Maneuvers</h2>
+
+<h3>Action: DA_Vehicle_Evade</h3>
+
+<pre><code>ActionName: "Evade"
+DisplayName: "Evasive Maneuvers"
+BaseScore: 85.0
+Priority: 75
+
+Considerations:
+  1. UnderFire
+     InputName: "UnderFire"
+     ResponseCurve: (0,0) → (1,100)
+     Weight: 2.0
+     
+  2. Health
+     InputName: "Health"
+     ResponseCurve: (0,100) → (0.5,80) → (1,0)
+     bInvertCurve: true
+     Weight: 1.5
+     Comment: Evade when damaged
+     
+  3. HasCover
+     InputName: "HasCoverNearby"
+     ResponseCurve: (0,50) → (1,100)
+     Weight: 1.0
+
+Momentum: None
+Replace Resistance: 2.0
+bInterruptible: false
+UnlockTime: 3.0
+
+Executor: BT_Vehicle_Evade</code></pre>
+
+<h3>Evasion Patterns</h3>
+
+<pre><code>BT_Vehicle_Evade:
+
+Root
+└─ Selector
+   ├─ Serpentine (open ground)
+   │  → Zigzag pattern
+   │  → Unpredictable movement
+   │  → Max speed
+   │
+   ├─ Find Cover (if available)
+   │  Sequence:
+   │    ├─ Find Nearest Cover
+   │    ├─ Sprint To Cover
+   │    └─ Hide Behind Cover
+   │
+   └─ Smoke and Retreat
+      Sequence:
+        ├─ Deploy Smoke
+        ├─ Reverse Direction
+        └─ Escape
+
+Serpentine Movement:
+  float SineWave = FMath::Sin(GetWorld()->GetTimeSeconds() * 2.0f);
+  FVector LateralOffset = GetActorRightVector() * SineWave * 500.0f;
+  FVector EvadeTarget = ForwardDirection + LateralOffset;</code></pre>
+
+<h2>Step 6: Formation Driving</h2>
+
+<h3>Action: DA_Vehicle_Formation</h3>
+
+<pre><code>ActionName: "Formation"
+DisplayName: "Maintain Formation"
+BaseScore: 65.0
+Priority: 50
+
+Considerations:
+  1. InSquad
+     InputName: "IsInSquad"
+     ResponseCurve: (0,0) → (1,100)
+     Weight: 1.5
+     
+  2. DistanceFromFormation
+     InputName: "DistanceFromFormation"
+     ResponseCurve: (0,20) → (0.2,100) → (0.5,80) → (1,100)
+     Weight: 1.2
+     Comment: Return if too far
+
+Executor: BT_Vehicle_Formation</code></pre>
+
+<h3>Formation Patterns</h3>
+
+<pre><code>// Calculate formation position
+FVector CalculateFormationPosition()
+{
+    if (!SquadLeader) return GetActorLocation();
+    
+    FVector LeaderPos = SquadLeader->GetActorLocation();
+    FVector LeaderForward = SquadLeader->GetActorForwardVector();
+    FVector LeaderRight = SquadLeader->GetActorRightVector();
+    
+    // Formation type
+    switch (FormationType)
+    {
+    case EFormation::Column: // Behind leader
+        return LeaderPos - LeaderForward * (MemberIndex * 500.0f);
+        
+    case EFormation::Line: // Beside leader
+        float Offset = (MemberIndex - SquadSize/2) * 400.0f;
+        return LeaderPos + LeaderRight * Offset;
+        
+    case EFormation::Wedge: // V formation
+        float LateralOffset = FMath::Abs(MemberIndex - SquadSize/2) * 300.0f;
+        float RearOffset = MemberIndex * 400.0f;
+        return LeaderPos + LeaderRight * LateralOffset - LeaderForward * RearOffset;
+        
+    case EFormation::Box: // Surrounding
+        float Angle = (360.0f / SquadSize) * MemberIndex;
+        FVector Offset = LeaderForward.RotateAngleAxis(Angle, FVector::UpVector) * 600.0f;
+        return LeaderPos + Offset;
+    }
+}
+
+// Match leader speed
+TargetSpeed = SquadLeader->GetVelocity().Size();</code></pre>
+
+<h2>Step 7: Ram Attack</h2>
+
+<h3>Action: DA_Vehicle_Ram</h3>
+
+<pre><code>ActionName: "Ram"
+DisplayName: "Ramming Attack"
+BaseScore: 70.0
+Priority: 55
+
+Considerations:
+  1. EnemyVulnerable
+     InputName: "EnemyIsLight"
+     ResponseCurve: (0,0) → (1,100)
+     Weight: 1.5
+     Comment: Only ram light targets
+     
+  2. GoodAngle
+     InputName: "RamAngleGood"
+     ResponseCurve: (0,0) → (0.8,50) → (1,100)
+     Weight: 1.2
+     
+  3. VehicleHealth
+     InputName: "Health"
+     ResponseCurve: (0,0) → (0.5,100) → (1,100)
+     Weight: 1.0
+     Comment: Need health to ram
+
+Executor: BT_Vehicle_Ram</code></pre>
+
+<h3>Ram Execution</h3>
+
+<pre><code>BT_Vehicle_Ram:
+
+Root
+└─ Sequence
+   ├─ Align For Ram
+   │  → Face enemy
+   │  → Get good angle
+   ├─ Accelerate
+   │  → TargetSpeed = MaxSpeed * 1.2
+   │  → Nitro boost if available
+   ├─ Ram Target
+   │  → Drive through enemy
+   │  → Apply collision damage
+   ├─ Break Away
+   │  → Avoid getting stuck
+   └─ Success
+
+Ram Damage:
+  float ImpactForce = MyMass * MySpeed;
+  float Damage = ImpactForce / 100.0f;
+  Enemy->TakeDamage(Damage);</code></pre>
+
+<h2>Complete Configuration Summary</h2>
+
+<pre><code>Vehicle Pawn: BP_CombatVehicle
+  MaxSpeed: 2000
+  Armor: 500
+  Weapon: MachineGun
+  TeamID: 2 (enemy)
+  
+Services:
+  [0] PerceptionMonitor
+  [1] VehicleState (custom - speed, health)
+  [2] CombatAnalysis (custom - threat assessment)
+  [3] FormationManager (if squad)
+
+Actions (7 total):
+  Patrol (P:35, default)
+  Pursue (P:60, chase enemies)
+  Attack (P:65, combat)
+  Evade (P:75, defensive)
+  Formation (P:50, squad driving)
+  Ram (P:55, aggressive)
+  Retreat (P:70, escape)
+
+Movement Modes:
+  Cruise: 1000 units/sec (patrol)
+  Combat: 1500 units/sec (pursuit)
+  Sprint: 2000 units/sec (evade/ram)
+
+Result: Dynamic, aggressive vehicle AI</code></pre>
+
+<h2>Next Steps</h2>
+
+<div class="next-steps">
+  <a class="button primary" href="#/docs/example-combat-soldier">
+    <i data-lucide="crosshair"></i>
+    Combat Example
+  </a>
+  <a class="button" href="#/docs/archetype-guide">
+    <i data-lucide="layers"></i>
+    Archetype Guide
+  </a>
+</div>
+
+<script>lucide.createIcons();</script>

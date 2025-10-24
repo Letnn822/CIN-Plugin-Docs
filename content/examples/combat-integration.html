@@ -1,0 +1,84 @@
+<h1>Combat Integration (Project-side)</h1>
+<p>The combat helpers live in your project module under <code>Source/CIN/Combat/</code>. They demonstrate how to leverage the plugin’s parameter bindings for real gameplay values.</p>
+
+<h2>Quick binds</h2>
+<pre><code>// Blueprint — UCINCombatBlueprintLibrary
+QuickBindHealth(Actor, HealthComponent, "CurrentHealth", 100.0)
+QuickBindStamina(Actor, StaminaComponent, "CurrentStamina", 100.0)
+QuickBindMana(Actor, ManaComponent, "CurrentMana", 100.0)
+
+QuickBindHealthToGAS(Actor, "Attributes.Health", 100.0)
+QuickBindStaminaToGAS(Actor, "Attributes.Stamina", 100.0)
+QuickBindManaToGAS(Actor, "Attributes.Mana", 100.0)
+
+QuickBindHealthToFunction(Actor, "GetHealthPercentage")
+</code></pre>
+
+<h2>One-click setups</h2>
+<pre><code>// Blueprint — UCINCombatBlueprintLibrary
+QuickSetThresholds(Actor, 0.25, 0.10, 0.20, 0.15, 0.30)
+CompleteHealthSetup(Actor, HealthComponent, "CurrentHealth", 100.0, 0.25, 0.10)
+CompleteGASSetup(Actor, "Attributes.Health", "Attributes.Stamina", "Attributes.Mana", 100, 100, 100)
+ValidateIntegrationSetup(Actor, SetupReport, bHasHealth, bHasStamina, bHasMana)
+</code></pre>
+
+<div class="callout note">
+  <span class="icon" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="9"></circle>
+      <path d="M12 10v6"></path>
+      <path d="M12 8h.01"></path>
+    </svg>
+  </span>
+  <div>
+    These wrappers do not ship with the plugin; they are a sample integration in your project that uses the same parameter system exposed by <code>ACINAgentBase</code>.
+  </div>
+</div>
+
+<h2>Architecture &amp; separation</h2>
+<ul>
+  <li><strong>Plugin (generic):</strong> parameter binding, perception, decision, learning, LOD. No gameplay content.</li>
+  <li><strong>Project module (combat):</strong> <code>UCINCombatComponent</code>, <code>UCINCombatBlueprintLibrary</code> convenience wrappers and thresholds.</li>
+  <li>Keep your game-specific code here; do not modify plugin sources.</li>
+</ul>
+
+<h2>Threshold-driven reactivity</h2>
+<ul>
+  <li>Set low/critical thresholds (e.g., <code>0.25</code>, <code>0.10</code>) once; fire events on transitions.</li>
+  <li>Example project-side events: <em>OnHealthBecameLow</em>, <em>OnHealthBecameCritical</em>, <em>OnStaminaBecameLow</em>, <em>OnManaBecameLow</em>, <em>OnAmmoBecameLow</em>.</li>
+  <li>In the agent, listen/react via <code>SetCurrentGoal("Retreat")</code>, queue actions, or change animations.</li>
+</ul>
+
+<h2>Wiring to goals (Blueprint)</h2>
+<pre><code>// Pseudo Blueprint flow in your Character BP
+Event OnHealthBecameLow
+  -> Agent.SetCurrentGoal("Retreat")
+  -> Agent.QueueAction(RetreatAction, Priority=1.0)
+
+Event OnStaminaBecameLow
+  -> Agent.SetCurrentGoal("Defend")
+
+Event OnHealthBecameCritical
+  -> Agent.SetCurrentGoal("CallHelp")
+    </code></pre>
+
+<h2>Validation checklist</h2>
+<ul>
+  <li>Run <code>ValidateIntegrationSetup()</code> and fix any missing components/attributes.</li>
+  <li>Call <code>ValidateParameterBindings()</code> on the agent; verify parameters return values in 0..1.</li>
+  <li>Use on-screen prints for <code>GetAgentParameter("Health")</code>, <code>...("Stamina")</code>, etc.</li>
+</ul>
+
+<h2>Best practices</h2>
+<ul>
+  <li>Normalize at source (100 -&gt; 0..1). Keep decision/animation thresholds consistent across characters.</li>
+  <li>Prefer Blueprint Library quick-binds for designers; centralize advanced bindings in reusable functions.</li>
+  <li>Decouple visuals: use <code>OnGoalChanged</code> to switch montages or layers; avoid embedding animation logic in combat wrappers.</li>
+</ul>
+
+<h2>Troubleshooting</h2>
+<ul>
+  <li>If values seem stuck, call <code>RefreshParameterBindings()</code> after swapping components or pawns.</li>
+  <li>Confirm the correct GAS attribute path (e.g., <code>Attributes.Health</code>); prefer attribute handles where possible.</li>
+  <li>Check thresholds are within 0..1 and that bound attributes are normalized to 0..1.</li>
+</ul>

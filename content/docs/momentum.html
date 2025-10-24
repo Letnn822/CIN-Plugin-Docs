@@ -1,0 +1,534 @@
+<h1>Task Momentum</h1>
+<p class="note">Master the momentum system to prevent repetitive AI behavior. Learn how momentum builds with repeated actions and decays over time, creating natural rhythm in AI decision-making.</p>
+
+<div class="page-meta">
+  <span class="time"><i data-lucide="clock"></i> 10 minutes</span>
+  <span class="difficulty"><i data-lucide="bar-chart-2"></i> Advanced</span>
+</div>
+
+<div class="callout tip">
+  <span class="icon"><i data-lucide="lightbulb"></i></span>
+  <div>
+    <strong>Momentum Principle:</strong> Each time an action executes, it builds momentum that reduces its score for future evaluations. This prevents spam while allowing natural repetition after cooldown.
+  </div>
+</div>
+
+<h2>What is Task Momentum?</h2>
+
+<h3>The Problem</h3>
+
+<pre><code>Without Momentum:
+  t=0.0s: Attack (score: 60) ✓
+  t=0.5s: Attack (score: 60) ✓
+  t=1.0s: Attack (score: 60) ✓
+  t=1.5s: Attack (score: 60) ✓
+  t=2.0s: Attack (score: 60) ✓
+  
+Result: Unrealistic spam, no variety</code></pre>
+
+<h3>The Solution</h3>
+
+<pre><code>With Momentum:
+  t=0.0s: Attack (score: 60, momentum: 0) ✓ Execute
+          → Builds momentum: +1
+  
+  t=0.5s: Attack (score: 60, momentum: 1)
+          Adjusted: 60 - 15 = 45
+          TakeCover (score: 50) ✓ Wins instead
+  
+  t=1.0s: Attack (score: 60, momentum: 1)
+          Still reduced: 45
+          Patrol (score: 48) ✓ Wins
+  
+  t=2.5s: Momentum decays → 0
+          Attack (score: 60) ✓ Can execute again
+  
+Result: Natural variety, realistic rhythm</code></pre>
+
+<h2>Momentum Properties</h2>
+
+<h3>Configuration</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Default</th>
+      <th>Purpose</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>MaxMomentum</strong></td>
+      <td>Float</td>
+      <td>3.0</td>
+      <td>How many times action can repeat before maxed out</td>
+    </tr>
+    <tr>
+      <td><strong>MomentumScoreReduction</strong></td>
+      <td>Float</td>
+      <td>15.0</td>
+      <td>Score penalty per momentum point</td>
+    </tr>
+    <tr>
+      <td><strong>MomentumDecayTime</strong></td>
+      <td>Float</td>
+      <td>2.5s</td>
+      <td>How long before momentum fully decays</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>How It Works</h3>
+
+<pre><code>Step 1: Action Executes
+  CurrentMomentum += 1.0
+  Clamp to MaxMomentum
+  
+Step 2: Score Calculation (next evaluation)
+  AdjustedScore = BaseScore - (CurrentMomentum × ScoreReduction)
+  
+Step 3: Decay Over Time
+  CurrentMomentum -= (DeltaTime / DecayTime) × MaxMomentum
+  Clamp to 0
+  
+Example:
+  BaseScore: 60
+  MaxMomentum: 3.0
+  ScoreReduction: 15.0
+  DecayTime: 2.5s
+  
+  After 1st use: 60 - (1.0 × 15) = 45
+  After 2nd use: 60 - (2.0 × 15) = 30
+  After 3rd use: 60 - (3.0 × 15) = 15 (maxed out)
+  After 2.5s idle: Momentum → 0, Score → 60</code></pre>
+
+<h2>Tuning Momentum</h2>
+
+<h3>MaxMomentum Values</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Value</th>
+      <th>Effect</th>
+      <th>Use Case</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>0</strong></td>
+      <td>No momentum</td>
+      <td>Actions that need instant availability (Reload, Flee)</td>
+    </tr>
+    <tr>
+      <td><strong>1.0-2.0</strong></td>
+      <td>Light momentum</td>
+      <td>Actions that can repeat but shouldn't spam (TakeCover)</td>
+    </tr>
+    <tr>
+      <td><strong>3.0-5.0</strong></td>
+      <td>Moderate momentum</td>
+      <td>Primary actions (Attack, Ability)</td>
+    </tr>
+    <tr>
+      <td><strong>6.0+</strong></td>
+      <td>Heavy momentum</td>
+      <td>Special abilities, ultimates (ThrowGrenade, Summon)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>ScoreReduction Values</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Value</th>
+      <th>Effect</th>
+      <th>Use Case</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>5-10</strong></td>
+      <td>Gentle penalty</td>
+      <td>Actions that should repeat frequently</td>
+    </tr>
+    <tr>
+      <td><strong>15-20</strong></td>
+      <td>Moderate penalty</td>
+      <td>Balanced actions</td>
+    </tr>
+    <tr>
+      <td><strong>25-40</strong></td>
+      <td>Strong penalty</td>
+      <td>Actions that should rarely repeat</td>
+    </tr>
+    <tr>
+      <td><strong>50+</strong></td>
+      <td>Severe penalty</td>
+      <td>One-off abilities</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>DecayTime Values</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Value</th>
+      <th>Effect</th>
+      <th>Use Case</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>1.0-2.0s</strong></td>
+      <td>Fast recovery</td>
+      <td>Actions that should be available soon</td>
+    </tr>
+    <tr>
+      <td><strong>2.5-5.0s</strong></td>
+      <td>Moderate recovery</td>
+      <td>Balanced actions</td>
+    </tr>
+    <tr>
+      <td><strong>10.0-30.0s</strong></td>
+      <td>Slow recovery</td>
+      <td>Ultimate abilities, rare actions</td>
+    </tr>
+    <tr>
+      <td><strong>Never</strong></td>
+      <td>No decay (manual reset)</td>
+      <td>One-time actions (phase transitions)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Common Configurations</h2>
+
+<h3>Primary Combat Action</h3>
+
+<pre><code>Action: Attack
+  BaseScore: 60.0
+  MaxMomentum: 3.0
+  MomentumScoreReduction: 15.0
+  MomentumDecayTime: 2.5s
+
+Effect:
+  Attack → Attack → Attack (3 times max)
+  Then forced break for 2.5s
+  Natural combat rhythm: burst → pause → burst</code></pre>
+
+<h3>Defensive Action</h3>
+
+<pre><code>Action: TakeCover
+  BaseScore: 70.0
+  MaxMomentum: 1.0
+  MomentumScoreReduction: 10.0
+  MomentumDecayTime: 3.0s
+
+Effect:
+  Takes cover once
+  Slight penalty (60 score) encourages staying
+  But not locked in cover permanently</code></pre>
+
+<h3>Special Ability</h3>
+
+<pre><code>Action: ThrowGrenade
+  BaseScore: 55.0
+  MaxMomentum: 5.0
+  MomentumScoreReduction: 30.0
+  MomentumDecayTime: 10.0s
+
+Effect:
+  Throws once: 55 score
+  After use: 55 - 30 = 25 (very low)
+  Takes 10s to fully recover
+  Prevents grenade spam</code></pre>
+
+<h3>Critical Action (No Momentum)</h3>
+
+<pre><code>Action: Reload
+  BaseScore: 80.0
+  MaxMomentum: 0.0
+  MomentumScoreReduction: 0.0
+  MomentumDecayTime: 0.0s
+
+Effect:
+  Always available when needed
+  No penalty for repeated use
+  Can reload back-to-back if interrupted</code></pre>
+
+<h2>Advanced Techniques</h2>
+
+<h3>Asymmetric Momentum</h3>
+
+<p>Different momentum for different situations:</p>
+
+<pre><code>Action: Attack
+  MaxMomentum: 3.0 (normal)
+  ScoreReduction: 15.0
+
+But with custom service:
+  void UService_CombatMonitor::TickService()
+  {
+      // Reduce momentum in "rage" mode
+      if (IsEnraged)
+      {
+          // Allow more attacks in succession
+          Brain->ResetActionMomentum(TEXT("Attack"));
+      }
+  }
+
+Result: Enraged enemies attack more frequently</code></pre>
+
+<h3>Momentum Transfer</h3>
+
+<p>Transfer momentum between similar actions:</p>
+
+<pre><code>// When Attack_Melee finishes
+void OnAttackMeleeComplete()
+{
+    // Transfer some momentum to Attack_Ranged
+    float MeleeMomentum = Brain->GetActionMomentum(TEXT("Attack_Melee"));
+    Brain->SetActionMomentum(TEXT("Attack_Ranged"), MeleeMomentum * 0.5f);
+}
+
+Result: Can't spam attacks by alternating types</code></pre>
+
+<h3>Context-Dependent Decay</h3>
+
+<p>Decay faster in certain situations:</p>
+
+<pre><code>// Custom momentum decay
+void UMyBrainComponent::TickComponent()
+{
+    Super::TickComponent();
+    
+    // Accelerate decay when not in combat
+    if (!IsInCombat())
+    {
+        // Decay 3x faster when idle
+        for (auto& Momentum : MomentumTracking)
+        {
+            Momentum.Value -= DeltaTime * 3.0f / DecayTime;
+            Momentum.Value = FMath::Max(0.0f, Momentum.Value);
+        }
+    }
+}
+
+Result: Actions refresh faster when AI is idle</code></pre>
+
+<h2>Debugging Momentum</h2>
+
+<h3>Gameplay Debugger</h3>
+
+<pre><code>Press ' → 5 → Select Agent
+
+MOMENTUM section:
+  Attack: ████░░░░░░ 2.3 / 3.0 (77%)
+  TakeCover: ██░░░░░░░░ 0.8 / 1.0 (80%)
+  Reload: ░░░░░░░░░░ 0.0 / 0.0 (N/A)
+  
+Shows:
+  - Current momentum value
+  - Max momentum
+  - % of max
+  - Decay progress</code></pre>
+
+<h3>Blueprint API</h3>
+
+<pre><code>// Get current momentum
+Get Action Momentum
+  Brain: Utility Brain Component
+  Action Name: "Attack"
+  Return: Float (0.0 to MaxMomentum)
+
+// Reset momentum manually
+Reset Action Momentum
+  Brain: Utility Brain Component
+  Action Name: "Attack"
+
+// Reset all momentum
+Reset All Momentum
+  Brain: Utility Brain Component
+
+// Common use: Reset on death
+Event: On Death
+  Get Utility Brain Component
+  → Reset All Momentum</code></pre>
+
+<h3>C++ API</h3>
+
+<pre><code>// UUtilityBrainComponent public API
+
+// Get momentum value
+float GetActionMomentum(const FName& ActionName) const;
+
+// Set momentum value
+void SetActionMomentum(const FName& ActionName, float NewMomentum);
+
+// Reset single action
+void ResetActionMomentum(const FName& ActionName);
+
+// Reset all actions
+void ResetAllMomentum();
+
+// Example: Boost ability during ultimate
+void ActivateUltimate()
+{
+    // Reset ability momentum for rapid-fire
+    UtilityBrain->ResetActionMomentum(TEXT("SpecialAbility"));
+}</code></pre>
+
+<h2>Common Patterns</h2>
+
+<h3>Pattern 1: Attack Burst</h3>
+
+<pre><code>Goal: 3 attacks, then pause
+
+Configuration:
+  MaxMomentum: 3.0
+  ScoreReduction: 20.0 (strong)
+  DecayTime: 3.0s
+
+Result:
+  Attack 3 times rapidly
+  Score drops: 60 → 40 → 20 → 0
+  3 second break
+  Repeat</code></pre>
+
+<h3>Pattern 2: Ability Rotation</h3>
+
+<pre><code>Goal: Use abilities in order, no spam
+
+Ability1:
+  MaxMomentum: 4.0
+  ScoreReduction: 25.0
+  DecayTime: 8.0s
+
+Ability2:
+  MaxMomentum: 4.0
+  ScoreReduction: 25.0
+  DecayTime: 8.0s
+
+Result:
+  Use Ability1 → high momentum → can't use again
+  Ability2 now highest score → use it
+  Ability1 momentum decaying
+  Natural rotation</code></pre>
+
+<h3>Pattern 3: Escalation</h3>
+
+<pre><code>Goal: Increase aggression over time
+
+Action: LightAttack
+  MaxMomentum: 2.0
+  ScoreReduction: 15.0
+  
+Action: HeavyAttack
+  MaxMomentum: 3.0
+  ScoreReduction: 20.0
+  Considerations:
+    - LightAttackMomentum: 1.5→0, 2.0→100
+
+Result:
+  Light attacks build momentum
+  When maxed, Heavy attack scores higher
+  Natural escalation pattern</code></pre>
+
+<h2>Performance Considerations</h2>
+
+<h3>Momentum Tracking Cost</h3>
+
+<pre><code>Per Action:
+  - Storage: 1 float (momentum value)
+  - Update: 1 subtraction per frame (decay)
+  - Apply: 1 multiplication during scoring
+
+Typical Agent (20 actions):
+  - 20 floats (~80 bytes)
+  - 20 subtractions/frame
+  - Negligible cost (< 0.01ms)
+
+Optimization: Only track actions with momentum > 0</code></pre>
+
+<h3>Decay Optimization</h3>
+
+<pre><code>NAIVE:
+  Update all action momentum every frame
+  20 actions × 60 fps = 1200 updates/second
+
+OPTIMIZED:
+  Only update actions with momentum > 0
+  Typically 2-3 actions active
+  3 actions × 60 fps = 180 updates/second
+  
+Savings: 85% reduction</code></pre>
+
+<h2>Troubleshooting</h2>
+
+<h3>Issue: "Action never repeats"</h3>
+
+<p><strong>Diagnosis:</strong></p>
+<pre><code>Momentum settings too aggressive:
+  MaxMomentum: 5.0
+  ScoreReduction: 50.0
+  → After one use: 60 - 50 = 10 (too low!)
+
+Fix: Reduce penalty
+  MaxMomentum: 3.0
+  ScoreReduction: 15.0
+  → After one use: 60 - 15 = 45 (reasonable)</code></pre>
+
+<h3>Issue: "Action still spams"</h3>
+
+<p><strong>Diagnosis:</strong></p>
+<pre><code>Momentum settings too gentle:
+  MaxMomentum: 1.0
+  ScoreReduction: 5.0
+  → After one use: 60 - 5 = 55 (still wins!)
+
+Fix: Increase penalty or max
+  MaxMomentum: 3.0
+  ScoreReduction: 20.0
+  → After one use: 60 - 20 = 40 (loses to alternatives)</code></pre>
+
+<h3>Issue: "Decay too slow/fast"</h3>
+
+<p><strong>Diagnosis:</strong></p>
+<pre><code>Check DecayTime:
+  Too slow: DecayTime = 30.0s (action unavailable forever)
+  Too fast: DecayTime = 0.5s (momentum has no effect)
+
+Fix: Adjust to match desired rhythm
+  Fast actions: 1-2s
+  Normal actions: 2-5s
+  Abilities: 5-15s</code></pre>
+
+<h2>Next Steps</h2>
+
+<div class="next-steps">
+  <a class="button primary" href="#/docs/resistance">
+    <i data-lucide="shield"></i>
+    Replace Resistance
+  </a>
+  <a class="button" href="#/docs/locking">
+    <i data-lucide="lock"></i>
+    Task Locking
+  </a>
+</div>
+
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="#/docs/action-patterns"><i data-lucide="target"></i> Action Design</a> - Momentum in action design</li>
+  <li><a href="#/docs/tuning"><i data-lucide="sliders"></i> Tuning Guide</a> - Balancing momentum values</li>
+  <li><a href="#/docs/bp-utility-library"><i data-lucide="code"></i> Blueprint API</a> - Momentum functions</li>
+  <li><a href="#/docs/intelligence-layers"><i data-lucide="cpu"></i> Intelligence Layers</a> - Momentum in tactical layer</li>
+</ul>
+
+<script>lucide.createIcons();</script>

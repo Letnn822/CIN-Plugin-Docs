@@ -1,0 +1,423 @@
+<h1>Brain Component</h1>
+<p>The <code>UUtilityBrainComponent</code> is the central decision-making engine that lives on your AI Controller.</p>
+
+<h2>Overview</h2>
+<p>The Brain Component orchestrates the entire Utility AI system:</p>
+<ul>
+  <li>Runs Services to gather Named Inputs</li>
+  <li>Evaluates all Actions and computes scores</li>
+  <li>Applies anti-thrashing mechanics (momentum, resistance, locking)</li>
+  <li>Selects and executes the best Action</li>
+  <li>Monitors Action completion and handles failures</li>
+  <li>Broadcasts delegates for external systems</li>
+</ul>
+
+<div class="callout note">
+  <span class="icon" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10"></circle>
+      <line x1="12" y1="16" x2="12" y2="12"></line>
+      <line x1="12" y1="8" x2="12.01" y2="8"></line>
+    </svg>
+  </span>
+  <div>
+    <strong>Location:</strong> The Brain Component lives on the <code>AAIController</code>, not the Pawn. This allows it to persist across pawn possession and handle death/respawn gracefully.
+  </div>
+</div>
+
+<h2>Setup</h2>
+
+<h3>Method 1: Quick Setup Component</h3>
+<pre><code>// Add to AI Controller Blueprint
+1. Add Component: UUtilityBrainComponent
+2. Add Component: UCINQuickSetupComponent
+3. Set Agent Preset on QuickSetupComponent
+4. Done! Auto-initializes on pawn possession</code></pre>
+
+<h3>Method 2: Manual Setup</h3>
+<pre><code>// AI Controller BeginPlay
+Event BeginPlay
+  ├─ Get Utility Brain Component
+  ├─ Add Actions array
+  │  ├─ DA_Action_Attack
+  │  ├─ DA_Action_Reload
+  │  └─ DA_Action_Patrol
+  ├─ Add Services array
+  │  ├─ Service_PerceptionMonitor
+  │  └─ Service_TacticalSense
+  └─ Call Initialize()</code></pre>
+
+<h3>Method 3: C++ Setup</h3>
+<pre><code>// C++ AI Controller Constructor
+AMyAIController::AMyAIController()
+{
+    BrainComponent = CreateDefaultSubobject&lt;UUtilityBrainComponent&gt;(TEXT("UtilityBrain"));
+}
+
+void AMyAIController::OnPossess(APawn* InPawn)
+{
+    Super::OnPossess(InPawn);
+    
+    if (BrainComponent)
+    {
+        BrainComponent->Initialize(InPawn);
+    }
+}</code></pre>
+
+<h2>Brain Tick Cycle</h2>
+
+<pre><code>Every Frame (or at configured interval):
+
+1. GatherInputs()
+   ├─ For each Service in Services array:
+   │  ├─ Check service conditions
+   │  ├─ Call Service.TickService()
+   │  └─ Service publishes Named Inputs
+   └─ Broadcast OnInputsGathered delegate
+
+2. EvaluateAndRunBestAction()
+   ├─ DecayMomentum(DeltaTime)
+   ├─ For each Action in Actions array:
+   │  ├─ Skip if locked
+   │  ├─ ComputeActionScore(Action)
+   │  │  ├─ Start with BaseScore
+   │  │  ├─ For each ScoringCurve:
+   │  │  │  ├─ Get Named Input value
+   │  │  │  ├─ Evaluate curve at input
+   │  │  │  └─ Add curve output to score
+   │  │  ├─ Subtract momentum penalty
+   │  │  └─ Return final score
+   │  └─ Store in scores map
+   ├─ FindBestAction(scores)
+   │  ├─ Get highest score
+   │  ├─ Check replace resistance
+   │  └─ Resolve ties with Priority
+   └─ If BestAction != CurrentAction:
+      ├─ Stop CurrentAction
+      ├─ Execute BestAction
+      ├─ Update momentum
+      └─ Broadcast OnActionStarted delegate
+
+3. Monitor CurrentAction
+   ├─ Check for completion
+   ├─ Handle success/failure
+   └─ Update locks if needed</code></pre>
+
+<h2>Key Properties</h2>
+
+<h3>Core Configuration</h3>
+<table class="comparison">
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Actions</td>
+      <td>Array</td>
+      <td>All available actions for this brain</td>
+    </tr>
+    <tr>
+      <td>Services</td>
+      <td>Array</td>
+      <td>Input publishers that run every tick</td>
+    </tr>
+    <tr>
+      <td>Named Inputs</td>
+      <td>Map</td>
+      <td>Current input values (0-1, published by services)</td>
+    </tr>
+    <tr>
+      <td>Update Interval</td>
+      <td>Float</td>
+      <td>Seconds between evaluations (0.0 = every tick)</td>
+    </tr>
+    <tr>
+      <td>bEnabled</td>
+      <td>Bool</td>
+      <td>Is the brain actively evaluating?</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>State Properties (Read-Only)</h3>
+<table class="comparison">
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Current Action</td>
+      <td>Object</td>
+      <td>Currently executing action</td>
+    </tr>
+    <tr>
+      <td>Current Action Name</td>
+      <td>String</td>
+      <td>Name of current action (for debugging)</td>
+    </tr>
+    <tr>
+      <td>Current Action Score</td>
+      <td>Float</td>
+      <td>Score of current action</td>
+    </tr>
+    <tr>
+      <td>bPaused</td>
+      <td>Bool</td>
+      <td>Is evaluation paused?</td>
+    </tr>
+    <tr>
+      <td>Momentum Tracking</td>
+      <td>Map</td>
+      <td>Action → momentum value</td>
+    </tr>
+    <tr>
+      <td>Locked Actions</td>
+      <td>Map</td>
+      <td>Action → unlock time</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Blueprint API</h2>
+
+<h3>Core Functions</h3>
+<pre><code>// Initialization
+Initialize(Pawn)
+AddAction(ActionAsset)
+AddService(ServiceInstance)
+RemoveAction(ActionAsset)
+RemoveService(ServiceInstance)
+
+// Control
+SetEnabled(bEnabled)
+Pause()
+Resume()
+ForceAction(ActionAsset)
+AbortCurrentAction()
+
+// Named Inputs
+SetNamedInputValue(Name, Value)
+GetNamedInputValue(Name) → Float
+HasNamedInput(Name) → Bool
+GetAllNamedInputs() → Map
+
+// Query State
+GetCurrentActionName() → String
+GetCurrentActionScore() → Float
+GetAllActionScores() → Map
+IsBrainActive() → Bool
+
+// Momentum & Locking
+GetActionMomentum(Action) → Float
+ResetActionMomentum(Action)
+ResetAllMomentum()
+LockActionForDuration(Action, Duration)
+UnlockAction(Action)
+IsActionLocked(Action) → Bool
+
+// Debug
+GetDebugString() → String
+PrintDebugInfo()
+EnableDebugVisualization(bEnabled)</code></pre>
+
+<h3>Delegates</h3>
+<pre><code>// Called after services run
+OnInputsGathered.Broadcast(NamedInputs)
+
+// Called when new action starts
+OnActionStarted.Broadcast(NewAction, OldAction)
+
+// Called when action completes
+OnActionCompleted.Broadcast(Action, Result)
+
+// Called when action fails
+OnActionFailed.Broadcast(Action, Reason)</code></pre>
+
+<h2>Named Inputs System</h2>
+
+<p>Named Inputs are the brain's "memory" - a map of string keys to float values (0-1).</p>
+
+<h3>How Services Populate Inputs</h3>
+<pre><code>// Service_PerceptionMonitor publishes:
+Brain->SetNamedInputValue("HasKnownEnemy", bHasEnemy ? 1.0f : 0.0f);
+Brain->SetNamedInputValue("EnemyCount", FMath::Clamp(Count / 5.0f, 0.0f, 1.0f));
+Brain->SetNamedInputValue("NearestEnemyDistance", NormalizedDistance);
+Brain->SetNamedInputValue("ThreatLevel", CalculatedThreat);
+
+// Actions read these inputs in their scoring curves
+Action "Attack" reads:
+  - HasKnownEnemy (0 or 1)
+  - NearestEnemyDistance (0-1, closer = lower value)
+  - AmmoCount (0-1)
+  
+Final Score = 50 + (HasKnownEnemy * 100) + (AmmoCount * 20) - Momentum</code></pre>
+
+<h3>Input Naming Conventions</h3>
+<div class="callout tip">
+  <span class="icon" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
+    </svg>
+  </span>
+  <div>
+    <strong>Best Practices:</strong>
+    <ul>
+      <li>Use PascalCase: <code>HasKnownEnemy</code>, <code>AmmoCount</code></li>
+      <li>Boolean-like: <code>HasX</code>, <code>CanX</code>, <code>IsX</code></li>
+      <li>Quantities: <code>XCount</code>, <code>XLevel</code>, <code>XAmount</code></li>
+      <li>Distances: <code>NearestXDistance</code>, <code>DistanceToX</code></li>
+      <li>Times: <code>TimeSinceX</code>, <code>TimeUntilX</code></li>
+    </ul>
+  </div>
+</div>
+
+<h2>Performance Considerations</h2>
+
+<h3>Update Interval</h3>
+<pre><code>// Evaluate every tick (high CPU, responsive)
+UpdateInterval: 0.0
+
+// Evaluate 10 times per second (balanced)
+UpdateInterval: 0.1
+
+// Evaluate 5 times per second (low CPU, slower reactions)
+UpdateInterval: 0.2
+
+// Dynamic LOD-based interval
+UpdateInterval: BasedOnDistanceToPlayer()</code></pre>
+
+<h3>Service Throttling</h3>
+<pre><code>// Services can throttle themselves
+Service_PerceptionMonitor:
+  MinInterval: 0.1  // Update at most 10 Hz
+  
+Service_EnvironmentalMemory:
+  MinInterval: 0.5  // Update 2 Hz (slower, less critical)</code></pre>
+
+<h3>Action Count</h3>
+<pre><code>Optimal: 5-10 actions per brain
+Acceptable: 10-20 actions
+Warning: 20+ actions (consider splitting or simplifying)
+
+Tip: Use Agent Presets to swap action sets based on state
+  - Combat preset: 8 combat actions
+  - Patrol preset: 4 patrol actions
+  - Investigation preset: 6 investigation actions</code></pre>
+
+<h2>Common Patterns</h2>
+
+<h3>Action Switching Based on State</h3>
+<pre><code>// Blueprint: Swap actions when entering combat
+Event On Enemy Detected
+  ├─ Get Utility Brain
+  ├─ Remove Action: DA_Action_Patrol
+  ├─ Remove Action: DA_Action_Idle
+  ├─ Add Action: DA_Action_Attack
+  ├─ Add Action: DA_Action_TakeCover
+  └─ Add Action: DA_Action_Reload</code></pre>
+
+<h3>Dynamic Score Modifiers</h3>
+<pre><code>// C++ Example: Boost action score at runtime
+void AMyController::OnHealthLow()
+{
+    if (BrainComponent)
+    {
+        // Boost "Retreat" action score by 50 points
+        UUtilityActionAsset* RetreatAction = FindActionByName("Retreat");
+        BrainComponent->SetActionScoreModifier(RetreatAction, 50.0f);
+    }
+}</code></pre>
+
+<h3>Pausing for Cutscenes</h3>
+<pre><code>// Pause brain during cutscene
+Brain->Pause();
+PlayCutscene();
+OnCutsceneComplete:
+  Brain->Resume();</code></pre>
+
+<h2>Debugging</h2>
+
+<h3>Gameplay Debugger</h3>
+<p>Press <kbd>'</kbd> → Select <strong>Utility AI</strong> category</p>
+<pre><code>Brain: Active (10 Hz)
+Current Action: Attack (150 pts)
+Momentum: Attack=2.1, Reload=0.0
+Locked: Patrol (unlock in 1.2s)
+
+All Scores:
+  Attack:     150.0 ← EXECUTING
+  Reload:     120.0
+  TakeCover:   85.0
+  Patrol:      LOCKED
+
+Named Inputs:
+  HasKnownEnemy: 1.0
+  AmmoCount: 0.4
+  Health: 0.6
+  ThreatLevel: 0.8</code></pre>
+
+<h3>Debug Component</h3>
+<pre><code>// Add to AI Controller for overhead widget
+Add Component: UCINDebugComponent
+Properties:
+  bShowCurrentAction: true
+  bShowScores: true
+  bShowInputs: true
+  bShowServices: true
+  UpdateInterval: 0.1</code></pre>
+
+<h3>Blueprint Logging</h3>
+<pre><code>// Print debug info to log
+Brain->PrintDebugInfo()
+
+Output:
+[UtilityBrain] Current: Attack (150.0)
+[UtilityBrain] Scores: Attack=150, Reload=120, Cover=85
+[UtilityBrain] Inputs: Health=0.6, Ammo=0.4, Enemy=1.0
+[UtilityBrain] Momentum: Attack=2.1
+[UtilityBrain] Locked: Patrol</code></pre>
+
+<h2>Best Practices</h2>
+
+<div class="callout tip">
+  <span class="icon" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
+    </svg>
+  </span>
+  <div>
+    <strong>Brain Configuration Tips:</strong>
+    <ul>
+      <li><strong>Start Simple:</strong> 3-5 actions, add more as needed</li>
+      <li><strong>Use Presets:</strong> Let UCINQuickSetupComponent handle initialization</li>
+      <li><strong>Monitor Performance:</strong> Watch stat UtilityAI in console</li>
+      <li><strong>Throttle Services:</strong> Not everything needs 60 Hz updates</li>
+      <li><strong>LOD System:</strong> Reduce update rate for distant agents</li>
+      <li><strong>Name Consistently:</strong> Named Inputs should match across all assets</li>
+      <li><strong>Debug Early:</strong> Add debug component during development</li>
+    </ul>
+  </div>
+</div>
+
+<h2>Next Steps</h2>
+<div class="hero-cta">
+  <a class="button primary" href="#/docs/services">Services System</a>
+  <a class="button" href="#/docs/named-inputs">Named Inputs</a>
+  <a class="button" href="#/docs/presets">Agent Presets</a>
+</div>
+
+<h3>Related Documentation</h3>
+<ul>
+  <li><a href="#/docs/utility-ai">Utility AI System</a> - Scoring mechanics</li>
+  <li><a href="#/docs/actions">Actions</a> - Creating actions</li>
+  <li><a href="#/docs/debug-tools">Debug Tools</a> - Debugging guide</li>
+  <li><a href="#/docs/performance">Performance</a> - Optimization tips</li>
+</ul>

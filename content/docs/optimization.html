@@ -1,0 +1,576 @@
+<h1>Performance Optimization</h1>
+<p class="note">Optimize your AI for production. Learn budget management, LOD systems, profiling techniques, and scalability patterns that keep your game running smoothly with hundreds of AI agents.</p>
+
+<div class="page-meta">
+  <span class="time"><i data-lucide="clock"></i> 18 minutes</span>
+  <span class="difficulty"><i data-lucide="bar-chart-2"></i> Intermediate-Advanced</span>
+</div>
+
+<div class="callout tip">
+  <span class="icon"><i data-lucide="lightbulb"></i></span>
+  <div>
+    <strong>Optimization Principle:</strong> Measure first, optimize second. CIN Plugin includes built-in profiling and budget management. Use them before manual optimization.
+  </div>
+</div>
+
+<h2>Performance Budget Overview</h2>
+
+<pre><code>AI Performance Budget (per frame at 60 FPS):
+┌─────────────────────────────────────────────┐
+│ Total Frame Budget: 16.67ms                 │
+├─────────────────────────────────────────────┤
+│ AI Budget: 2-4ms (12-24% of frame)          │
+│ ├─ Brain Evaluation: 1-2ms                  │
+│ │  ├─ Input gathering: 0.3ms                │
+│ │  ├─ Action scoring: 0.5ms                 │
+│ │  └─ Decision making: 0.2ms                │
+│ ├─ Services: 0.5-1ms                        │
+│ ├─ Perception: 0.3-0.5ms                    │
+│ └─ Behavior execution: 0.5-1ms              │
+└─────────────────────────────────────────────┘
+
+Target: <2ms for 10 agents, <4ms for 50 agents</code></pre>
+
+<h2>Built-In Budget Management</h2>
+
+<h3>Brain Evaluation Budget</h3>
+
+<p>Brains automatically spread evaluation across frames:</p>
+
+<pre><code>UUtilityBrainComponent Settings:
+├─ EvaluationBudgetMs: 2.0ms (default)
+├─ bUseRoundRobinEvaluation: true
+└─ ActionsPerEvaluation: 5 (evaluate 5 actions/frame)
+
+Effect:
+  If action count > ActionsPerEvaluation:
+    Frame 1: Evaluate actions 0-4 (0.5ms)
+    Frame 2: Evaluate actions 5-9 (0.5ms)
+    Frame 3: Evaluate actions 10-14 (0.5ms)
+    ...continues until all evaluated
+    
+  If evaluation time exceeds budget:
+    Defer remaining actions to next frame</code></pre>
+
+<h3>Service Budget</h3>
+
+<p>Services tick in sequence until budget exhausted:</p>
+
+<pre><code>Service Execution:
+Frame 1:
+  PerceptionMonitor (0.8ms) ✓
+  TacticalSense (1.1ms) ✓
+  Budget remaining: 0.1ms
+  → Defer remaining services
+
+Frame 2:
+  TacticalStrategy (0.5ms) ✓
+  CustomService (0.3ms) ✓
+  PerceptionMonitor (0.8ms) ✓
+  Budget remaining: 0.4ms
+
+Automatic load balancing across frames</code></pre>
+
+<h2>Service Optimization</h2>
+
+<h3>MinInterval Configuration</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Service Type</th>
+      <th>Recommended Interval</th>
+      <th>Reason</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Combat Perception</strong></td>
+      <td>0.1-0.2s</td>
+      <td>Needs fast response</td>
+    </tr>
+    <tr>
+      <td><strong>General Perception</strong></td>
+      <td>0.3-0.5s</td>
+      <td>Balanced awareness</td>
+    </tr>
+    <tr>
+      <td><strong>State Monitoring</strong></td>
+      <td>0.5-1.0s</td>
+      <td>Slow-changing data</td>
+    </tr>
+    <tr>
+      <td><strong>Strategy Evaluation</strong></td>
+      <td>1.0-2.0s</td>
+      <td>High-level decisions</td>
+    </tr>
+    <tr>
+      <td><strong>Analytics/Stats</strong></td>
+      <td>5.0-10.0s</td>
+      <td>Non-critical data</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Staggered Updates</h3>
+
+<pre><code>// Avoid all agents updating same frame
+Spawn 10 agents:
+  Agent 0: Offset = 0.0s
+  Agent 1: Offset = 0.1s
+  Agent 2: Offset = 0.2s
+  ...
+  Agent 9: Offset = 0.9s
+
+Result: Perception updates spread across 1 second
+
+// Blueprint Implementation
+Event: Spawn AI
+  Get All Utility AI Pawns
+  Count = Array Length
+  
+  Set Named Input Value
+    Input: "UpdateOffset"
+    Value: (CurrentIndex / TotalCount)</code></pre>
+
+<h3>Event-Driven vs Polling</h3>
+
+<pre><code>❌ POLLING (every tick):
+void UMyService::TickService(float DeltaTime)
+{
+    // Check health every frame (expensive!)
+    float CurrentHealth = OwnerPawn->GetHealth();
+    Brain->SetNamedInputValue(TEXT("Health"), CurrentHealth);
+}
+
+✅ EVENT-DRIVEN:
+void AMyCharacter::TakeDamage(float Damage)
+{
+    Health -= Damage;
+    
+    // Update only when changed
+    if (UUtilityBrainComponent* Brain = GetBrain())
+    {
+        Brain->SetNamedInputValue(TEXT("Health"), Health / MaxHealth);
+    }
+}
+
+Savings: 60 calls/second → 0-5 calls/second</code></pre>
+
+<h2>LOD System</h2>
+
+<h3>Distance-Based LOD</h3>
+
+<pre><code>AI LOD Levels:
+┌─────────────────────────────────────────────┐
+│ LOD 0 (0-1500 units): Full AI              │
+│ ├─ Evaluation: Every frame                 │
+│ ├─ Perception: 0.1s interval                │
+│ └─ All services active                      │
+├─────────────────────────────────────────────┤
+│ LOD 1 (1500-3000 units): Reduced           │
+│ ├─ Evaluation: Every 2 frames               │
+│ ├─ Perception: 0.3s interval                │
+│ └─ Non-critical services disabled           │
+├─────────────────────────────────────────────┤
+│ LOD 2 (3000-5000 units): Minimal           │
+│ ├─ Evaluation: Every 5 frames               │
+│ ├─ Perception: 1.0s interval                │
+│ └─ Only essential services                  │
+├─────────────────────────────────────────────┤
+│ LOD 3 (5000+ units): Hibernation           │
+│ ├─ No evaluation                            │
+│ ├─ No perception                            │
+│ └─ Simple state machine fallback            │
+└─────────────────────────────────────────────┘</code></pre>
+
+<h3>Implementing LOD</h3>
+
+<pre><code>// C++ Service with LOD awareness
+void UMyOptimizedService::TickService(float DeltaTime)
+{
+    // Check LOD level
+    float DistanceToPlayer = CalculatePlayerDistance();
+    
+    if (DistanceToPlayer < 1500.0f) // LOD 0
+    {
+        MinInterval = 0.1f; // Full update rate
+        PerformFullUpdate();
+    }
+    else if (DistanceToPlayer < 3000.0f) // LOD 1
+    {
+        MinInterval = 0.3f; // Reduced update rate
+        PerformReducedUpdate();
+    }
+    else // LOD 2+
+    {
+        MinInterval = 1.0f; // Minimal updates
+        PerformMinimalUpdate();
+    }
+}
+
+// Blueprint Implementation
+Event: Update LOD
+  Get Distance To Player
+  
+  If Distance < 1500:
+    Set Brain Tick Interval: 0.0 (every frame)
+    Set Service Intervals: 0.1s
+  Else If Distance < 3000:
+    Set Brain Tick Interval: 0.033 (every 2 frames)
+    Set Service Intervals: 0.3s
+  Else:
+    Set Brain Tick Interval: 0.083 (every 5 frames)
+    Set Service Intervals: 1.0s</code></pre>
+
+<h3>Visibility-Based LOD</h3>
+
+<pre><code>More aggressive than distance:
+
+If Not Visible To Player:
+  └─ Reduce to LOD 2 immediately
+  └─ Disable expensive perception
+  └─ Simplify decision-making
+
+If Off-Screen > 5 seconds:
+  └─ Hibernate (LOD 3)
+  └─ Pause all AI updates
+  └─ Wake on damage or player proximity
+
+Savings: 50-70% reduction for off-screen AI</code></pre>
+
+<h2>Perception Optimization</h2>
+
+<h3>Sense Configuration</h3>
+
+<pre><code>EXPENSIVE:
+  Sight with 360° FOV, 5000 range, queried every 0.1s
+
+OPTIMIZED:
+  Sight with 120° FOV, 3000 range, queried every 0.3s
+  
+Savings:
+  FOV reduction: 360° → 120° = 66% fewer checks
+  Range reduction: 5000 → 3000 = 64% smaller area
+  Interval increase: 0.1s → 0.3s = 66% fewer updates
+  Combined: ~90% cost reduction</code></pre>
+
+<h3>Perception Sharing</h3>
+
+<pre><code>NAIVE (each agent has own perception):
+  10 agents × 0.5ms perception = 5.0ms total
+
+OPTIMIZED (squad shares perception):
+  1 leader with perception: 0.5ms
+  9 members use shared data: 0.1ms each = 0.9ms
+  Total: 1.4ms
+  
+Savings: 72% reduction
+
+Implementation:
+  Leader: Full UAIPerceptionComponent
+  Members: Read from squad's enemy intel
+  Update sharing every 0.5s</code></pre>
+
+<h2>Action Optimization</h2>
+
+<h3>Consideration Optimization</h3>
+
+<pre><code>EXPENSIVE:
+Action with 7 considerations:
+  Each consideration: Curve lookup, multiplication
+  7 lookups × 20 actions = 140 operations/evaluation
+
+OPTIMIZED:
+Action with 3 key considerations:
+  Remove redundant considerations
+  3 lookups × 20 actions = 60 operations
+  
+Savings: 57% reduction
+
+Guidelines:
+  ✓ Keep 2-4 considerations per action
+  ✗ Avoid more than 5 considerations</code></pre>
+
+<h3>Early Exit Optimization</h3>
+
+<pre><code>// Actions ordered by likelihood to win
+Actions in preset:
+  1. Attack (primary, wins 40% of time)
+  2. TakeCover (defensive, wins 25%)
+  3. Reload (situational, wins 15%)
+  4. Retreat (rare, wins 10%)
+  5. Patrol (fallback, wins 10%)
+
+Effect:
+  Average iterations to find winner: ~2.5
+  
+vs Random Order:
+  Average iterations: ~3.5
+  
+Savings: 28% fewer action evaluations</code></pre>
+
+<h2>Profiling</h2>
+
+<h3>Unreal Insights</h3>
+
+<pre><code>1. Enable Unreal Insights:
+   Project Settings → Plugins → Enable "Trace"
+
+2. Launch with tracing:
+   -trace=cpu,frame,counters
+
+3. Open UnrealInsights.exe
+
+4. Look for:
+   - UUtilityBrainComponent::TickComponent
+   - UUtilityService::TickService
+   - UAIPerceptionComponent::UpdatePerception
+
+5. Identify outliers:
+   - Any service > 1ms?
+   - Brain tick > 2ms?
+   - Total AI > 4ms?</code></pre>
+
+<h3>Gameplay Debugger Profiling</h3>
+
+<pre><code>Press ' → 5 → Select Agent
+
+PERFORMANCE section:
+  Brain Eval: 0.8ms (Target: <2ms) ✓
+  Services: 1.2ms (Target: <1ms) ⚠
+    - PerceptionMonitor: 0.5ms
+    - TacticalSense: 0.4ms
+    - CustomService: 0.3ms ← Investigate this
+  Actions: 0.3ms
+  Total: 2.3ms</code></pre>
+
+<h3>Console Commands</h3>
+
+<pre><code>// Show AI performance stats
+CIN.Debug.ShowPerf 1
+
+Output:
+  Total AI: 3.2ms (48 agents)
+  Avg/Agent: 0.067ms
+  Most Expensive:
+    - EnemySoldier_23: 0.8ms
+    - EnemySoldier_12: 0.6ms
+    - EnemySoldier_45: 0.4ms
+
+// Profile specific agent
+CIN.Debug.ProfileAgent EnemySoldier_23
+
+// Dump all AI stats
+CIN.Debug.DumpAIStats</code></pre>
+
+<h2>Scalability</h2>
+
+<h3>Agent Count Targets</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Agent Count</th>
+      <th>Target Cost</th>
+      <th>Techniques Required</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>1-10</td>
+      <td><2ms total</td>
+      <td>None, full AI</td>
+    </tr>
+    <tr>
+      <td>10-50</td>
+      <td><4ms total</td>
+      <td>Basic optimization, staggering</td>
+    </tr>
+    <tr>
+      <td>50-100</td>
+      <td><5ms total</td>
+      <td>LOD, perception sharing, event-driven</td>
+    </tr>
+    <tr>
+      <td>100-200</td>
+      <td><6ms total</td>
+      <td>Aggressive LOD, hibernation, simplified AI</td>
+    </tr>
+    <tr>
+      <td>200+</td>
+      <td><8ms total</td>
+      <td>Multi-threading, proxy AI, heavy LOD</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Batch Operations</h3>
+
+<pre><code>NAIVE (update 100 agents individually):
+  For Each Agent:
+    Update Perception
+    Update Brain
+    Update Services
+  Total: 100 separate update calls
+
+BATCHED (group updates):
+  Batch 1 (Frame 1): Agents 0-19
+  Batch 2 (Frame 2): Agents 20-39
+  Batch 3 (Frame 3): Agents 40-59
+  Batch 4 (Frame 4): Agents 60-79
+  Batch 5 (Frame 5): Agents 80-99
+  
+Each agent updates every 5 frames (0.083s)
+Acceptable for most scenarios
+
+Savings: 80% reduction in per-frame cost</code></pre>
+
+<h2>Memory Optimization</h2>
+
+<h3>Action Asset Instancing</h3>
+
+<pre><code>MEMORY HOG:
+  100 agents × 10 actions × 5KB = 5MB
+  Each agent has own action copies
+
+OPTIMIZED:
+  10 shared action assets × 5KB = 50KB
+  All agents reference same assets
+  Per-agent state in brain only
+  
+Savings: 99% memory reduction
+
+Implementation:
+  Use Data Assets for actions (shared)
+  Store only runtime state in brain</code></pre>
+
+<h3>Input Pooling</h3>
+
+<pre><code>MEMORY HOG:
+  50 inputs × 100 agents = 5000 input entries
+  Many unused/redundant
+
+OPTIMIZED:
+  Pool common inputs ("HasEnemy", "Health")
+  Only store changed values
+  Clear old/unused inputs periodically
+  
+Result: ~30-50% memory reduction</code></pre>
+
+<h2>Platform-Specific Optimizations</h2>
+
+<h3>PC/Console</h3>
+
+<pre><code>Settings for high-end hardware:
+  EvaluationBudgetMs: 3.0ms
+  Service Budget: 2.0ms
+  Max Agents: 100-200
+  LOD Distances: 2000/4000/6000
+  Perception Range: 5000</code></pre>
+
+<h3>Mobile</h3>
+
+<pre><code>Settings for mobile:
+  EvaluationBudgetMs: 1.5ms
+  Service Budget: 1.0ms
+  Max Agents: 20-40
+  LOD Distances: 1000/2000/3000
+  Perception Range: 2000
+  Aggressive LOD (50% agents hibernating)</code></pre>
+
+<h3>VR</h3>
+
+<pre><code>Settings for VR (90 FPS target = 11.1ms):
+  EvaluationBudgetMs: 2.0ms
+  Service Budget: 1.5ms
+  Max Agents: 30-60
+  LOD Distances: 1500/3000/4500
+  Perception Range: 3000
+  Prioritize visible AI</code></pre>
+
+<h2>Common Performance Issues</h2>
+
+<h3>Issue: Sudden Frame Drops</h3>
+
+<p><strong>Symptoms:</strong> Smooth 60 FPS, then sudden drop to 40 FPS</p>
+
+<p><strong>Diagnosis:</strong></p>
+<pre><code>Unreal Insights shows:
+  Frame 1000: AI cost 2.3ms ✓
+  Frame 1001: AI cost 12.8ms ✗
+  Frame 1002: AI cost 2.1ms ✓
+
+Spike caused by:
+  All services updating same frame
+  Perception update + squad strategy + custom service
+
+Fix: Stagger service updates</code></pre>
+
+<h3>Issue: Slow Growth Over Time</h3>
+
+<p><strong>Symptoms:</strong> Starts at 60 FPS, slowly degrades to 45 FPS</p>
+
+<p><strong>Diagnosis:</strong></p>
+<pre><code>Memory leak or accumulation:
+  - Stimulus memory not clearing
+  - Input map growing unbounded
+  - Action history accumulating
+
+Fix: Periodic cleanup in services</code></pre>
+
+<h3>Issue: One Agent Costs 10x Others</h3>
+
+<p><strong>Diagnosis:</strong></p>
+<pre><code>CIN.Debug.ProfileAgent shows:
+  Agent_12: 5.2ms (outlier!)
+  - CustomService: 4.8ms ← Problem!
+  
+Check CustomService implementation:
+  Likely doing expensive operation (raycasts, pathfinding)
+  
+Fix: Move expensive work to async task or cache results</code></pre>
+
+<h2>Optimization Checklist</h2>
+
+<div class="callout tip">
+  <span class="icon"><i data-lucide="check-square"></i></span>
+  <div>
+    <strong>Pre-Ship Optimization:</strong>
+    <ul class="compact">
+      <li>✓ Profile with Unreal Insights (identify outliers)</li>
+      <li>✓ AI budget < 4ms for target agent count</li>
+      <li>✓ Service intervals appropriate (not all 0.1s)</li>
+      <li>✓ Staggered updates implemented</li>
+      <li>✓ LOD system active for 50+ agents</li>
+      <li>✓ Perception sharing in squads</li>
+      <li>✓ Event-driven updates where possible</li>
+      <li>✓ No memory leaks (play for 30+ minutes)</li>
+      <li>✓ Tested on target platform</li>
+      <li>✓ Scalability settings configured</li>
+    </ul>
+  </div>
+</div>
+
+<h2>Next Steps</h2>
+
+<div class="next-steps">
+  <a class="button primary" href="#/docs/intelligence-layers">
+    <i data-lucide="cpu"></i>
+    Intelligence Layers
+  </a>
+  <a class="button" href="#/docs/module-structure">
+    <i data-lucide="box"></i>
+    Module Architecture
+  </a>
+</div>
+
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="#/docs/service-configuration"><i data-lucide="settings"></i> Service Configuration</a> - Optimize service intervals</li>
+  <li><a href="#/docs/lod-system"><i data-lucide="layers"></i> LOD System</a> - Detailed LOD implementation</li>
+  <li><a href="#/docs/profiling"><i data-lucide="bar-chart"></i> Profiling Guide</a> - Advanced profiling</li>
+  <li><a href="#/docs/best-practices"><i data-lucide="star"></i> Best Practices</a> - Performance patterns</li>
+</ul>
+
+<script>lucide.createIcons();</script>

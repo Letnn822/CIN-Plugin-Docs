@@ -1,0 +1,403 @@
+<h1>Services & Input Providers</h1>
+<p>Services are automatic input publishers that bridge your game systems to the Utility AI brain. They run every tick to populate Named Inputs.</p>
+
+<h2>What is a Service?</h2>
+<p>A Service is a <code>UUtilityService</code> instance that:</p>
+<ul>
+  <li>Runs every tick (or at configured intervals)</li>
+  <li>Reads game state (perception, health, squad intel, etc.)</li>
+  <li>Publishes Named Inputs to the Brain (0-1 normalized values)</li>
+  <li>Can start/stop automatically based on conditions</li>
+</ul>
+
+<div class="callout note">
+  <span class="icon" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10"></circle>
+      <line x1="12" y1="16" x2="12" y2="12"></line>
+      <line x1="12" y1="8" x2="12.01" y2="8"></line>
+    </svg>
+  </span>
+  <div>
+    <strong>Key Principle:</strong> Services own data publishing. Never manually set inputs in Blueprint/C++—let services handle it automatically.
+  </div>
+</div>
+
+<h2>Built-In Services</h2>
+
+<h3>Service_PerceptionMonitor</h3>
+<p>Bridges UAIPerception to Utility AI. Publishes 20+ perception-based inputs.</p>
+
+<pre><code>Published Inputs:
+  Enemy Detection:
+    - HasKnownEnemy (0/1)
+    - EnemyCount (0-1, normalized to MaxTrackedEnemies)
+    - HasVisibleEnemy (0/1)
+    - VisibleEnemyCount (0-1)
+    - NearestEnemyDistance (0-1, normalized to MaxSightRange)
+  
+  Ally Detection:
+    - AllyCount (0-1)
+    - NearestAllyDistance (0-1)
+  
+  Threat Assessment:
+    - ThreatLevel (0-1, based on distance + visibility)
+    - UnderFire (0/1, damage received recently)
+  
+  Stimulus Memory:
+    - TimeSinceLastSawEnemy (0-1, normalized to MemoryDuration)
+    - LastKnownEnemyLocationX/Y/Z (world coordinates)
+    - DistanceToLastKnownEnemy (0-1)
+  
+  Sound Detection:
+    - HeardSuspiciousSound (0/1)
+    - SuspiciousLocationDistance (0-1)
+
+Configuration:
+  StimulusMemoryDuration: 10.0s (5-60s recommended)
+  CloseThreatDistance: 500 units
+  MediumThreatDistance: 1500 units
+  UnderFireWindow: 2.0s
+  MinInterval: 0.1s (10 Hz)
+  bPublishEnemyInputs: true
+  bPublishAllyInputs: true
+  bPublishThreatInputs: true
+  bDebugVisualize: false
+
+Requirements:
+  - UAIPerceptionComponent on AIController
+  - GenericTeamId set for team affiliation</code></pre>
+
+<h3>Service_EnvironmentalMemory</h3>
+<p>Tracks object states in the environment for investigation behaviors.</p>
+
+<pre><code>Published Inputs:
+  - HasMemorizedObjects (0/1)
+  - MemorizedObjectCount (0-1)
+  - NearestObjectDistance (0-1)
+  - HasDisplacedObjects (0/1)
+  - HasOpenDoors (0/1)
+  - HasOpenContainers (0/1)
+  - SuspiciousChangeCount (0-1)
+
+Configuration:
+  MaxMemorizedObjects: 50
+  MemoryRange: 3000 units
+  MinInterval: 0.2s (5 Hz)
+  bTrackDisplacement: true
+  bTrackDoorStates: true
+  bTrackContainers: true
+
+Requirements:
+  - UEnvironmentalMemoryComponent on Pawn
+  - Objects tagged with CIN.Memory.Memorizable
+  - PerceptionEnvironmentSubsystem active</code></pre>
+
+<h3>Service_TacticalSense</h3>
+<p>Reports individual agent perception to squad intelligence system.</p>
+
+<pre><code>Published Inputs:
+  - HasSquad (0/1)
+  - IsSquadLeader (0/1)
+  - SquadMemberCount (0-1, normalized to MaxSquadSize)
+  - MyKnownEnemyCount (0-1)
+  - DistanceToSquadLeader (0-1)
+
+Configuration:
+  MinInterval: 0.15s
+  bReportToSquad: true
+  bPublishPersonalInputs: true
+
+Requirements:
+  - UTacticalMemberComponent on Pawn
+  - UAIPerceptionComponent on AIController
+  - Squad name configured</code></pre>
+
+<h3>Service_TacticalStrategy</h3>
+<p>Leader-only service that synthesizes squad strategy and publishes to all members.</p>
+
+<pre><code>Published Inputs (to all squad members):
+  - SquadStrategy (0-1 enum: Search=0, Assault=0.25, Flank=0.5, Hold=0.75, Retreat=1.0)
+  - SquadStrategyConfidence (0-1)
+  - AssignedRole (0-1, for flank maneuvers)
+  - SquadKnownEnemyCount (0-1)
+  - SquadLastKnownEnemyDistance (0-1)
+
+Strategy Logic:
+  Search:  No enemies, patrol mode
+  Assault: Outnumber enemies, aggressive
+  Flank:   Equal numbers, tactical
+  Hold:    Defensive position
+  Retreat: Outnumbered, low health
+
+Configuration:
+  StrategyTTL: 5.0s
+  MinInterval: 0.2s
+  RequiredLeaderConfidence: 0.6
+
+Requirements:
+  - Only runs on squad leader
+  - UTacticalMemberComponent with bIsLeader=true</code></pre>
+
+<h3>Service_TagToInput</h3>
+<p>Maps GameplayTags to Named Inputs for dynamic state tracking.</p>
+
+<pre><code>Example Mappings:
+  Tag: Status.Combat.InCover → Input: "InCover" (1.0 if has tag)
+  Tag: Status.Health.Critical → Input: "IsCritical" (1.0 if has tag)
+  Tag: Ability.Cooldown.Dash → Input: "DashReady" (0.0 if has tag)
+
+Configuration:
+  TagToInputMappings: Array of mappings
+  MinInterval: 0.1s
+  bInvertTagPresence: false (per mapping)
+
+Requirements:
+  - IGameplayTagAssetInterface on Pawn or Controller</code></pre>
+
+<h2>Service Lifecycle</h2>
+
+<pre><code>┌─────────────────────────────────────────────┐
+│         SERVICE LIFECYCLE                   │
+└─────────────────────────────────────────────┘
+
+1. INITIALIZATION
+   ├─ Brain adds service to Services array
+   ├─ Service caches references (Brain, Pawn, Controller)
+   └─ OnServiceStart() called (if StartConditions met)
+
+2. EVERY TICK (GatherInputs)
+   ├─ Check MinInterval (throttle)
+   ├─ Check StartConditions (if not running)
+   │  └─ Call OnServiceStart() if conditions now true
+   ├─ If running:
+   │  ├─ TickService(DeltaTime)
+   │  │  ├─ Read game state
+   │  │  ├─ Compute normalized values
+   │  │  └─ Brain->SetNamedInputValue(...)
+   │  └─ If bStopWhenConditionsFail:
+   │     └─ Check conditions → OnServiceStop() if false
+   └─ Return
+
+3. SHUTDOWN
+   └─ OnServiceStop() called</code></pre>
+
+<h2>Service Conditions</h2>
+
+<p>Services can start/stop automatically based on Named Input conditions.</p>
+
+<pre><code>// Example: Only run EnvironmentalMemory when in patrol mode
+Service: Service_EnvironmentalMemory
+
+StartConditions:
+  [0] Input: "HasKnownEnemy"
+      Type: LessThan
+      Value: 0.1
+      // Only run when no enemies present
+
+bStopWhenConditionsFail: true
+// Auto-stop when enemy detected
+
+Result:
+  - Service starts when HasKnownEnemy < 0.1
+  - Service ticks, tracking objects
+  - When enemy appears (HasKnownEnemy = 1.0)
+  - Service stops, saves CPU</code></pre>
+
+<h3>Condition Types</h3>
+<pre><code>GreaterThan:       Input > Value
+LessThan:          Input < Value
+Equal:             Input == Value (with tolerance)
+NotEqual:          Input != Value
+GreaterOrEqual:    Input >= Value
+LessOrEqual:       Input <= Value
+InRange:           Value1 <= Input <= Value2
+OutOfRange:        Input < Value1 OR Input > Value2</code></pre>
+
+<h2>Creating Custom Services</h2>
+
+<h3>Blueprint Service</h3>
+<pre><code>1. Create Blueprint class derived from UUtilityService
+2. Override events:
+   - OnServiceStart
+   - TickService (DeltaTime)
+   - OnServiceStop
+3. Implement logic:
+   Event TickService(DeltaTime)
+     ├─ Get Pawn/Controller
+     ├─ Read game state (health, stamina, etc.)
+     ├─ Normalize values (0-1)
+     └─ Brain->SetNamedInputValue(Name, Value)</code></pre>
+
+<h3>C++ Service</h3>
+<pre><code>// MyCustomService.h
+#pragma once
+#include "UtilityAI/Public/Services/UtilityService.h"
+#include "MyCustomService.generated.h"
+
+UCLASS(Blueprintable)
+class UMyCustomService : public UUtilityService
+{
+    GENERATED_BODY()
+    
+public:
+    UPROPERTY(EditAnywhere, Category = "Service")
+    float NormalizationRange = 100.0f;
+    
+protected:
+    virtual void OnServiceStart() override;
+    virtual void TickService(float DeltaTime) override;
+    virtual void OnServiceStop() override;
+};
+
+// MyCustomService.cpp
+void UMyCustomService::TickService(float DeltaTime)
+{
+    Super::TickService(DeltaTime);
+    
+    if (!OwningBrain || !CachedPawn) return;
+    
+    // Read game state
+    UMyHealthComponent* Health = CachedPawn->FindComponentByClass<UMyHealthComponent>();
+    if (Health)
+    {
+        // Normalize and publish
+        float NormalizedHealth = Health->GetHealth() / NormalizationRange;
+        OwningBrain->SetNamedInputValue("Health", FMath::Clamp(NormalizedHealth, 0.0f, 1.0f));
+    }
+}</code></pre>
+
+<h2>Service Best Practices</h2>
+
+<div class="callout tip">
+  <span class="icon" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
+    </svg>
+  </span>
+  <div>
+    <strong>Service Guidelines:</strong>
+    <ul>
+      <li><strong>Normalize Everything:</strong> All published values must be 0-1</li>
+      <li><strong>Throttle Appropriately:</strong> Not everything needs 60 Hz (use MinInterval)</li>
+      <li><strong>Use Conditions:</strong> Start/stop services based on context to save CPU</li>
+      <li><strong>Cache References:</strong> Cache components/actors, don't FindComponent every tick</li>
+      <li><strong>Null Check:</strong> Always check OwningBrain, CachedPawn, CachedController</li>
+      <li><strong>Name Consistently:</strong> Use same input names across all services/actions</li>
+      <li><strong>Single Responsibility:</strong> One service = one data source (perception, health, squad)</li>
+    </ul>
+  </div>
+</div>
+
+<h2>Common Patterns</h2>
+
+<h3>Health/Stamina/Mana Service</h3>
+<pre><code>// Simple resource tracking service
+void UResourceMonitorService::TickService(float DeltaTime)
+{
+    UMyStatsComponent* Stats = CachedPawn->FindComponentByClass<UMyStatsComponent>();
+    if (Stats)
+    {
+        OwningBrain->SetNamedInputValue("Health", Stats->GetHealthNormalized());
+        OwningBrain->SetNamedInputValue("Stamina", Stats->GetStaminaNormalized());
+        OwningBrain->SetNamedInputValue("Mana", Stats->GetManaNormalized());
+    }
+}</code></pre>
+
+<h3>Conditional Service Activation</h3>
+<pre><code>// Investigation service only runs when not in combat
+Service: Service_Investigation
+StartConditions:
+  - HasKnownEnemy < 0.1
+  - AlertLevel > 0.3
+bStopWhenConditionsFail: true
+
+// Service only runs when suspicious but no confirmed threats</code></pre>
+
+<h3>Dynamic Input Publishing</h3>
+<pre><code>// Service that publishes different inputs based on state
+void UAdaptiveService::TickService(float DeltaTime)
+{
+    bool bInCombat = OwningBrain->GetNamedInputValue("HasKnownEnemy") > 0.5f;
+    
+    if (bInCombat)
+    {
+        // Publish combat-relevant inputs
+        PublishCombatInputs();
+    }
+    else
+    {
+        // Publish exploration inputs
+        PublishExplorationInputs();
+    }
+}</code></pre>
+
+<h2>Performance Optimization</h2>
+
+<h3>Update Rate Guidelines</h3>
+<pre><code>Critical (0.0-0.05s):  Perception, Health, Threats
+Frequent (0.1-0.2s):   Squad intel, Movement, Ammo
+Moderate (0.2-0.5s):   Investigation, Memory, Resources
+Slow (0.5-1.0s):       Environment, Weather, Time of day</code></pre>
+
+<h3>LOD-Based Throttling</h3>
+<pre><code>// Adjust service update rate based on importance
+void UMyService::TickService(float DeltaTime)
+{
+    // Calculate LOD based on distance to player
+    float DistanceToPlayer = GetDistanceToPlayer();
+    
+    if (DistanceToPlayer < 2000.0f)
+    {
+        MinInterval = 0.1f;  // 10 Hz (close, important)
+    }
+    else if (DistanceToPlayer < 5000.0f)
+    {
+        MinInterval = 0.3f;  // 3 Hz (medium)
+    }
+    else
+    {
+        MinInterval = 1.0f;  // 1 Hz (far, less important)
+    }
+}</code></pre>
+
+<h2>Debugging Services</h2>
+
+<h3>Gameplay Debugger</h3>
+<pre><code>Press ' → Utility AI Category
+
+Services (3 active):
+  ✓ Service_PerceptionMonitor (0.1s)
+  ✓ Service_TacticalSense (0.15s)
+  - Service_EnvironmentalMemory (STOPPED)
+
+Published Inputs:
+  HasKnownEnemy: 1.0 (PerceptionMonitor)
+  EnemyCount: 0.4 (PerceptionMonitor)
+  IsSquadLeader: 1.0 (TacticalSense)
+  Health: 0.6 (ResourceMonitor)</code></pre>
+
+<h3>Service Logging</h3>
+<pre><code>// C++ Service with logging
+void UMyService::TickService(float DeltaTime)
+{
+    UE_LOG(LogUtilityAI, Verbose, TEXT("[%s] Publishing Health: %.2f"), 
+        *GetName(), NormalizedHealth);
+    
+    OwningBrain->SetNamedInputValue("Health", NormalizedHealth);
+}</code></pre>
+
+<h2>Next Steps</h2>
+<div class="hero-cta">
+  <a class="button primary" href="#/docs/named-inputs">Named Inputs</a>
+  <a class="button" href="#/docs/perception">Perception Service</a>
+  <a class="button" href="#/docs/tactical-squad">Squad Services</a>
+</div>
+
+<h3>Related Documentation</h3>
+<ul>
+  <li><a href="#/docs/brain">Brain Component</a> - How services integrate</li>
+  <li><a href="#/docs/utility-ai">Utility AI</a> - How inputs affect scoring</li>
+  <li><a href="#/docs/environmental-memory">Environmental Memory</a> - Memory service deep dive</li>
+  <li><a href="#/examples/combat-setup">Combat Example</a> - Services in action</li>
+</ul>

@@ -1,0 +1,19 @@
+<h1>Learning & Adaptation</h1>
+<p>Keep it Blueprint-friendly: adapt thresholds and preferences over time, persist between sessions, and remain data-first.</p>
+
+<h2>Practical patterns</h2>
+<ul>
+  <li><strong>Adaptive thresholds:</strong> If an agent frequently reaches low health, gently raise the <em>Retreat</em> sensitivity by storing a small offset and applying it when computing scores.</li>
+  <li><strong>Session persistence:</strong> Save per-agent tuning (e.g., curve offsets) to a save game slot or a Data Asset you manage.</li>
+  <li><strong>Contextual tuning:</strong> Adjust based on map, time-of-day, or faction using tags you track in your own BP systems.</li>
+</ul>
+
+<h2>Workflow</h2>
+<ol>
+  <li>Read normalized parameters each tick or on events.</li>
+  <li>Record simple counters (times retreated, times flanked, etc.).</li>
+  <li>Every N seconds, adjust small biases; clamp to sane ranges.</li>
+  <li>Save periodically and on level transition.</li>
+</ol>
+
+<div class="note">This keeps learning on the project side. The plugin remains generic and unopinionated.</div>

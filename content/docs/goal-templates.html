@@ -1,0 +1,233 @@
+<h1>Goal Templates (Data Assets)</h1>
+<p>This page documents goal template configuration and runtime accessors via <code>UCINGoalTemplatesDA_Base</code> in <code>Plugins/CINPlugin/Source/CINCore/Public/Types/UCINGoalTemplatesDA_Base.h</code>.</p>
+
+<h2>Beginner-friendly: What is this?</h2>
+<p><strong>Goal Templates</strong> are reusable blueprints for creating goals at runtime. They define when a goal should be considered, how important it is, how often to consider it, and what “done” looks like. The Brain uses these templates to spawn concrete goals during play.</p>
+
+<div class="callout tip">
+  <span class="icon" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="9"></circle>
+      <path d="M12 10v6"></path>
+      <path d="M12 8h.01"></path>
+    </svg>
+  </span>
+  <div>
+    <strong>At a glance</strong>
+    <ul>
+      <li><strong>What you make</strong>: a Data Asset with templates that spawn goals at runtime.</li>
+      <li><strong>You need</strong>: goal classes that implement <code>ICINGoal</code> (Blueprint/C++).</li>
+      <li><strong>Who uses it</strong>: the Brain considers templates and instantiates goals.</li>
+      <li><strong>Typical flow</strong>: bind signals via <a href="#/docs/parameter-binding">Parameter Binding</a> → define activation/completion → set priorities/frequency.</li>
+    </ul>
+    <div style="margin-top:6px">
+      <strong>Related</strong>: <a href="#/docs/action-packs">Action Packs</a> · <a href="#/docs/arbitration-strategy">Arbitration Strategy</a> · <a href="#/docs/brain-runtime">Brain Runtime</a> · <a href="#/docs/role-archetypes">Role Archetypes</a>
+    </div>
+  </div>
+</div>
+
+<h2>Why it matters</h2>
+<ul>
+  <li><strong>Consistency</strong>: The same logic is applied across many agents.</li>
+  <li><strong>Scalable design</strong>: Designers can author many goals without writing code.</li>
+  <li><strong>Performance-aware</strong>: Control how often goals are considered.</li>
+</ul>
+
+<h2>Quick setup (Data Asset)</h2>
+<ol>
+  <li>Create a data asset of type <code>UCINGoalTemplatesDA_Base</code> (or subclass).</li>
+  <li>Add entries to <strong>GoalTemplates</strong> with a unique <strong>TemplateID</strong>.</li>
+  <li>Set <strong>GoalClass</strong> (template class reference) and <strong>BasePriority</strong>.</li>
+  <li>Configure <strong>ActivationConditions</strong>, <strong>CompletionCriteria</strong>, and any <strong>DynamicParameters</strong>.</li>
+  <li>Optionally set <strong>GlobalPriorityModifier</strong>, <strong>GlobalFrequencyModifier</strong>, and <strong>CompatibilityTags</strong> on the collection.</li>
+</ol>
+
+<h2>Goal Template (<code>FCINGoalTemplate</code>)</h2>
+<ul>
+  <li><strong>GoalClass</strong>: <code>TSoftClassPtr&lt;UObject&gt;</code> reference to the goal class this template creates.</li>
+  <li><strong>TemplateID</strong>: unique identifier.</li>
+  <li><strong>TemplateName</strong>, <strong>Description</strong> (multi-line).</li>
+  <li><strong>BasePriority</strong>: <code>ECINGoalPriority</code> (default <code>Normal</code>).</li>
+  <li><strong>PriorityModifier (0.1–5.0)</strong>: scales the goal's priority.</li>
+  <li><strong>ActivationConditions</strong>: array of <code>FCINGoalCondition</code>.</li>
+  <li><strong>CompletionCriteria</strong>: array of <code>FCINGoalCompletionCriteria</code>.</li>
+  <li><strong>DynamicParameters</strong>: array of <code>FCINDynamicGoalParameter</code>.</li>
+  <li><strong>ConsiderationFrequency (0.0–60.0)</strong>: times per minute to evaluate this template.</li>
+  <li><strong>MaxInstances (1–10)</strong>: cap on simultaneous instances.</li>
+  <li><strong>bCanBeInterrupted</strong>, <strong>bIsEnabled</strong>.</li>
+  <li><strong>Tags</strong>: labels for filtering/search.</li>
+  <li><strong>TemplateParameters</strong>: <code>TMap&lt;FString, float&gt;</code> template-specific tunables.</li>
+</ul>
+
+<h3>Activation Conditions (<code>FCINGoalCondition</code>)</h3>
+<ul>
+  <li><strong>ConditionName</strong></li>
+  <li><strong>ConditionType</strong> (default <code>"Value"</code>)</li>
+  <li><strong>Parameter</strong>: parameter to check</li>
+  <li><strong>Operator</strong>: <em>Equal, Greater, Less, GreaterEqual, LessEqual, NotEqual</em> (default <code>Greater</code>)</li>
+  <li><strong>Value</strong> (default <code>0.5</code>)</li>
+  <li><strong>bMustBeTrue</strong>: requirement polarity</li>
+  <li><strong>Weight (0.0–5.0)</strong>: influence in overall evaluation</li>
+</ul>
+
+<h3>Completion Criteria (<code>FCINGoalCompletionCriteria</code>)</h3>
+<ul>
+  <li><strong>CriteriaName</strong></li>
+  <li><strong>CompletionType</strong> (default <code>"Threshold"</code>)</li>
+  <li><strong>Parameter</strong></li>
+  <li><strong>TargetValue</strong> (default <code>1.0</code>)</li>
+  <li><strong>Tolerance (0.0–1.0)</strong> (default <code>0.1</code>)</li>
+  <li><strong>bRequiresSustainedAchievement</strong></li>
+  <li><strong>SustainedDuration (≥ 0.0)</strong> (default <code>1.0</code>)</li>
+</ul>
+<h3>Activation vs Completion</h3>
+<p><strong>ActivationConditions</strong> determine when a template is allowed to spawn a goal. <strong>CompletionCriteria</strong> define when that goal is considered achieved and can end. Keep activation gates simple and stable; put detailed success checks in completion.</p>
+<ul>
+  <li><em>Activation</em> example: <code>AmmoCurrent ≤ 0.05</code> enables <em>ReloadAndReengage</em>.</li>
+  <li><em>Completion</em> example: <code>AmmoCurrent ≥ 0.9</code> (sustained 0.5s) completes the reload goal.</li>
+  <li>Use <strong>bCanBeInterrupted</strong> on the template when higher-priority goals should preempt.</li>
+</ul>
+
+<h3>Frequency and Priority</h3>
+<p><strong>ConsiderationFrequency</strong> controls how often a template is evaluated; <strong>BasePriority</strong> and <strong>PriorityModifier</strong> influence importance. Scale globally with <strong>GlobalFrequencyModifier</strong> and <strong>GlobalPriorityModifier</strong> on the collection.</p>
+<ul>
+  <li>Start around <code>1.0</code> for frequency; raise only for time-critical templates.</li>
+  <li>Use <em>High/Critical</em> priority for safety/escape goals; <em>Normal</em> for routine behaviors.</li>
+</ul>
+
+<h3>Dynamic Parameters (<code>FCINDynamicGoalParameter</code>)</h3>
+<ul>
+  <li><strong>ParameterName</strong></li>
+  <li><strong>ParameterType</strong> (default <code>"Value"</code>)</li>
+  <li><strong>DefaultValue</strong>, <strong>MinValue</strong>, <strong>MaxValue</strong></li>
+  <li><strong>bIsRequired</strong></li>
+  <li><strong>GenerationMethod</strong> (default <code>"Random"</code>)</li>
+  <li><strong>GenerationParameters</strong>: <code>TMap&lt;FString, float&gt;</code></li>
+</ul>
+
+<h2>Data Asset Fields (<code>UCINGoalTemplatesDA_Base</code>)</h2>
+<ul>
+  <li><strong>CollectionName</strong></li>
+  <li><strong>GoalTemplates</strong>: array of <code>FCINGoalTemplate</code></li>
+  <li><strong>GlobalPriorityModifier (0.1–5.0)</strong></li>
+  <li><strong>GlobalFrequencyModifier (0.1–5.0)</strong></li>
+  <li><strong>CompatibilityTags</strong></li>
+  <li><strong>CollectionParameters</strong>: <code>TMap&lt;FString, float&gt;</code></li>
+</ul>
+
+<h2>Blueprint API</h2>
+<ul>
+  <li><code>GetGoalTemplate(TemplateID)</code> → <code>FCINGoalTemplate</code></li>
+  <li><code>GetEnabledTemplates(OutTemplates)</code> → <code>int32</code></li>
+  <li><code>GetTemplatesByTags(FilterTags, bRequireAllTags, OutTemplates)</code> → <code>int32</code></li>
+  <li><code>GetTemplatesByPriority(Priority, OutTemplates)</code> → <code>int32</code></li>
+  <li><code>HasTemplate(TemplateID)</code> → <code>bool</code></li>
+  <li><code>IsCompatibleWithArchetype(ArchetypeTags)</code> → <code>bool</code></li>
+  <li><code>GetEffectiveTemplatePriority(TemplateID)</code> → <code>float</code></li>
+  <li><code>GetEffectiveConsiderationFrequency(TemplateID)</code> → <code>float</code></li>
+  <li><em>Event</em>: <code>OnGoalTemplatesApplied(Agent)</code></li>
+</ul>
+
+<h3>C++ Blueprint API signatures</h3>
+<pre><code class="language-cpp">UFUNCTION(BlueprintCallable, Category = "CIN|GoalTemplates")
+const FCINGoalTemplate GetGoalTemplate(const FString& TemplateID) const;
+
+UFUNCTION(BlueprintCallable, Category = "CIN|GoalTemplates")
+int32 GetEnabledTemplates(TArray<FCINGoalTemplate>& OutTemplates) const;
+
+UFUNCTION(BlueprintCallable, Category = "CIN|GoalTemplates")
+int32 GetTemplatesByTags(const TArray<FString>& FilterTags, bool bRequireAllTags, TArray<FCINGoalTemplate>& OutTemplates) const;
+
+UFUNCTION(BlueprintCallable, Category = "CIN|GoalTemplates")
+int32 GetTemplatesByPriority(ECINGoalPriority Priority, TArray<FCINGoalTemplate>& OutTemplates) const;
+
+UFUNCTION(BlueprintCallable, Category = "CIN|GoalTemplates")
+bool HasTemplate(const FString& TemplateID) const;
+
+UFUNCTION(BlueprintCallable, Category = "CIN|GoalTemplates")
+bool IsCompatibleWithArchetype(const TArray<FString>& ArchetypeTags) const;
+
+UFUNCTION(BlueprintCallable, Category = "CIN|GoalTemplates")
+float GetEffectiveTemplatePriority(const FString& TemplateID) const;
+
+UFUNCTION(BlueprintCallable, Category = "CIN|GoalTemplates")
+float GetEffectiveConsiderationFrequency(const FString& TemplateID) const;
+
+UFUNCTION(BlueprintImplementableEvent, Category = "CIN|GoalTemplates")
+void OnGoalTemplatesApplied(AActor* Agent);
+</code></pre>
+
+<h3>Enums referenced</h3>
+<pre><code class="language-cpp">enum class ECINGoalPriority : uint8
+{
+    Critical,
+    High,
+    Normal,
+    Low,
+    Background
+};
+</code></pre>
+
+<h2>Runtime Notes</h2>
+<ul>
+  <li><strong>ConsiderationFrequency</strong> is per-minute. Combine with <strong>GlobalFrequencyModifier</strong> for collection-wide scaling.</li>
+  <li><strong>Priority</strong> is influenced by <strong>BasePriority</strong> and <strong>PriorityModifier</strong>, then scaled by <strong>GlobalPriorityModifier</strong>.</li>
+  <li><strong>MaxInstances</strong> limits concurrent goals from the same template.</li>
+  <li>Set <strong>bCanBeInterrupted</strong> if the goal should yield to higher priorities.</li>
+</ul>
+
+<h2>Common mistakes</h2>
+<ul>
+  <li><strong>Missing GoalClass</strong>: template cannot instantiate without a goal class.</li>
+  <li><strong>Duplicate TemplateID</strong>: IDs must be unique within the collection.</li>
+  <li><strong>Disabled template</strong>: <code>bIsEnabled</code> false prevents generation.</li>
+  <li><strong>Frequency too high</strong>: can cause excessive evaluations; start around 1.0.</li>
+  <li><strong>Operator mismatch</strong>: ensure <strong>ActivationConditions.Operator</strong> matches your parameter semantics.</li>
+ </ul>
+ 
+ <h2>Example: ICINGoal implementation + Goal Template entry</h2>
+ <p>Create a simple goal by implementing <code>ICINGoal</code> on a <code>UObject</code>, then reference it from an <code>FCINGoalTemplate</code> entry in your <code>UCINGoalTemplatesDA_Base</code> asset.</p>
+ 
+ <p><strong>C++ (minimal example)</strong></p>
+ <pre><code class="language-cpp">// MyChaseGoal.h (project module)
+ #pragma once
+ #include "CoreMinimal.h"
+ #include "Interfaces/ICINGoal.h"
+ #include "MyChaseGoal.generated.h"
+ 
+ UCLASS(BlueprintType, Blueprintable)
+ class UMyChaseGoal : public UObject, public ICINGoal
+ {
+     GENERATED_BODY()
+ public:
+     virtual FString GetGoalID() const override { return TEXT("ChasePlayer"); }
+     virtual FString GetGoalName() const override { return TEXT("Chase Player"); }
+     virtual FString GetGoalDescription() const override { return TEXT("Move toward target until within range."); }
+     virtual ECINGoalPriority GetBasePriority() const override { return ECINGoalPriority::Normal; }
+     virtual float CalculatePriority(ICINAgent* Agent, const FCINContextualEmbedding& Context, const FCINGoalParams& Params) const override { return 1.0f; }
+     virtual bool IsRelevant(ICINAgent* Agent, const FCINContextualEmbedding& Context, const FCINGoalParams& Params) const override { return true; }
+     virtual bool CanActivate(ICINAgent* Agent, const FCINContextualEmbedding& Context, const FCINGoalParams& Params) const override { return true; }
+     virtual bool Activate(ICINAgent* Agent, const FCINContextualEmbedding& Context, const FCINGoalParams& Params) override { ICINGoal::Execute_OnGoalActivated(this, Params); return true; }
+     virtual void Deactivate(ICINAgent* Agent, bool bForceDeactivate = false) override { ICINGoal::Execute_OnGoalDeactivated(this); }
+     virtual void UpdateGoal(float DeltaTime, ICINAgent* Agent, const FCINContextualEmbedding& Context) override {}
+     virtual FCINGoalSatisfaction MeasureSatisfaction(ICINAgent* Agent, const FCINContextualEmbedding& Context) const override { FCINGoalSatisfaction S; S.SatisfactionLevel = 0.0f; return S; }
+     virtual ECINGoalStatus GetStatus() const override { return ECINGoalStatus::Active; }
+     virtual int32 GetRelevantActions(ICINAgent* Agent, const FCINContextualEmbedding& Context, TArray<ICINAction*>& OutActions) const override { return 0; }
+     virtual float GetActionContribution(ICINAction* Action, ICINAgent* Agent, const FCINContextualEmbedding& Context) const override { return 0.0f; }
+ };
+ </code></pre>
+ 
+ <p><strong>Goal Template entry (<code>FCINGoalTemplate</code>)</strong></p>
+ <ul>
+   <li><strong>GoalClass</strong>: <code>UMyChaseGoal</code> (or a Blueprint subclass)</li>
+   <li><strong>TemplateID</strong>: <code>"ChasePlayer"</code></li>
+   <li><strong>TemplateName</strong>: <code>"Chase Player"</code></li>
+   <li><strong>BasePriority</strong>: <code>Normal</code>, <strong>PriorityModifier</strong>: <code>1.0</code></li>
+   <li><strong>ActivationConditions</strong>: e.g., <em>Parameter</em>=<code>DistanceToPlayer</code>, <em>Operator</em>=<code>Greater</code>, <em>Value</em>=<code>0.3</code></li>
+   <li><strong>CompletionCriteria</strong>: e.g., <em>Parameter</em>=<code>DistanceToPlayer</code>, <em>TargetValue</em>=<code>0.1</code>, <em>Tolerance</em>=<code>0.05</code></li>
+   <li><strong>ConsiderationFrequency</strong>: <code>1.0</code>, <strong>MaxInstances</strong>: <code>1</code>, <strong>bCanBeInterrupted</strong>: <code>true</code></li>
+   <li>(Optional) Add <strong>DynamicParameters</strong> for values to be generated at runtime</li>
+   <li>Tip: Bind the referenced parameters (like <code>DistanceToPlayer</code>) via the <a href="#/docs/parameter-binding">Parameter Binding</a> API.</li>
+ </ul>
+ 
+ <p>See also: <a href="#/docs/role-archetypes">Role Archetypes</a>, <a href="#/docs/arbitration-strategy">Arbitration Strategy</a>, <a href="#/docs/brain-runtime">Brain Runtime</a>, <a href="#/docs/action-packs">Action Packs</a>, <a href="#/docs/parameter-binding">Parameter Binding</a>.</p>

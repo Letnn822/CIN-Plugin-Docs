@@ -1,0 +1,428 @@
+<h1>Data Structures Reference</h1>
+<p class="note">Complete reference for all data structures, structs, and enums used in CIN Plugin. Essential for C++ developers and advanced users.</p>
+
+<div class="page-meta">
+  <span class="time"><i data-lucide="clock"></i> 15 minutes</span>
+  <span class="difficulty"><i data-lucide="bar-chart-3"></i> Reference</span>
+</div>
+
+<h2>Core Structs</h2>
+
+<h3>FConsideration</h3>
+
+<pre><code>USTRUCT(BlueprintType)
+struct FConsideration
+{
+    GENERATED_BODY()
+    
+    // Input name to read from brain
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    FName InputName;
+    
+    // Response curve mapping input to score
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    FRuntimeFloatCurve ResponseCurve;
+    
+    // Weight for this consideration
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    float Weight = 1.0f;
+    
+    // Invert the curve output
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    bool bInvertCurve = false;
+};
+
+Usage:
+  FConsideration HealthCheck;
+  HealthCheck.InputName = "Health";
+  HealthCheck.Weight = 1.5f;
+  // Configure ResponseCurve in editor</code></pre>
+
+<h3>FServiceCondition</h3>
+
+<pre><code>USTRUCT(BlueprintType)
+struct FServiceCondition
+{
+    GENERATED_BODY()
+    
+    // Input to check
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    FName InputName;
+    
+    // Condition type
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    EServiceConditionType ConditionType;
+    
+    // Value to compare against
+    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    float CompareValue;
+};
+
+Condition Types:
+  GreaterThan
+  LessThan
+  Equal
+  NotEqual
+  GreaterOrEqual
+  LessOrEqual</code></pre>
+
+<h3>FStimulusMemoryEntry</h3>
+
+<pre><code>USTRUCT(BlueprintType)
+struct FStimulusMemoryEntry
+{
+    GENERATED_BODY()
+    
+    // The perceived actor
+    UPROPERTY(BlueprintReadWrite)
+    TWeakObjectPtr<AActor> Actor;
+    
+    // Last known location
+    UPROPERTY(BlueprintReadWrite)
+    FVector LastKnownLocation;
+    
+    // Time since last seen
+    UPROPERTY(BlueprintReadWrite)
+    float TimeSinceLastSeen;
+    
+    // Is currently visible
+    UPROPERTY(BlueprintReadWrite)
+    bool bCurrentlyVisible;
+    
+    // Stimulus expiration time
+    UPROPERTY(BlueprintReadWrite)
+    float ExpirationTime;
+};
+
+Usage in PerceptionMonitor service for tracking enemies</code></pre>
+
+<h2>Enumerations</h2>
+
+<h3>ECINAgentType</h3>
+
+<pre><code>UENUM(BlueprintType)
+enum class ECINAgentType : uint8
+{
+    Custom          UMETA(DisplayName = "Custom"),
+    BaseAgent       UMETA(DisplayName = "Base Agent"),
+    BaseCombat      UMETA(DisplayName = "Base Combat"),
+    BaseSquadCombat UMETA(DisplayName = "Base Squad Combat"),
+    BaseNPC         UMETA(DisplayName = "Base NPC"),
+    BaseCompanion   UMETA(DisplayName = "Base Companion"),
+    BaseStealth     UMETA(DisplayName = "Base Stealth"),
+    BaseCreature    UMETA(DisplayName = "Base Creature"),
+    BaseBoss        UMETA(DisplayName = "Base Boss"),
+    BaseRanged      UMETA(DisplayName = "Base Ranged"),
+    BaseCaster      UMETA(DisplayName = "Base Caster")
+};
+
+Usage in CINQuickSetupComponent to select archetype</code></pre>
+
+<h3>EServiceConditionType</h3>
+
+<pre><code>UENUM(BlueprintType)
+enum class EServiceConditionType : uint8
+{
+    GreaterThan     UMETA(DisplayName = ">"),
+    LessThan        UMETA(DisplayName = "<"),
+    Equal           UMETA(DisplayName = "=="),
+    NotEqual        UMETA(DisplayName = "!="),
+    GreaterOrEqual  UMETA(DisplayName = ">="),
+    LessOrEqual     UMETA(DisplayName = "<=")
+};
+
+Used for declarative service conditions</code></pre>
+
+<h3>ESquadStrategy</h3>
+
+<pre><code>UENUM(BlueprintType)
+enum class ESquadStrategy : uint8
+{
+    None     UMETA(DisplayName = "None"),
+    Search   UMETA(DisplayName = "Search"),
+    Assault  UMETA(DisplayName = "Assault"),
+    Flank    UMETA(DisplayName = "Flank"),
+    Hold     UMETA(DisplayName = "Hold"),
+    Retreat  UMETA(DisplayName = "Retreat")
+};
+
+Used by TacticalStrategy service for squad coordination</code></pre>
+
+<h2>Complex Structures</h2>
+
+<h3>FSquadState</h3>
+
+<pre><code>USTRUCT()
+struct FSquadState
+{
+    GENERATED_BODY()
+    
+    // Squad identifier
+    UPROPERTY()
+    FName SquadName;
+    
+    // Current strategy
+    UPROPERTY()
+    ESquadStrategy CurrentStrategy;
+    
+    // Strategy expiration
+    UPROPERTY()
+    float StrategyTTL;
+    
+    // Squad members
+    UPROPERTY()
+    TArray<TWeakObjectPtr<AActor>> Members;
+    
+    // Known enemies shared by squad
+    UPROPERTY()
+    TArray<TWeakObjectPtr<AActor>> KnownEnemies;
+    
+    // Squad leader
+    UPROPERTY()
+    TWeakObjectPtr<AActor> Leader;
+};
+
+Managed by UTacticalSquadComponent</code></pre>
+
+<h3>FActionMomentumData</h3>
+
+<pre><code>USTRUCT()
+struct FActionMomentumData
+{
+    GENERATED_BODY()
+    
+    // Current momentum value
+    float CurrentMomentum;
+    
+    // Time momentum started decaying
+    float DecayStartTime;
+    
+    // Last execution time
+    float LastExecutionTime;
+    
+    FActionMomentumData()
+        : CurrentMomentum(0.0f)
+        , DecayStartTime(0.0f)
+        , LastExecutionTime(0.0f)
+    {}
+};
+
+Tracked per action in UUtilityBrainComponent</code></pre>
+
+<h2>Container Types</h2>
+
+<h3>TMap<FName, float> NamedInputs</h3>
+
+<pre><code>// Brain storage for inputs
+UPROPERTY()
+TMap<FName, float> NamedInputs;
+
+// Access
+float HealthValue = NamedInputs.FindRef(TEXT("Health")); // Returns 0 if not found
+
+// Or safe access
+if (float* Value = NamedInputs.Find(TEXT("Health")))
+{
+    float HealthValue = *Value;
+}
+
+// Iterate
+for (auto& Pair : NamedInputs)
+{
+    FName InputName = Pair.Key;
+    float InputValue = Pair.Value;
+}</code></pre>
+
+<h3>TArray<UUtilityActionAsset*> Actions</h3>
+
+<pre><code>// Brain's action list
+UPROPERTY(EditAnywhere, BlueprintReadWrite)
+TArray<UUtilityActionAsset*> Actions;
+
+// Iterate and evaluate
+for (UUtilityActionAsset* Action : Actions)
+{
+    if (!Action) continue;
+    
+    float Score = ComputeActionScore(Action);
+    if (Score > BestScore)
+    {
+        BestScore = Score;
+        BestAction = Action;
+    }
+}</code></pre>
+
+<h2>Blueprint-Exposed Structs</h2>
+
+<h3>Making Structs Blueprint-Accessible</h3>
+
+<pre><code>// Expose struct to Blueprints
+USTRUCT(BlueprintType)
+struct FMyCustomData
+{
+    GENERATED_BODY()
+    
+    // Editable in Blueprint
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "My Data")
+    float SomeValue;
+    
+    // Read-only in Blueprint
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "My Data")
+    int32 CalculatedValue;
+    
+    // Not exposed to Blueprint
+    TArray<AActor*> InternalActors;
+    
+    // Constructor with defaults
+    FMyCustomData()
+        : SomeValue(1.0f)
+        , CalculatedValue(0)
+    {}
+};
+
+// Use in UFUNCTION
+UFUNCTION(BlueprintCallable)
+FMyCustomData GetCustomData() const
+{
+    return MyData;
+}</code></pre>
+
+<h2>Memory Management</h2>
+
+<h3>Smart Pointers in Structs</h3>
+
+<pre><code>// Use TWeakObjectPtr for actor references
+USTRUCT()
+struct FActorReference
+{
+    GENERATED_BODY()
+    
+    // Weak pointer - won't prevent garbage collection
+    UPROPERTY()
+    TWeakObjectPtr<AActor> Actor;
+    
+    // Check validity before use
+    bool IsValid() const
+    {
+        return Actor.IsValid();
+    }
+    
+    AActor* GetActor() const
+    {
+        return Actor.Get();
+    }
+};
+
+Benefits:
+  - Safe from dangling pointers
+  - Doesn't prevent GC
+  - Null when object destroyed</code></pre>
+
+<h2>Serialization</h2>
+
+<h3>Custom Serialization</h3>
+
+<pre><code>USTRUCT()
+struct FCustomSerializedData
+{
+    GENERATED_BODY()
+    
+    UPROPERTY(SaveGame)
+    float PersistentValue;
+    
+    UPROPERTY(Transient) // Not saved
+    float TemporaryValue;
+    
+    // Custom serialization
+    bool Serialize(FArchive& Ar)
+    {
+        Ar << PersistentValue;
+        
+        if (Ar.IsLoading())
+        {
+            // Custom load logic
+            TemporaryValue = 0.0f;
+        }
+        
+        return true;
+    }
+};
+
+template<>
+struct TStructOpsTypeTraits<FCustomSerializedData> : public TStructOpsTypeTraitsBase2<FCustomSerializedData>
+{
+    enum { WithSerializer = true };
+};</code></pre>
+
+<h2>Performance Considerations</h2>
+
+<div class="callout tip">
+  <span class="icon"><i data-lucide="zap"></i></span>
+  <div>
+    <strong>Data Structure Best Practices:</strong>
+    <ul class="compact">
+      <li>✅ Use TWeakObjectPtr for actor references</li>
+      <li>✅ Reserve TArray capacity when size known</li>
+      <li>✅ Use TMap for fast lookups</li>
+      <li>✅ Mark transient data appropriately</li>
+      <li>✅ Initialize struct members in constructor</li>
+      <li>❌ Don't use raw pointers to UObjects</li>
+      <li>❌ Don't store large arrays in structs</li>
+      <li>❌ Don't create circular references</li>
+    </ul>
+  </div>
+</div>
+
+<h2>Common Patterns</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Pattern</th>
+      <th>Use Case</th>
+      <th>Example</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>TMap for inputs</strong></td>
+      <td>Fast name-value lookup</td>
+      <td>NamedInputs</td>
+    </tr>
+    <tr>
+      <td><strong>TArray for collections</strong></td>
+      <td>Ordered lists</td>
+      <td>Actions, Services</td>
+    </tr>
+    <tr>
+      <td><strong>TWeakObjectPtr</strong></td>
+      <td>Safe actor references</td>
+      <td>Squad members, enemies</td>
+    </tr>
+    <tr>
+      <td><strong>Structs for data</strong></td>
+      <td>Group related values</td>
+      <td>FConsideration, FSquadState</td>
+    </tr>
+    <tr>
+      <td><strong>Enums for states</strong></td>
+      <td>Type-safe options</td>
+      <td>ESquadStrategy</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Next Steps</h2>
+
+<div class="next-steps">
+  <a class="button primary" href="#/docs/brain-api">
+    <i data-lucide="cpu"></i>
+    Brain API
+  </a>
+  <a class="button" href="#/docs/action-api">
+    <i data-lucide="zap"></i>
+    Action API
+  </a>
+</div>
+
+<script>lucide.createIcons();</script>

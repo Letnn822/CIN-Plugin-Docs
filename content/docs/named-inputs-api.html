@@ -1,0 +1,440 @@
+<h1>Named Inputs System</h1>
+<p class="note">Complete guide to the Named Inputs system. Learn how to publish, read, and manage inputs that drive action scoring in the Utility AI brain.</p>
+
+<div class="page-meta">
+  <span class="time"><i data-lucide="clock"></i> 15 minutes</span>
+  <span class="difficulty"><i data-lucide="bar-chart-2"></i> Reference</span>
+</div>
+
+<h2>System Overview</h2>
+
+<pre><code>Named Inputs System:
+
+Services/Components
+├─ Gather data from world
+├─ Process and normalize
+└─ Publish via SetNamedInputValue()
+
+Brain Component
+├─ Stores TMap<FName, float>
+├─ Provides GetNamedInputValue()
+└─ Used by action considerations
+
+Actions
+├─ Read inputs in considerations
+├─ Evaluate response curves
+└─ Calculate final scores
+
+Flow: Service → Brain → Actions → Decision</code></pre>
+
+<h2>Core Functions</h2>
+
+<h3>SetNamedInputValue</h3>
+
+<pre><code>UFUNCTION(BlueprintCallable, Category = "Utility AI")
+void SetNamedInputValue(FName InputName, float Value);
+
+Parameters:
+  InputName - Unique identifier for this input
+  Value - Normalized value (typically 0-1)
+
+Description:
+  Publishes a value to the brain's input map.
+  Services call this to provide data for actions.
+
+Example (C++):
+  OwningBrain->SetNamedInputValue(TEXT("Health"), 0.75f);
+  OwningBrain->SetNamedInputValue(TEXT("HasEnemy"), 1.0f);
+  OwningBrain->SetNamedInputValue(TEXT("Distance"), 0.5f);
+
+Example (Blueprint):
+  Get Utility Brain
+  → Set Named Input Value
+    Input Name: "Health"
+    Value: 0.75</code></pre>
+
+<h3>GetNamedInputValue</h3>
+
+<pre><code>UFUNCTION(BlueprintPure, Category = "Utility AI")
+float GetNamedInputValue(FName InputName) const;
+
+Parameters:
+  InputName - Name of input to retrieve
+
+Returns:
+  Current value, or 0.0 if not found
+
+Description:
+  Retrieves a value from the brain's input map.
+  Actions use this during scoring.
+
+Example (C++):
+  float Health = Brain->GetNamedInputValue(TEXT("Health"));
+  if (Health < 0.3f)
+  {
+      // Low health logic
+  }
+
+Example (Blueprint):
+  Get Utility Brain
+  → Get Named Input Value
+    Input Name: "Health"
+  → Branch (< 0.3)</code></pre>
+
+<h3>ClearNamedInput</h3>
+
+<pre><code>UFUNCTION(BlueprintCallable, Category = "Utility AI")
+void ClearNamedInput(FName InputName);
+
+Parameters:
+  InputName - Name of input to remove
+
+Description:
+  Removes an input from the brain's map.
+
+Example:
+  Brain->ClearNamedInput(TEXT("TemporaryBoost"));</code></pre>
+
+<h3>GetAllInputNames</h3>
+
+<pre><code>UFUNCTION(BlueprintPure, Category = "Utility AI")
+TArray<FName> GetAllInputNames() const;
+
+Returns:
+  Array of all currently registered input names
+
+Description:
+  Lists all inputs currently in the brain.
+
+Example:
+  TArray<FName> Inputs = Brain->GetAllInputNames();
+  for (FName InputName : Inputs)
+  {
+      UE_LOG(LogAI, Log, TEXT("%s = %f"), 
+          *InputName.ToString(), 
+          Brain->GetNamedInputValue(InputName));
+  }</code></pre>
+
+<h2>Input Naming Conventions</h2>
+
+<h3>Standard Input Names</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Category</th>
+      <th>Input Names</th>
+      <th>Range</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Health/Resources</strong></td>
+      <td>Health, AmmoLevel, StaminaLevel, ManaLevel</td>
+      <td>0-1</td>
+    </tr>
+    <tr>
+      <td><strong>Enemy Detection</strong></td>
+      <td>HasKnownEnemy, EnemyCount, HasVisibleEnemy, VisibleEnemyCount</td>
+      <td>0-1</td>
+    </tr>
+    <tr>
+      <td><strong>Distance</strong></td>
+      <td>DistanceToEnemy, NearestEnemyDistance, NearestAllyDistance</td>
+      <td>0-1</td>
+    </tr>
+    <tr>
+      <td><strong>Perception</strong></td>
+      <td>HasLineOfSight, CanSeeEnemy, HeardSuspiciousSound</td>
+      <td>0 or 1</td>
+    </tr>
+    <tr>
+      <td><strong>Threat</strong></td>
+      <td>ThreatLevel, UnderFire, TimeSinceLastSawEnemy</td>
+      <td>0-1</td>
+    </tr>
+    <tr>
+      <td><strong>Environment</strong></td>
+      <td>HasCoverNearby, IsInCover, DistanceToCover</td>
+      <td>0-1</td>
+    </tr>
+    <tr>
+      <td><strong>Squad</strong></td>
+      <td>IsInSquad, IsSquadLeader, SquadMemberCount, SquadStrategy_*</td>
+      <td>0-1</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Naming Best Practices</h3>
+
+<pre><code>✅ DO:
+  - Use descriptive names (Health, not H)
+  - Use PascalCase (EnemyCount)
+  - Use boolean-style for flags (HasWeapon, not WeaponPresent)
+  - Use *Level for normalized resources (AmmoLevel, not AmmoCount)
+  - Group related inputs with prefixes (Squad_*, Enemy_*)
+
+❌ DON'T:
+  - Use abbreviations (Dist, Hlth, Enm)
+  - Use inconsistent casing
+  - Use vague names (Value1, Data)
+  - Mix raw and normalized values
+  - Reuse names for different data</code></pre>
+
+<h2>Input Publishing Patterns</h2>
+
+<h3>Pattern 1: Service Publishing</h3>
+
+<pre><code>// Most common: Services publish inputs
+void UMyService::TickService(float DeltaTime)
+{
+    // Gather data
+    float Health = CalculateHealthPercent();
+    int32 Enemies = CountNearbyEnemies();
+    float Distance = GetDistanceToNearestEnemy();
+    
+    // Normalize
+    float EnemyCount = FMath::Clamp(Enemies / 10.0f, 0.0f, 1.0f);
+    float DistanceNorm = FMath::Clamp(Distance / 5000.0f, 0.0f, 1.0f);
+    
+    // Publish
+    OwningBrain->SetNamedInputValue(TEXT("Health"), Health);
+    OwningBrain->SetNamedInputValue(TEXT("EnemyCount"), EnemyCount);
+    OwningBrain->SetNamedInputValue(TEXT("DistanceToEnemy"), DistanceNorm);
+}</code></pre>
+
+<h3>Pattern 2: Component Publishing</h3>
+
+<pre><code>// Input provider components
+void UTacticalSquadInputProviderComponent::TickComponent(float DeltaTime)
+{
+    // Get squad data
+    FSquadState Squad = GetSquadState();
+    
+    // Publish squad inputs
+    UUtilityBrainComponent* Brain = GetOwner()->FindComponentByClass<UUtilityBrainComponent>();
+    Brain->SetNamedInputValue(TEXT("IsInSquad"), Squad.Members.Num() > 0 ? 1.0f : 0.0f);
+    Brain->SetNamedInputValue(TEXT("SquadMemberCount"), Squad.Members.Num() / 10.0f);
+    Brain->SetNamedInputValue(TEXT("SquadStrategy_Assault"), Squad.Strategy == ESquadStrategy::Assault ? 1.0f : 0.0f);
+}</code></pre>
+
+<h3>Pattern 3: Event-Driven Publishing</h3>
+
+<pre><code>// Update immediately on events
+void AMyAIPawn::OnTakeAnyDamage(AActor* DamagedActor, float Damage, ...)
+{
+    // Immediate response
+    UUtilityBrainComponent* Brain = FindComponentByClass<UUtilityBrainComponent>();
+    Brain->SetNamedInputValue(TEXT("UnderFire"), 1.0f);
+    Brain->SetNamedInputValue(TEXT("RecentDamage"), FMath::Clamp(Damage / 100.0f, 0.0f, 1.0f));
+    
+    // Clear after delay
+    GetWorldTimerManager().SetTimer(UnderFireTimer, [this]()
+    {
+        FindComponentByClass<UUtilityBrainComponent>()->SetNamedInputValue(TEXT("UnderFire"), 0.0f);
+    }, 2.0f, false);
+}</code></pre>
+
+<h3>Pattern 4: Blueprint Publishing</h3>
+
+<pre><code>// Blueprint tick publishing
+Event Tick
+  → Get Utility Brain
+  → Get Health Percent (custom function)
+  → Set Named Input Value
+    Input Name: "Health"
+    Value: Health Percent
+  → Get Ammo Count
+  → Divide (Max Ammo)
+  → Set Named Input Value
+    Input Name: "AmmoLevel"
+    Value: Ammo / Max</code></pre>
+
+<h2>Normalization Techniques</h2>
+
+<h3>Technique 1: Percentage (0-1)</h3>
+
+<pre><code>// Resources as percentages
+float Health = CurrentHealth / MaxHealth; // 0-1
+float Ammo = CurrentAmmo / MaxAmmo; // 0-1
+float Stamina = CurrentStamina / MaxStamina; // 0-1
+
+Brain->SetNamedInputValue(TEXT("Health"), Health);</code></pre>
+
+<h3>Technique 2: Distance Normalization</h3>
+
+<pre><code>// Distances normalized to expected max
+float Distance = (EnemyLocation - MyLocation).Size();
+float Normalized = FMath::Clamp(Distance / 5000.0f, 0.0f, 1.0f);
+// 0 = touching, 0.5 = 2500 units, 1.0 = 5000+ units
+
+Brain->SetNamedInputValue(TEXT("DistanceToEnemy"), Normalized);</code></pre>
+
+<h3>Technique 3: Count Normalization</h3>
+
+<pre><code>// Counts normalized to expected max
+int32 EnemyCount = PerceivedEnemies.Num();
+float Normalized = FMath::Clamp(EnemyCount / 10.0f, 0.0f, 1.0f);
+// 0 = no enemies, 0.5 = 5 enemies, 1.0 = 10+ enemies
+
+Brain->SetNamedInputValue(TEXT("EnemyCount"), Normalized);</code></pre>
+
+<h3>Technique 4: Boolean (0 or 1)</h3>
+
+<pre><code>// Boolean states as 0 or 1
+bool HasWeapon = IsWeaponEquipped();
+float Value = HasWeapon ? 1.0f : 0.0f;
+
+Brain->SetNamedInputValue(TEXT("HasWeapon"), Value);</code></pre>
+
+<h3>Technique 5: Time-Based Normalization</h3>
+
+<pre><code>// Time normalized to expected duration
+float TimeSince = GetWorld()->GetTimeSeconds() - LastSeenTime;
+float Normalized = FMath::Clamp(TimeSince / 30.0f, 0.0f, 1.0f);
+// 0 = just now, 0.5 = 15 seconds ago, 1.0 = 30+ seconds ago
+
+Brain->SetNamedInputValue(TEXT("TimeSinceLastSawEnemy"), Normalized);</code></pre>
+
+<h2>Built-In Input Publishers</h2>
+
+<h3>PerceptionMonitor Service</h3>
+
+<pre><code>Publishes 20+ inputs automatically:
+
+Enemy Detection:
+  - HasKnownEnemy (0/1)
+  - EnemyCount (0-1, max 20)
+  - HasVisibleEnemy (0/1)
+  - VisibleEnemyCount (0-1, max 20)
+  - NearestEnemyDistance (0-1, max 5000)
+  - DistanceToEnemy (0-1, max 5000)
+  - HasLineOfSight (0/1)
+  - CanSeeEnemy (0/1)
+
+Ally Detection:
+  - AllyCount (0-1, max 20)
+  - NearestAllyDistance (0-1, max 5000)
+
+Threat Assessment:
+  - ThreatLevel (0-1)
+  - UnderFire (0/1)
+
+Memory:
+  - TimeSinceLastSawEnemy (0-1, max duration)
+  - LastKnownEnemyLocationX/Y/Z (world coordinates)
+  - DistanceToLastKnownEnemy (0-1, max 5000)
+
+Sound:
+  - HeardSuspiciousSound (0/1)
+  - HasSuspiciousLocation (0/1)
+  - SuspiciousLocationDistance (0-1, max 5000)</code></pre>
+
+<h3>TacticalSquadInputProvider</h3>
+
+<pre><code>Publishes squad-related inputs:
+
+Squad Status:
+  - IsInSquad (0/1)
+  - IsSquadLeader (0/1)
+  - SquadMemberIndex (0-1, normalized position)
+  - SquadMemberCount (0-1, max 10)
+
+Squad Intel:
+  - SquadKnownEnemies (0-1, max 20)
+  - DistanceToLastKnownEnemy (0-1, max 5000)
+
+Squad Strategy (boolean flags):
+  - SquadStrategy_Search (0/1)
+  - SquadStrategy_Assault (0/1)
+  - SquadStrategy_Flank (0/1)
+  - SquadStrategy_Hold (0/1)
+  - SquadStrategy_Retreat (0/1)</code></pre>
+
+<h2>Debugging Inputs</h2>
+
+<h3>Gameplay Debugger View</h3>
+
+<pre><code>Press ' → 5 → Select Agent
+
+NAMED INPUTS (15):
+  Health: 0.75
+  AmmoLevel: 0.40
+  HasKnownEnemy: 1.00
+  EnemyCount: 0.30
+  DistanceToEnemy: 0.45
+  ThreatLevel: 0.70
+  UnderFire: 1.00
+  IsInCover: 0.00
+  TimeSinceLastSawEnemy: 0.15
+  ...</code></pre>
+
+<h3>Blueprint Debugging</h3>
+
+<pre><code>// Print all inputs
+Event Tick (once per second)
+  → Get Utility Brain
+  → Get All Input Names
+  → ForEach
+    → Get Named Input Value (LoopElement)
+    → Print String (LoopElement + " = " + Value)</code></pre>
+
+<h3>C++ Logging</h3>
+
+<pre><code>// Log specific input
+float Health = Brain->GetNamedInputValue(TEXT("Health"));
+UE_LOG(LogAI, Log, TEXT("Health = %f"), Health);
+
+// Log all inputs
+TArray<FName> Inputs = Brain->GetAllInputNames();
+for (FName InputName : Inputs)
+{
+    float Value = Brain->GetNamedInputValue(InputName);
+    UE_LOG(LogAI, Verbose, TEXT("%s = %f"), *InputName.ToString(), Value);
+}</code></pre>
+
+<h2>Best Practices</h2>
+
+<div class="callout tip">
+  <span class="icon"><i data-lucide="check-square"></i></span>
+  <div>
+    <strong>Named Inputs Best Practices:</strong>
+    <ul class="compact">
+      <li>✅ Normalize all values to 0-1 range</li>
+      <li>✅ Use descriptive, consistent names</li>
+      <li>✅ Publish from services (centralized)</li>
+      <li>✅ Update at appropriate frequency (0.1-0.5s)</li>
+      <li>✅ Use boolean style for flags (Has*, Is*, Can*)</li>
+      <li>✅ Document expected ranges</li>
+      <li>✅ Clear obsolete inputs when no longer needed</li>
+      <li>❌ Don't use raw world values (use normalized)</li>
+      <li>❌ Don't update every frame (performance)</li>
+      <li>❌ Don't use ambiguous names</li>
+      <li>❌ Don't mix normalized and raw values</li>
+    </ul>
+  </div>
+</div>
+
+<h2>Next Steps</h2>
+
+<div class="next-steps">
+  <a class="button primary" href="#/docs/service-api">
+    <i data-lucide="cog"></i>
+    Service API Reference
+  </a>
+  <a class="button" href="#/docs/consideration-api">
+    <i data-lucide="sliders"></i>
+    Consideration API
+  </a>
+</div>
+
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="#/docs/service-api"><i data-lucide="cog"></i> Service API</a> - Publishing inputs from services</li>
+  <li><a href="#/docs/consideration-api"><i data-lucide="sliders"></i> Consideration API</a> - Using inputs in actions</li>
+  <li><a href="#/docs/custom-services"><i data-lucide="tool"></i> Custom Services</a> - Create services that publish inputs</li>
+  <li><a href="#/docs/brain-api"><i data-lucide="cpu"></i> Brain API</a> - Brain component functions</li>
+</ul>
+
+<script>lucide.createIcons();</script>

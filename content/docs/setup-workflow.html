@@ -1,0 +1,510 @@
+<h1>15-Minute Setup Workflow</h1>
+<p class="note">Complete, step-by-step guide to create your first working AI agent from scratch. No prior CIN knowledge required—just follow along!</p>
+
+<div class="page-meta">
+  <span class="time"><i data-lucide="clock"></i> 15 minutes</span>
+  <span class="difficulty"><i data-lucide="bar-chart-2"></i> Beginner</span>
+</div>
+
+<div class="callout tip">
+  <span class="icon"><i data-lucide="lightbulb"></i></span>
+  <div>
+    <strong>Prerequisites:</strong>
+    <ul class="compact">
+      <li>✅ CIN Plugin installed (<a href="#/docs/installation">Installation Guide</a>)</li>
+      <li>✅ Archetype chosen (<a href="#/docs/archetype-guide">Archetype Guide</a>)</li>
+      <li>✅ Basic understanding of AI Controllers and Pawns</li>
+    </ul>
+  </div>
+</div>
+
+<div class="progress-tracker">
+  <div class="progress-header">
+    <h3>Your Progress</h3>
+    <span class="progress-text">0 of 6 steps complete</span>
+  </div>
+  <div class="progress-bar">
+    <div class="progress-fill" style="width: 0%"></div>
+  </div>
+</div>
+
+<hr/>
+
+<h2><span class="step-number">1</span> Create AI Controller (3 minutes)</h2>
+
+<p>Every AI agent needs an AI Controller with a <code>UUtilityBrainComponent</code>.</p>
+
+<h3>Option A: Blueprint (Recommended for Beginners)</h3>
+
+<ol>
+  <li>
+    <p><strong>Create the Blueprint:</strong></p>
+    <ul>
+      <li>Right-click in Content Browser → <strong>Blueprint Class</strong></li>
+      <li>Select <strong>AIController</strong> as parent class</li>
+      <li>Name it <code>BP_CIN_AIController</code></li>
+    </ul>
+  </li>
+  
+  <li>
+    <p><strong>Add Components:</strong></p>
+    <p>Open <code>BP_CIN_AIController</code> and add these components:</p>
+    <ul>
+      <li><i data-lucide="cpu"></i> <strong>UtilityBrainComponent</strong> - The AI brain (required)</li>
+      <li><i data-lucide="eye"></i> <strong>AIPerceptionComponent</strong> - For sight/hearing (recommended)</li>
+      <li><i data-lucide="settings"></i> <strong>CINQuickSetupComponent</strong> - One-click setup (optional)</li>
+      <li><i data-lucide="search"></i> <strong>CINDebugComponent</strong> - Debug visualization (optional)</li>
+    </ul>
+  </li>
+  
+  <li>
+    <p><strong>Configure Perception (if added):</strong></p>
+    <ul>
+      <li>Select <code>AIPerceptionComponent</code></li>
+      <li>Add <strong>AISenseConfig_Sight</strong>:
+        <ul>
+          <li>Sight Radius: <code>3000</code></li>
+          <li>Lose Sight Radius: <code>3500</code></li>
+          <li>Peripheral Vision Angle: <code>90</code></li>
+        </ul>
+      </li>
+      <li>Add <strong>AISenseConfig_Hearing</strong>:
+        <ul>
+          <li>Hearing Range: <code>2000</code></li>
+        </ul>
+      </li>
+      <li>Add <strong>AISenseConfig_Damage</strong></li>
+    </ul>
+  </li>
+</ol>
+
+<div class="callout info">
+  <span class="icon"><i data-lucide="info"></i></span>
+  <div>
+    <strong>Component Roles:</strong>
+    <ul class="compact">
+      <li><strong>UtilityBrainComponent:</strong> Evaluates actions and makes decisions</li>
+      <li><strong>AIPerceptionComponent:</strong> Provides sight/hearing (feeds PerceptionMonitor service)</li>
+      <li><strong>CINQuickSetupComponent:</strong> Auto-applies preset on possession (saves setup time)</li>
+      <li><strong>CINDebugComponent:</strong> Shows overhead widget with action scores</li>
+    </ul>
+  </div>
+</div>
+
+<h3>Option B: C++</h3>
+
+<pre><code>// YourAIController.h
+#include "AIController.h"
+#include "UtilityBrainComponent.h"
+#include "Perception/AIPerceptionComponent.h"
+#include "Components/CINQuickSetupComponent.h"
+#include "YourAIController.generated.h"
+
+UCLASS()
+class YOURGAME_API AYourAIController : public AAIController
+{
+    GENERATED_BODY()
+    
+public:
+    AYourAIController();
+    
+protected:
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+    UUtilityBrainComponent* UtilityBrain;
+    
+    UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
+    UCINQuickSetupComponent* QuickSetup;
+};
+
+// YourAIController.cpp
+AYourAIController::AYourAIController()
+{
+    // Create brain
+    UtilityBrain = CreateDefaultSubobject&lt;UUtilityBrainComponent&gt;(TEXT("UtilityBrain"));
+    
+    // Create perception
+    SetPerceptionComponent(*CreateDefaultSubobject&lt;UAIPerceptionComponent&gt;(TEXT("AIPerception")));
+    
+    // Create quick setup
+    QuickSetup = CreateDefaultSubobject&lt;UCINQuickSetupComponent&gt;(TEXT("QuickSetup"));
+}</code></pre>
+
+<hr/>
+
+<h2><span class="step-number">2</span> Create Agent Preset (5 minutes)</h2>
+
+<p>The <code>UCIN_AgentPreset</code> is your AI's complete configuration in one asset.</p>
+
+<ol>
+  <li>
+    <p><strong>Create the Data Asset:</strong></p>
+    <ul>
+      <li>Right-click in Content Browser → <strong>Miscellaneous</strong> → <strong>Data Asset</strong></li>
+      <li>Choose <code>CIN_AgentPreset</code></li>
+      <li>Name it <code>DA_Soldier_Preset</code> (or match your archetype)</li>
+    </ul>
+  </li>
+  
+  <li>
+    <p><strong>Configure Basic Settings:</strong></p>
+    <ul>
+      <li><strong>Archetype:</strong> Select from dropdown (e.g., <code>BaseCombat</code>)</li>
+      <li><strong>Squad Name:</strong> "Alpha Squad" (for squad AI, leave empty otherwise)</li>
+      <li><strong>Team ID:</strong> <code>1</code> (enemies use different IDs)</li>
+    </ul>
+  </li>
+  
+  <li>
+    <p><strong>Leave Actions Empty for Now:</strong></p>
+    <p>We'll create and add actions in the next step.</p>
+  </li>
+</ol>
+
+<div class="callout tip">
+  <span class="icon"><i data-lucide="lightbulb"></i></span>
+  <div>
+    <strong>What Archetype Does:</strong> Selecting <code>BaseCombat</code> automatically provides recommended actions (Attack, TakeCover, Reload, Retreat) and services (PerceptionMonitor). You can override these or add your own.
+  </div>
+</div>
+
+<hr/>
+
+<h2><span class="step-number">3</span> Create Actions (10 minutes)</h2>
+
+<p>Actions define what your AI can do. Let's create a basic combat AI with 3 actions.</p>
+
+<h3>Action 1: Attack</h3>
+
+<ol>
+  <li>
+    <p><strong>Create Data Asset:</strong></p>
+    <ul>
+      <li>Right-click → <strong>Miscellaneous</strong> → <strong>Data Asset</strong> → <code>UtilityActionAsset</code></li>
+      <li>Name: <code>DA_Action_Attack</code></li>
+    </ul>
+  </li>
+  
+  <li>
+    <p><strong>Configure Basic Properties:</strong></p>
+    <ul>
+      <li><strong>Action Name:</strong> <code>Attack</code></li>
+      <li><strong>Base Score:</strong> <code>50.0</code></li>
+    </ul>
+  </li>
+  
+  <li>
+    <p><strong>Add Scoring Considerations:</strong></p>
+    <p>In the <strong>Considerations</strong> array, add:</p>
+    
+    <p><strong>Consideration 1 - Has Enemy:</strong></p>
+    <ul>
+      <li>Input Name: <code>HasKnownEnemy</code></li>
+      <li>Response Curve:
+        <ul>
+          <li>Point 1: Time=0.0, Value=0.0 (no enemy = no attack)</li>
+          <li>Point 2: Time=1.0, Value=100.0 (has enemy = full score)</li>
+        </ul>
+      </li>
+    </ul>
+    
+    <p><strong>Consideration 2 - Has Ammo:</strong></p>
+    <ul>
+      <li>Input Name: <code>AmmoCount</code></li>
+      <li>Response Curve:
+        <ul>
+          <li>Point 1: Time=0.0, Value=0.0 (no ammo = can't attack)</li>
+          <li>Point 2: Time=1.0, Value=50.0 (full ammo = good to attack)</li>
+        </ul>
+      </li>
+    </ul>
+  </li>
+  
+  <li>
+    <p><strong>Configure Momentum (Prevents Spam):</strong></p>
+    <ul>
+      <li><strong>Max Momentum:</strong> <code>3.0</code></li>
+      <li><strong>Momentum Score Reduction:</strong> <code>15.0</code></li>
+      <li><strong>Momentum Decay Time:</strong> <code>2.0</code> seconds</li>
+    </ul>
+  </li>
+  
+  <li>
+    <p><strong>Add Executor (What Actually Happens):</strong></p>
+    <ul>
+      <li>Click <strong>+</strong> on <strong>Executor</strong></li>
+      <li>Choose <code>UtilityActionExecutor_BehaviorTree</code></li>
+      <li>Assign your attack Behavior Tree (or create one later)</li>
+    </ul>
+  </li>
+</ol>
+
+<h3>Action 2: Reload</h3>
+
+<ol>
+  <li>Create <code>DA_Action_Reload</code></li>
+  <li>Action Name: <code>Reload</code></li>
+  <li>Base Score: <code>70.0</code> (higher priority than attack)</li>
+  <li>Consideration:
+    <ul>
+      <li>Input: <code>AmmoCount</code></li>
+      <li>Curve: 1.0 (full ammo) = 0.0, 0.0 (empty) = 100.0 (inverted)</li>
+    </ul>
+  </li>
+  <li>Priority: <code>10</code> (wins ties - reloading is critical)</li>
+</ol>
+
+<h3>Action 3: Patrol</h3>
+
+<ol>
+  <li>Create <code>DA_Action_Patrol</code></li>
+  <li>Action Name: <code>Patrol</code></li>
+  <li>Base Score: <code>20.0</code> (low priority fallback)</li>
+  <li>Consideration:
+    <ul>
+      <li>Input: <code>HasKnownEnemy</code></li>
+      <li>Curve: 1.0 (has enemy) = 0.0, 0.0 (no enemy) = 100.0</li>
+    </ul>
+  </li>
+  <li>This action scores high when there's nothing else to do</li>
+</ol>
+
+<div class="callout warn">
+  <span class="icon"><i data-lucide="alert-triangle"></i></span>
+  <div>
+    <strong>Input Names are Case-Sensitive!</strong> Make sure you type input names exactly: <code>HasKnownEnemy</code>, <code>AmmoCount</code>, etc. These are automatically published by the PerceptionMonitor service.
+  </div>
+</div>
+
+<hr/>
+
+<h2><span class="step-number">4</span> Wire Actions to Preset (1 minute)</h2>
+
+<ol>
+  <li>Open <code>DA_Soldier_Preset</code></li>
+  <li>In the <strong>Actions</strong> array, add 3 elements</li>
+  <li>Assign:
+    <ul>
+      <li>Element 0: <code>DA_Action_Attack</code></li>
+      <li>Element 1: <code>DA_Action_Reload</code></li>
+      <li>Element 2: <code>DA_Action_Patrol</code></li>
+    </ul>
+  </li>
+  <li><strong>Save</strong></li>
+</ol>
+
+<hr/>
+
+<h2><span class="step-number">5</span> Apply Preset to Pawn (2 minutes)</h2>
+
+<h3>Option A: Automatic (Using CINQuickSetupComponent)</h3>
+
+<ol>
+  <li>In <code>BP_CIN_AIController</code>, select <code>CINQuickSetupComponent</code></li>
+  <li>Set <strong>Agent Preset</strong> to <code>DA_Soldier_Preset</code></li>
+  <li>Done! It auto-applies when the controller possesses a pawn</li>
+</ol>
+
+<h3>Option B: Manual (Blueprint Event)</h3>
+
+<p>In your AI Controller's <strong>BeginPlay</strong> or <strong>OnPossess</strong>:</p>
+
+<pre><code>// Get controlled pawn
+Pawn = Get Controlled Pawn
+
+// Apply preset
+Call "Apply Agent Preset To Pawn" 
+  Target: CIN AI Blueprint Library
+  Pawn: (from above)
+  Preset: DA_Soldier_Preset
+  Apply Services: true</code></pre>
+
+<h3>Option C: Manual (C++)</h3>
+
+<pre><code>// In your AI Controller's OnPossess
+#include "Blueprint/CIN_AIBlueprintLibrary.h"
+
+void AYourAIController::OnPossess(APawn* InPawn)
+{
+    Super::OnPossess(InPawn);
+    
+    if (UCIN_AgentPreset* Preset = LoadObject&lt;UCIN_AgentPreset&gt;(nullptr, TEXT("/Game/AI/DA_Soldier_Preset")))
+    {
+        UCIN_AIBlueprintLibrary::ApplyAgentPresetToPawn(InPawn, Preset, true);
+    }
+}</code></pre>
+
+<hr/>
+
+<h2><span class="step-number">6</span> Test & Debug (5 minutes)</h2>
+
+<h3>Setup Test Environment</h3>
+
+<ol>
+  <li>
+    <p><strong>Place Your Pawn:</strong></p>
+    <ul>
+      <li>Drag your AI pawn into the level</li>
+      <li>Set <strong>AI Controller Class</strong> to <code>BP_CIN_AIController</code></li>
+      <li>Set <strong>Auto Possess AI</strong> to <code>Placed in World</code></li>
+    </ul>
+  </li>
+  
+  <li>
+    <p><strong>Set Team ID (for Perception):</strong></p>
+    <p>In your pawn or controller, implement <code>IGenericTeamAgentInterface</code>:</p>
+    <pre><code>// Blueprint: Implement GetGenericTeamId
+Return: Make Struct FGenericTeamId
+  TeamID: 1
+
+// C++: Implement IGenericTeamAgentInterface
+FGenericTeamId AYourPawn::GetGenericTeamId() const
+{
+    return FGenericTeamId(1);
+}</code></pre>
+  </li>
+  
+  <li>
+    <p><strong>Press Play!</strong></p>
+  </li>
+</ol>
+
+<h3>Debug Visualization</h3>
+
+<h4>Method 1: Gameplay Debugger (Detailed)</h4>
+
+<ol>
+  <li>Press <kbd>'</kbd> (apostrophe) to open Gameplay Debugger</li>
+  <li>Press <kbd>5</kbd> to enable Utility AI category</li>
+  <li>Press numpad <kbd>1-9</kbd> to select agents</li>
+  <li>You'll see:
+    <ul>
+      <li>Current action and score</li>
+      <li>All action scores</li>
+      <li>Active services</li>
+      <li>Named inputs</li>
+      <li>Locked actions</li>
+      <li>Momentum values</li>
+    </ul>
+  </li>
+</ol>
+
+<h4>Method 2: CINDebugComponent (Overhead Widget)</h4>
+
+<p>If you added <code>CINDebugComponent</code>, you'll see an overhead widget showing:</p>
+<ul>
+  <li>Current action name</li>
+  <li>Current score</li>
+  <li>Top 3 action scores</li>
+  <li>Squad info (if in squad)</li>
+</ul>
+
+<h4>Method 3: Console Logs</h4>
+
+<p>Enable logging in Project Settings → CIN Plugin → Debug:</p>
+<ul>
+  <li><code>bLogActionSelection = true</code></li>
+  <li><code>bLogInputChanges = true</code></li>
+</ul>
+
+<h3>What You Should See</h3>
+
+<div class="callout success">
+  <span class="icon"><i data-lucide="check-circle"></i></span>
+  <div>
+    <strong>Expected Behavior:</strong>
+    <ul class="compact">
+      <li>✅ AI patrols when no enemies nearby</li>
+      <li>✅ AI attacks when enemy detected and has ammo</li>
+      <li>✅ AI reloads when ammo low (if implemented)</li>
+      <li>✅ Action scores update in real-time</li>
+      <li>✅ Momentum prevents action spam</li>
+    </ul>
+  </div>
+</div>
+
+<hr/>
+
+<h2>Troubleshooting</h2>
+
+<h3><i data-lucide="x-circle"></i> "AI isn't doing anything"</h3>
+
+<p><strong>Check:</strong></p>
+<ul>
+  <li>✅ Is <code>UtilityBrainComponent</code> added to AI Controller?</li>
+  <li>✅ Did preset apply? Check Gameplay Debugger - should show actions</li>
+  <li>✅ Are any actions scoring above 0? Check Gameplay Debugger</li>
+  <li>✅ Is the brain paused? Check <code>bPaused</code> property</li>
+</ul>
+
+<h3><i data-lucide="x-circle"></i> "Actions not scoring"</h3>
+
+<p><strong>Check:</strong></p>
+<ul>
+  <li>✅ Input names match exactly (case-sensitive): <code>HasKnownEnemy</code> not <code>hasKnownEnemy</code></li>
+  <li>✅ Services are running (Gameplay Debugger shows active services)</li>
+  <li>✅ <code>AIPerceptionComponent</code> is configured and working</li>
+  <li>✅ Team IDs are set (required for enemy detection)</li>
+</ul>
+
+<h3><i data-lucide="x-circle"></i> "AI spams same action"</h3>
+
+<p><strong>Solution:</strong></p>
+<ul>
+  <li>Increase <code>MaxMomentum</code> and <code>MomentumScoreReduction</code> on that action</li>
+  <li>Add <code>ReplaceResistance</code> (e.g., 1.5) to make action harder to interrupt</li>
+</ul>
+
+<h3><i data-lucide="x-circle"></i> "AI rapidly switches actions"</h3>
+
+<p><strong>Solution:</strong></p>
+<ul>
+  <li>Increase <code>ReplaceResistance</code> on all actions</li>
+  <li>Make scoring curves more distinct (bigger gaps between scores)</li>
+  <li>Increase <code>Priority</code> on critical actions to break ties</li>
+</ul>
+
+<hr/>
+
+<h2>What You Learned</h2>
+
+<div class="completion-checklist">
+  <h3><i data-lucide="check-square"></i> Skills Acquired</h3>
+  <ul>
+    <li>✅ Created AI Controller with UtilityBrainComponent</li>
+    <li>✅ Configured AIPerceptionComponent</li>
+    <li>✅ Created UCIN_AgentPreset with archetype</li>
+    <li>✅ Created UtilityActionAssets with scoring curves</li>
+    <li>✅ Applied preset to pawn</li>
+    <li>✅ Used Gameplay Debugger to inspect AI</li>
+    <li>✅ Understood momentum and priority systems</li>
+  </ul>
+</div>
+
+<hr/>
+
+<h2>Next Steps</h2>
+
+<div class="next-steps">
+  <a class="button primary" href="#/docs/first-combat-ai">
+    <i data-lucide="crosshair"></i>
+    Build Complete Combat AI
+  </a>
+  <a class="button" href="#/docs/debug-basics">
+    <i data-lucide="search"></i>
+    Master Debug Tools
+  </a>
+  <a class="button" href="#/docs/action-patterns">
+    <i data-lucide="target"></i>
+    Learn Action Design Patterns
+  </a>
+</div>
+
+<h3>Recommended Reading</h3>
+<ul>
+  <li><a href="#/docs/perception-setup"><i data-lucide="eye"></i> Perception Setup</a> - Configure sight, hearing, and damage detection</li>
+  <li><a href="#/docs/tuning"><i data-lucide="sliders"></i> Tuning & Balancing</a> - Fine-tune momentum, resistance, and scoring</li>
+  <li><a href="#/docs/best-practices"><i data-lucide="star"></i> Best Practices</a> - Professional patterns and anti-patterns</li>
+  <li><a href="#/examples/combat-setup"><i data-lucide="crosshair"></i> Combat AI Example</a> - Complete working example</li>
+</ul>
+
+<script>lucide.createIcons();</script>

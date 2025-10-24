@@ -1,0 +1,661 @@
+<h1>Example: Multi-Phase Boss AI</h1>
+<p class="note">Complete working example of a multi-phase boss AI using BaseBoss archetype. Includes phase transitions, special abilities, enrage mechanics, and adaptive tactics.</p>
+
+<div class="page-meta">
+  <span class="time"><i data-lucide="clock"></i> 40 minutes</span>
+  <span class="difficulty"><i data-lucide="code"></i> Example</span>
+</div>
+
+<div class="callout tip">
+  <span class="icon"><i data-lucide="lightbulb"></i></span>
+  <div>
+    <strong>What You'll Build:</strong> A complex boss AI with 3 distinct phases, special abilities unlocked per phase, enrage mechanics at low health, minion summoning, and area control attacks. Demonstrates advanced Utility AI patterns for memorable boss encounters.
+  </div>
+</div>
+
+<h2>Final Result</h2>
+
+<pre><code>Boss AI Phases:
+├─ Phase 1 (100-70% Health)
+│  ├─ Standard melee attacks
+│  ├─ Ground slam AOE
+│  ├─ Summon minions (once)
+│  └─ Aggressive pursuit
+├─ Phase 2 (70-40% Health)
+│  ├─ Ranged projectiles
+│  ├─ Teleport ability
+│  ├─ Fire wave attack
+│  ├─ Summon more minions
+│  └─ Tactical repositioning
+├─ Phase 3 (40-0% Health)
+│  ├─ Enrage mode
+│  ├─ All abilities available
+│  ├─ Faster attack speed
+│  ├─ Area denial zones
+│  └─ Desperation attacks
+
+Features:
+✓ Phase-based ability unlocks
+✓ Health threshold transitions
+✓ Cooldown management
+✓ Enrage mechanics
+✓ Minion summoning
+✓ Area control
+✓ Visual feedback</code></pre>
+
+<h2>Step 1: Create Boss Pawn</h2>
+
+<h3>Blueprint: BP_DragonBoss</h3>
+
+<pre><code>Parent Class: Character
+
+Components:
+  + Skeletal Mesh (dragon model)
+  + AIPerception
+    Senses:
+      - AISight (5000 radius, 180° FOV)
+      - AIDamage (always on)
+  + CINQuickSetup
+    AgentType: BaseBoss
+    bAutoInitialize: true
+    bEnableDebugVisualization: true
+
+Variables:
+  + MaxHealth (float): 10000.0
+  + CurrentHealth (float): 10000.0
+  + CurrentPhase (int32): 1
+  + bIsEnraged (bool): false
+  + LastAbilityTime (float): 0.0
+  + MinionsSpawned (int32): 0
+  + MaxMinionsPerPhase (int32): 3
+  
+Functions:
+  + GetHealthPercent() → float
+  + TransitionToPhase(int32 NewPhase)
+  + CanUseAbility(FName AbilityName) → bool
+  + ApplyAbilityCooldown(FName AbilityName, float Duration)</code></pre>
+
+<h2>Step 2: Phase System</h2>
+
+<h3>Phase Transition Logic</h3>
+
+<pre><code>// Custom service: UService_PhaseManager
+void UService_PhaseManager::TickService(float DeltaTime)
+{
+    Super::TickService(DeltaTime);
+    
+    ABossPawn* Boss = Cast<ABossPawn>(GetOwningPawn());
+    float HealthPercent = Boss->GetHealthPercent();
+    int32 CurrentPhase = Boss->CurrentPhase;
+    
+    // Phase transitions
+    if (HealthPercent <= 0.4f && CurrentPhase < 3)
+    {
+        Boss->TransitionToPhase(3);
+        PublishPhase3Inputs();
+        TriggerPhaseTransitionEffects();
+    }
+    else if (HealthPercent <= 0.7f && CurrentPhase < 2)
+    {
+        Boss->TransitionToPhase(2);
+        PublishPhase2Inputs();
+        TriggerPhaseTransitionEffects();
+    }
+    
+    // Enrage check
+    bool bEnraged = HealthPercent < 0.3f;
+    Boss->bIsEnraged = bEnraged;
+    
+    // Publish phase inputs
+    OwningBrain->SetNamedInputValue(TEXT("Phase1Active"), CurrentPhase == 1 ? 1.0f : 0.0f);
+    OwningBrain->SetNamedInputValue(TEXT("Phase2Active"), CurrentPhase == 2 ? 1.0f : 0.0f);
+    OwningBrain->SetNamedInputValue(TEXT("Phase3Active"), CurrentPhase == 3 ? 1.0f : 0.0f);
+    OwningBrain->SetNamedInputValue(TEXT("IsEnraged"), bEnraged ? 1.0f : 0.0f);
+    OwningBrain->SetNamedInputValue(TEXT("Health"), HealthPercent);
+}</code></pre>
+
+<h3>Phase Transition Effects</h3>
+
+<pre><code>void ABossPawn::TransitionToPhase(int32 NewPhase)
+{
+    CurrentPhase = NewPhase;
+    
+    switch (NewPhase)
+    {
+    case 2:
+        // Phase 2 transition
+        PlayMontage(RoarAnimMontage);
+        SpawnParticleEffect(Phase2TransitionVFX);
+        PlaySound(Phase2TransitionSound);
+        // Brief invulnerability during transition
+        SetActorEnableCollision(false);
+        GetWorldTimerManager().SetTimer(InvulnHandle, [this]()
+        {
+            SetActorEnableCollision(true);
+        }, 2.0f, false);
+        break;
+        
+    case 3:
+        // Phase 3 transition (enrage)
+        PlayMontage(EnrageAnimMontage);
+        SpawnParticleEffect(EnrageVFX);
+        PlaySound(EnrageSound);
+        // Speed boost
+        GetCharacterMovement()->MaxWalkSpeed *= 1.5f;
+        break;
+    }
+    
+    UE_LOG(LogAI, Warning, TEXT("Boss transitioned to Phase %d"), NewPhase);
+}</code></pre>
+
+<h2>Step 3: Phase 1 Actions</h2>
+
+<h3>Action 1: DA_Boss_MeleeAttack</h3>
+
+<pre><code>ActionName: "MeleeAttack"
+DisplayName: "Melee Slash"
+BaseScore: 70.0
+Priority: 50
+
+Considerations:
+  1. Phase1Active
+     InputName: "Phase1Active"
+     ResponseCurve: (0,0) → (1,100)
+     Weight: 1.5
+     Comment: Available in Phase 1
+     
+  2. DistanceToEnemy
+     InputName: "DistanceToEnemy"
+     ResponseCurve: (0,100) → (0.2,100) → (0.5,20) → (1,0)
+     Weight: 1.0
+     Comment: Close range only
+     
+  3. HasVisibleEnemy
+     InputName: "HasVisibleEnemy"
+     ResponseCurve: (0,0) → (1,100)
+     Weight: 1.0
+
+Momentum: 
+  MaxMomentum: 2.0
+  MomentumDecayTime: 2.0
+  Comment: Prevent spam
+
+Replace Resistance: 1.2
+bInterruptible: true
+UnlockTime: 1.5 (cooldown)
+
+Executor: BT_Boss_MeleeAttack</code></pre>
+
+<h3>Action 2: DA_Boss_GroundSlam</h3>
+
+<pre><code>ActionName: "GroundSlam"
+DisplayName: "Ground Slam AOE"
+BaseScore: 75.0
+Priority: 60
+
+Considerations:
+  1. Phase1Active
+     InputName: "Phase1Active"
+     ResponseCurve: (0,0) → (1,100)
+     Weight: 1.5
+     
+  2. EnemyCount
+     InputName: "VisibleEnemyCount"
+     ResponseCurve: (0,0) → (0.2,100) → (1,100)
+     Weight: 1.0
+     Comment: Better with multiple enemies
+     
+  3. DistanceToEnemy
+     InputName: "DistanceToEnemy"
+     ResponseCurve: (0,100) → (0.3,100) → (0.6,50) → (1,0)
+     Weight: 1.0
+     Comment: Medium range
+
+Momentum: None (special ability)
+Replace Resistance: 1.5
+bInterruptible: false
+UnlockTime: 8.0 (long cooldown)
+
+Executor: BT_Boss_GroundSlam
+  → Jump animation
+  → Land with force
+  → AOE damage in radius
+  → Stagger players</code></pre>
+
+<h3>Action 3: DA_Boss_SummonMinions</h3>
+
+<pre><code>ActionName: "SummonMinions"
+DisplayName: "Summon Reinforcements"
+BaseScore: 65.0
+Priority: 55
+
+Considerations:
+  1. Phase1Active
+     InputName: "Phase1Active"
+     ResponseCurve: (0,0) → (1,100)
+     Weight: 1.0
+     
+  2. MinionsAlive (custom input)
+     InputName: "MinionsAlive"
+     ResponseCurve: (0,100) → (0.3,50) → (1,0)
+     bInvertCurve: true
+     Weight: 1.5
+     Comment: Summon when minions dead
+     
+  3. Health
+     InputName: "Health"
+     ResponseCurve: (0,100) → (0.5,80) → (1,20)
+     bInvertCurve: true
+     Weight: 1.0
+     Comment: More desperate when hurt
+
+Momentum: None
+Replace Resistance: 1.0
+bInterruptible: false
+UnlockTime: 20.0 (very long cooldown)
+
+Executor: BT_Boss_SummonMinions
+  → Play summon animation
+  → Spawn 3 minions at spawn points
+  → Track minion count
+  → Increment MinionsSpawned</code></pre>
+
+<h2>Step 4: Phase 2 Actions</h2>
+
+<h3>Action 4: DA_Boss_Projectile</h3>
+
+<pre><code>ActionName: "Projectile"
+DisplayName: "Fire Projectile"
+BaseScore: 70.0
+Priority: 50
+
+Considerations:
+  1. Phase2Active
+     InputName: "Phase2Active"
+     ResponseCurve: (0,0) → (1,100)
+     Weight: 1.5
+     Comment: Unlocked in Phase 2
+     
+  2. DistanceToEnemy
+     InputName: "DistanceToEnemy"
+     ResponseCurve: (0,0) → (0.4,50) → (0.7,100) → (1,80)
+     Weight: 1.0
+     Comment: Medium to long range
+     
+  3. HasLineOfSight
+     InputName: "HasLineOfSight"
+     ResponseCurve: (0,0) → (1,100)
+     Weight: 1.0
+
+Momentum: 
+  MaxMomentum: 3.0
+  MomentumDecayTime: 3.0
+
+Replace Resistance: 1.1
+bInterruptible: true
+UnlockTime: 2.0
+
+Executor: BT_Boss_Projectile</code></pre>
+
+<h3>Action 5: DA_Boss_Teleport</h3>
+
+<pre><code>ActionName: "Teleport"
+DisplayName: "Tactical Teleport"
+BaseScore: 68.0
+Priority: 65
+
+Considerations:
+  1. Phase2Active OR Phase3Active
+     InputName: "Phase2Active"
+     ResponseCurve: (0,0) → (1,100)
+     Weight: 1.5
+     
+  2. UnderFire
+     InputName: "UnderFire"
+     ResponseCurve: (0,0) → (1,100)
+     Weight: 1.2
+     Comment: Escape when taking damage
+     
+  3. Health
+     InputName: "Health"
+     ResponseCurve: (0,100) → (1,20)
+     bInvertCurve: true
+     Weight: 1.0
+
+Momentum: None
+Replace Resistance: 1.3
+bInterruptible: false
+UnlockTime: 12.0
+
+Executor: BT_Boss_Teleport
+  → Find teleport location (behind player or flanking)
+  → Play teleport VFX (exit)
+  → Move to new location
+  → Play teleport VFX (entrance)
+  → Brief invulnerability (0.5s)</code></pre>
+
+<h3>Action 6: DA_Boss_FireWave</h3>
+
+<pre><code>ActionName: "FireWave"
+DisplayName: "Fire Wave Attack"
+BaseScore: 72.0
+Priority: 60
+
+Considerations:
+  1. Phase2Active OR Phase3Active
+     InputName: "Phase2Active"
+     ResponseCurve: (0,0) → (1,100)
+     Weight: 1.5
+     
+  2. EnemyCount
+     InputName: "VisibleEnemyCount"
+     ResponseCurve: (0,20) → (0.3,100) → (1,100)
+     Weight: 1.0
+     
+  3. DistanceToEnemy
+     InputName: "DistanceToEnemy"
+     ResponseCurve: (0,50) → (0.5,100) → (1,30)
+     Weight: 1.0
+
+Momentum: None
+Replace Resistance: 1.4
+bInterruptible: false
+UnlockTime: 10.0
+
+Executor: BT_Boss_FireWave
+  → Channel animation (1s)
+  → Spawn fire wave projectile
+  → Wave travels forward
+  → Damages everything in path
+  → Leaves burning ground</code></pre>
+
+<h2>Step 5: Phase 3 Actions (Enrage)</h2>
+
+<h3>Action 7: DA_Boss_EnragedCombo</h3>
+
+<pre><code>ActionName: "EnragedCombo"
+DisplayName: "Enraged Melee Combo"
+BaseScore: 85.0
+Priority: 70
+
+Considerations:
+  1. Phase3Active
+     InputName: "Phase3Active"
+     ResponseCurve: (0,0) → (1,100)
+     Weight: 2.0
+     Comment: Phase 3 exclusive
+     
+  2. IsEnraged
+     InputName: "IsEnraged"
+     ResponseCurve: (0,0) → (1,100)
+     Weight: 1.5
+     
+  3. DistanceToEnemy
+     InputName: "DistanceToEnemy"
+     ResponseCurve: (0,100) → (0.3,100) → (1,0)
+     Weight: 1.0
+
+Momentum: 
+  MaxMomentum: 1.0 (reduced - allow more aggression)
+  MomentumDecayTime: 1.0
+
+Replace Resistance: 1.0 (easier to trigger)
+bInterruptible: false (relentless)
+UnlockTime: 0.8 (faster cooldown)
+
+Executor: BT_Boss_EnragedCombo
+  → 3-hit combo
+  → Slash → Slash → Slam
+  → Faster animations
+  → Higher damage</code></pre>
+
+<h3>Action 8: DA_Boss_AreaDenial</h3>
+
+<pre><code>ActionName: "AreaDenial"
+DisplayName: "Create Danger Zones"
+BaseScore: 75.0
+Priority: 65
+
+Considerations:
+  1. Phase3Active
+     InputName: "Phase3Active"
+     ResponseCurve: (0,0) → (1,100)
+     Weight: 1.5
+     
+  2. Health
+     InputName: "Health"
+     ResponseCurve: (0,100) → (0.3,100) → (1,0)
+     bInvertCurve: true
+     Weight: 1.0
+     Comment: More desperate = more zones
+
+Momentum: None
+Replace Resistance: 1.2
+bInterruptible: false
+UnlockTime: 15.0
+
+Executor: BT_Boss_AreaDenial
+  → Spawn 3-5 danger zones around arena
+  → Fire pillars / lava pools
+  → Forces player movement
+  → Limits safe space
+  → Lasts 10 seconds</code></pre>
+
+<h2>Step 6: Cooldown Management</h2>
+
+<h3>Cooldown Service</h3>
+
+<pre><code>// Custom service: UService_AbilityCooldowns
+void UService_AbilityCooldowns::TickService(float DeltaTime)
+{
+    Super::TickService(DeltaTime);
+    
+    float CurrentTime = GetWorld()->GetTimeSeconds();
+    
+    // Check each ability cooldown
+    for (auto& Pair : AbilityCooldowns)
+    {
+        FName AbilityName = Pair.Key;
+        float CooldownEnd = Pair.Value;
+        
+        bool bOnCooldown = CurrentTime < CooldownEnd;
+        float TimeRemaining = FMath::Max(0.0f, CooldownEnd - CurrentTime);
+        float CooldownPercent = bOnCooldown ? (TimeRemaining / GetAbilityCooldownDuration(AbilityName)) : 0.0f;
+        
+        // Publish cooldown status
+        FString InputName = AbilityName.ToString() + TEXT("_OnCooldown");
+        OwningBrain->SetNamedInputValue(FName(*InputName), bOnCooldown ? 1.0f : 0.0f);
+        
+        // Publish cooldown percent
+        FString PercentName = AbilityName.ToString() + TEXT("_CooldownPercent");
+        OwningBrain->SetNamedInputValue(FName(*PercentName), CooldownPercent);
+    }
+}
+
+// When ability used
+void StartAbilityCooldown(FName AbilityName, float Duration)
+{
+    float EndTime = GetWorld()->GetTimeSeconds() + Duration;
+    AbilityCooldowns.Add(AbilityName, EndTime);
+}
+
+// Usage in action executor
+void UBT_Boss_GroundSlam::OnActionComplete()
+{
+    GetAbilityCooldownService()->StartAbilityCooldown(TEXT("GroundSlam"), 8.0f);
+}</code></pre>
+
+<h2>Step 7: Minion Management</h2>
+
+<pre><code>// Track minion count
+void UService_MinionTracker::TickService(float DeltaTime)
+{
+    ABossPawn* Boss = GetBossPawn();
+    
+    // Count alive minions
+    int32 AliveCount = 0;
+    for (AMinion* Minion : Boss->SpawnedMinions)
+    {
+        if (Minion && !Minion->IsDead())
+        {
+            AliveCount++;
+        }
+    }
+    
+    // Publish
+    float MinionPercent = FMath::Clamp(AliveCount / 10.0f, 0.0f, 1.0f);
+    OwningBrain->SetNamedInputValue(TEXT("MinionsAlive"), MinionPercent);
+    OwningBrain->SetNamedInputValue(TEXT("MinionCount"), AliveCount);
+    
+    // Check if can summon more
+    bool bCanSummon = Boss->MinionsSpawned < Boss->GetMaxMinionsForPhase();
+    OwningBrain->SetNamedInputValue(TEXT("CanSummonMinions"), bCanSummon ? 1.0f : 0.0f);
+}</code></pre>
+
+<h2>Step 8: Visual Feedback</h2>
+
+<pre><code>// Update boss appearance per phase
+void ABossPawn::UpdateVisualState()
+{
+    switch (CurrentPhase)
+    {
+    case 1:
+        // Normal appearance
+        SetMaterialScalarParameter("GlowIntensity", 0.5f);
+        break;
+        
+    case 2:
+        // Glowing eyes, faster animations
+        SetMaterialScalarParameter("GlowIntensity", 1.0f);
+        SetAnimationSpeed(1.2f);
+        break;
+        
+    case 3:
+        // Full enrage - red glow, particle trails
+        SetMaterialScalarParameter("GlowIntensity", 2.0f);
+        SetAnimationSpeed(1.5f);
+        SpawnAttachedParticle(EnrageTrailVFX);
+        SetMaterialVectorParameter("TintColor", FLinearColor::Red);
+        break;
+    }
+    
+    // Health-based effects
+    if (GetHealthPercent() < 0.3f)
+    {
+        // Damaged, smoking
+        SpawnAttachedParticle(DamageSmokeFX);
+    }
+}</code></pre>
+
+<h2>Step 9: Test Scenarios</h2>
+
+<h3>Scenario 1: Phase 1 Combat</h3>
+
+<pre><code>Setup:
+  - Spawn boss
+  - Player engages at close range
+  
+Expected:
+  → Boss uses melee attacks
+  → Occasionally ground slam when player in range
+  → Summons minions once
+  → Aggressive pursuit
+
+Health drops to 70%:
+  → Phase transition triggers
+  → Boss transitions to Phase 2</code></pre>
+
+<h3>Scenario 2: Phase 2 Tactics</h3>
+
+<pre><code>Setup:
+  - Boss at Phase 2 (70% health)
+  - Player at medium range
+
+Expected:
+  → Boss uses projectile attacks
+  → Teleports when taking heavy damage
+  → Fire wave when multiple targets
+  → More tactical, less melee-focused
+
+Health drops to 40%:
+  → Phase 3 transition
+  → Enrage activates</code></pre>
+
+<h3>Scenario 3: Enrage Phase</h3>
+
+<pre><code>Setup:
+  - Boss at Phase 3 (<40% health)
+  - Enrage active
+
+Expected:
+  → All abilities available
+  → Faster attack speed
+  → Enraged combo attacks
+  → Area denial zones spawn
+  → Aggressive, relentless behavior
+  → Difficult to avoid
+
+Boss defeated:
+  → Death animation
+  → Victory music
+  → Loot drop</code></pre>
+
+<h2>Complete Configuration Summary</h2>
+
+<pre><code>Boss Pawn: BP_DragonBoss
+  MaxHealth: 10000
+  CurrentPhase: 1 (transitions at 70% and 40%)
+  bIsEnraged: false (activates at 30%)
+  
+Services:
+  [0] PerceptionMonitor
+  [1] PhaseManager (custom)
+  [2] AbilityCooldowns (custom)
+  [3] MinionTracker (custom)
+
+Actions (8 total):
+  Phase 1:
+    - MeleeAttack (P:50, CD:1.5s)
+    - GroundSlam (P:60, CD:8s)
+    - SummonMinions (P:55, CD:20s)
+    
+  Phase 2:
+    - Projectile (P:50, CD:2s)
+    - Teleport (P:65, CD:12s)
+    - FireWave (P:60, CD:10s)
+    
+  Phase 3:
+    - EnragedCombo (P:70, CD:0.8s)
+    - AreaDenial (P:65, CD:15s)
+    
+All phases: Phase-appropriate actions score highest
+
+Phase Transitions:
+  100% → 70%: Phase 1 → Phase 2
+  70% → 40%: Phase 2 → Phase 3
+  <30%: Enrage activates (speed boost)
+
+Result: Dynamic, challenging boss fight with clear phases</code></pre>
+
+<h2>Next Steps</h2>
+
+<div class="next-steps">
+  <a class="button primary" href="#/docs/example-combat-soldier">
+    <i data-lucide="crosshair"></i>
+    Combat Soldier Example
+  </a>
+  <a class="button" href="#/docs/archetype-guide">
+    <i data-lucide="layers"></i>
+    Archetype Guide
+  </a>
+</div>
+
+<h3>Related Examples</h3>
+<ul>
+  <li><a href="#/docs/example-combat-soldier"><i data-lucide="crosshair"></i> Combat Soldier</a> - Basic combat AI</li>
+  <li><a href="#/docs/example-squad-coordination"><i data-lucide="users"></i> Squad Coordination</a> - Multi-agent tactics</li>
+  <li><a href="#/docs/action-patterns"><i data-lucide="layers"></i> Action Patterns</a> - Design patterns</li>
+  <li><a href="#/docs/tuning"><i data-lucide="sliders"></i> Tuning Guide</a> - Balance boss difficulty</li>
+</ul>
+
+<script>lucide.createIcons();</script>

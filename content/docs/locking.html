@@ -1,0 +1,520 @@
+<h1>Task Locking</h1>
+<p class="note">Prevent failed action retries with task locking. Learn how to automatically lock actions that fail or abort, forcing the AI to consider alternatives instead of getting stuck in retry loops.</p>
+
+<div class="page-meta">
+  <span class="time"><i data-lucide="clock"></i> 8 minutes</span>
+  <span class="difficulty"><i data-lucide="bar-chart-2"></i> Advanced</span>
+</div>
+
+<div class="callout tip">
+  <span class="icon"><i data-lucide="lightbulb"></i></span>
+  <div>
+    <strong>Locking Principle:</strong> When an action fails or is aborted, lock it temporarily. The AI must try other options before attempting the failed action again.
+  </div>
+</div>
+
+<h2>The Retry Loop Problem</h2>
+
+<h3>Without Locking</h3>
+
+<pre><code>t=0.0s: Try ThrowGrenade (target blocked) → FAIL
+t=0.1s: ThrowGrenade still highest score → Retry
+t=0.2s: Try ThrowGrenade (still blocked) → FAIL
+t=0.3s: ThrowGrenade still highest score → Retry
+t=0.4s: Try ThrowGrenade (still blocked) → FAIL
+...infinite loop!
+
+AI stuck, never considers alternatives</code></pre>
+
+<h3>With Locking</h3>
+
+<pre><code>t=0.0s: Try ThrowGrenade → FAIL → Lock for 5s
+t=0.1s: ThrowGrenade locked, try TakeCover → SUCCESS
+t=2.0s: TakeCover complete, try Attack → SUCCESS
+t=5.0s: ThrowGrenade unlocked, can retry now
+t=5.5s: Try ThrowGrenade (path clear) → SUCCESS
+
+AI adapts, tries alternatives, eventually succeeds</code></pre>
+
+<h2>How Task Locking Works</h2>
+
+<h3>Configuration</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Purpose</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>UnlockTime</strong></td>
+      <td>Float</td>
+      <td>Seconds to keep action locked (0 = no locking)</td>
+    </tr>
+    <tr>
+      <td><strong>bAutoLockOnFail</strong></td>
+      <td>Bool</td>
+      <td>Automatically lock when action fails (default: true)</td>
+    </tr>
+    <tr>
+      <td><strong>bAutoLockOnAbort</strong></td>
+      <td>Bool</td>
+      <td>Automatically lock when action aborted (default: true)</td>
+    </tr>
+    <tr>
+      <td><strong>bUnlockOnSuccess</strong></td>
+      <td>Bool</td>
+      <td>Unlock all actions when one succeeds (default: false)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Lock Triggers</h3>
+
+<pre><code>Action gets locked when:
+1. Action fails (returns failure state)
+2. Action aborts (interrupted before completion)
+3. Manual lock via Blueprint/C++
+
+Action unlocks when:
+1. UnlockTime expires
+2. Manual unlock via Blueprint/C++
+3. Another action succeeds (if bUnlockOnSuccess)</code></pre>
+
+<h2>UnlockTime Values</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Value</th>
+      <th>Effect</th>
+      <th>Use Case</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>0.0s</strong></td>
+      <td>No locking</td>
+      <td>Actions that should always retry (Attack, Move)</td>
+    </tr>
+    <tr>
+      <td><strong>1.0-3.0s</strong></td>
+      <td>Short lock</td>
+      <td>Quick retry prevention (Jump, Interact)</td>
+    </tr>
+    <tr>
+      <td><strong>5.0-10.0s</strong></td>
+      <td>Medium lock</td>
+      <td>Most situational actions (ThrowGrenade, Flank)</td>
+    </tr>
+    <tr>
+      <td><strong>15.0-30.0s</strong></td>
+      <td>Long lock</td>
+      <td>Rare abilities, complex maneuvers</td>
+    </tr>
+    <tr>
+      <td><strong>-1.0 (special)</strong></td>
+      <td>Permanent lock</td>
+      <td>One-time actions (PhaseTransition, Tutorial)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Common Configurations</h2>
+
+<h3>Primary Actions (No Locking)</h3>
+
+<pre><code>Action: Attack
+  UnlockTime: 0.0
+  
+Effect:
+  Can retry immediately if fails
+  Good for core actions that should always be available
+  
+Use when:
+  Failure is common and expected
+  Action should always be considered</code></pre>
+
+<h3>Situational Actions (Medium Locking)</h3>
+
+<pre><code>Action: ThrowGrenade
+  UnlockTime: 5.0
+  bAutoLockOnFail: true
+  
+Effect:
+  Fails (no path, no grenades, etc.) → Lock 5s
+  Forces AI to use other actions
+  Can retry after situation changes
+  
+Use when:
+  Failure indicates unfavorable conditions
+  Need time for conditions to change</code></pre>
+
+<h3>Complex Actions (Long Locking)</h3>
+
+<pre><code>Action: FlankingManeuver
+  UnlockTime: 15.0
+  bAutoLockOnFail: true
+  bAutoLockOnAbort: true
+  
+Effect:
+  Complex multi-stage action
+  If fails or aborts → Lock 15s
+  Prevents repeated expensive attempts
+  
+Use when:
+  Action is computationally expensive
+  Failure means conditions are poor
+  Need significant time to change</code></pre>
+
+<h3>One-Time Actions (Permanent Locking)</h3>
+
+<pre><code>Action: PhaseTransition
+  UnlockTime: -1.0
+  bAutoLockOnSuccess: true
+  
+Effect:
+  Once succeeds → Locked forever
+  Can't phase transition twice
+  
+Use when:
+  Action should only happen once
+  Boss phase transitions
+  Tutorial steps</code></pre>
+
+<h2>Advanced Patterns</h2>
+
+<h3>Pattern 1: Cascading Unlocks</h3>
+
+<pre><code>Goal: Unlock multiple actions when one succeeds
+
+Action: TakeCover
+  UnlockTime: 0.0
+  bUnlockOnSuccess: true
+  
+Effect:
+  When TakeCover succeeds:
+    → Unlock ThrowGrenade
+    → Unlock FlankLeft
+    → Unlock FlankRight
+  
+All tactical options available after reaching cover
+
+Implementation:
+void OnTakeCoverSuccess()
+{
+    Brain->UnlockAction(TEXT("ThrowGrenade"));
+    Brain->UnlockAction(TEXT("FlankLeft"));
+    Brain->UnlockAction(TEXT("FlankRight"));
+}</code></pre>
+
+<h3>Pattern 2: Conditional Locking</h3>
+
+<pre><code>Goal: Only lock if specific failure reason
+
+Action: Hack Terminal (custom executor)
+  
+void OnHackFail(EFailureReason Reason)
+{
+    if (Reason == EFailureReason::InsufficientSkill)
+    {
+        // Lock permanently - can't hack this terminal
+        Brain->LockActionForDuration(TEXT("HackTerminal"), -1.0f);
+    }
+    else if (Reason == EFailureReason::EnemiesNearby)
+    {
+        // Short lock - try again when clear
+        Brain->LockActionForDuration(TEXT("HackTerminal"), 5.0f);
+    }
+    // Other failures don't lock
+}</code></pre>
+
+<h3>Pattern 3: Graduated Locking</h3>
+
+<pre><code>Goal: Increase lock time with repeated failures
+
+int32 FailureCount = 0;
+
+void OnActionFail()
+{
+    FailureCount++;
+    
+    float LockTime = FMath::Min(FailureCount * 3.0f, 30.0f);
+    // 1st fail: 3s
+    // 2nd fail: 6s
+    // 3rd fail: 9s
+    // ...
+    // 10th fail: 30s (capped)
+    
+    Brain->LockActionForDuration(ActionName, LockTime);
+}
+
+void OnActionSuccess()
+{
+    FailureCount = 0; // Reset on success
+}</code></pre>
+
+<h2>Blueprint API</h2>
+
+<h3>Locking Functions</h3>
+
+<pre><code>// Lock action for duration
+Lock Action For Duration
+  Brain: Utility Brain Component
+  Action Name: "ThrowGrenade"
+  Duration: 5.0 seconds
+
+// Unlock action manually
+Unlock Action
+  Brain: Utility Brain Component
+  Action Name: "ThrowGrenade"
+
+// Unlock all actions
+Unlock All Actions
+  Brain: Utility Brain Component
+
+// Check if locked
+Is Action Locked
+  Brain: Utility Brain Component
+  Action Name: "ThrowGrenade"
+  Return: Bool
+
+// Common pattern: Unlock on objective complete
+Event: Objective Complete
+  Get Utility Brain Component
+  → Unlock All Actions</code></pre>
+
+<h2>C++ API</h2>
+
+<pre><code>// UUtilityBrainComponent public API
+
+// Lock action for duration (seconds)
+UFUNCTION(BlueprintCallable)
+void LockActionForDuration(const FName& ActionName, float Duration);
+
+// Unlock specific action
+UFUNCTION(BlueprintCallable)
+void UnlockAction(const FName& ActionName);
+
+// Unlock all actions
+UFUNCTION(BlueprintCallable)
+void UnlockAllActions();
+
+// Check if locked
+UFUNCTION(BlueprintPure)
+bool IsActionLocked(const FName& ActionName) const;
+
+// Example usage
+void AMyAIController::OnActionFailed(FName ActionName)
+{
+    if (UUtilityBrainComponent* Brain = GetBrain())
+    {
+        // Lock failed action for 5 seconds
+        Brain->LockActionForDuration(ActionName, 5.0f);
+    }
+}</code></pre>
+
+<h2>Debugging Locking</h2>
+
+<h3>Gameplay Debugger</h3>
+
+<pre><code>Press ' → 5 → Select Agent
+
+LOCKED ACTIONS section:
+  ThrowGrenade: Locked (3.2s remaining)
+  FlankLeft: Locked (1.5s remaining)
+  
+AVAILABLE ACTIONS:
+  Attack: 65.0 ✓
+  TakeCover: 55.0
+  Reload: 45.0
+
+Shows:
+  - Which actions are locked
+  - Time remaining on locks
+  - Only available actions shown in scoring</code></pre>
+
+<h3>Console Commands</h3>
+
+<pre><code>// Show all locked actions
+CIN.Debug.ShowLocks 1
+
+Output:
+  Agent_12:
+    ThrowGrenade: 3.2s
+    FlankLeft: 1.5s
+
+// Unlock all actions (testing)
+CIN.Debug.UnlockAll
+
+// Lock specific action (testing)
+CIN.Debug.LockAction Agent_12 ThrowGrenade 10.0</code></pre>
+
+<h2>Combining with Other Systems</h2>
+
+<h3>Locking + Momentum</h3>
+
+<pre><code>Action: ThrowGrenade
+  MaxMomentum: 4.0
+  MomentumScoreReduction: 30.0
+  UnlockTime: 5.0
+
+Behavior:
+  1st throw: Success → Momentum increases
+  2nd throw: Momentum reduces score
+  3rd throw: Fails → Locks for 5s
+  
+Result: Momentum prevents spam
+        Locking prevents retry loops</code></pre>
+
+<h3>Locking + Resistance</h3>
+
+<pre><code>Action: ComplexManeuver
+  ReplaceResistance: 2.0
+  UnlockTime: 10.0
+
+Behavior:
+  Starts maneuver → High resistance prevents interruption
+  If fails anyway → Lock 10s
+  
+Result: Commits to completion
+        If fails, long cooldown</code></pre>
+
+<h2>Common Use Cases</h2>
+
+<h3>Grenade Throwing</h3>
+
+<pre><code>Problem: AI tries to throw grenade through wall repeatedly
+
+Solution:
+  ThrowGrenade: UnlockTime = 5.0
+  
+Effect:
+  Try throw → Blocked → Lock 5s
+  Uses other actions
+  After 5s, path might be clear</code></pre>
+
+<h3>Flanking Maneuvers</h3>
+
+<pre><code>Problem: AI attempts impossible flank routes
+
+Solution:
+  FlankLeft: UnlockTime = 10.0
+  FlankRight: UnlockTime = 10.0
+  
+Effect:
+  Try flank → Can't pathfind → Lock 10s
+  Tries frontal assault instead
+  Reattempts flank later if needed</code></pre>
+
+<h3>Ability Cooldowns</h3>
+
+<pre><code>Problem: Need cooldown on abilities
+
+Solution:
+  UltimateAbility: UnlockTime = 60.0
+  bAutoLockOnSuccess: true
+  
+Effect:
+  Uses ultimate → Locks for 60s
+  Natural cooldown system
+  No separate cooldown tracking needed</code></pre>
+
+<h3>Boss Phase Transitions</h3>
+
+<pre><code>Problem: Boss shouldn't transition phases twice
+
+Solution:
+  PhaseTransition: UnlockTime = -1.0
+  
+Effect:
+  Transitions once → Locked permanently
+  Can't transition again
+  Simple one-time behavior</code></pre>
+
+<h2>Troubleshooting</h2>
+
+<h3>Issue: "Action never retries"</h3>
+
+<p><strong>Diagnosis:</strong></p>
+<pre><code>UnlockTime too long or permanent:
+  UnlockTime: -1.0 (permanent)
+  or
+  UnlockTime: 300.0 (5 minutes!)
+
+Fix:
+  Use reasonable duration: 5-10s
+  or
+  Manually unlock when conditions improve</code></pre>
+
+<h3>Issue: "Action still spam-retries"</h3>
+
+<p><strong>Diagnosis:</strong></p>
+<pre><code>No locking configured:
+  UnlockTime: 0.0
+  bAutoLockOnFail: false
+
+Fix:
+  Add locking: UnlockTime = 5.0
+  Enable auto-lock: bAutoLockOnFail = true</code></pre>
+
+<h3>Issue: "AI gets stuck with all actions locked"</h3>
+
+<p><strong>Diagnosis:</strong></p>
+<pre><code>All actions failing and locking:
+  Attack: Locked
+  TakeCover: Locked
+  Reload: Locked
+  → No available actions!
+
+Fix:
+  Ensure fallback action never locks:
+    Patrol: UnlockTime = 0.0
+  or
+  Implement emergency unlock:
+    OnAllActionsLocked() { UnlockAll(); }</code></pre>
+
+<h2>Best Practices</h2>
+
+<div class="callout tip">
+  <span class="icon"><i data-lucide="check-square"></i></span>
+  <div>
+    <strong>Locking Guidelines:</strong>
+    <ul class="compact">
+      <li>✅ Lock actions that fail due to environment/conditions</li>
+      <li>✅ Use 5-10s locks for most situational actions</li>
+      <li>✅ Never lock core movement/combat actions</li>
+      <li>✅ Always have one unlockable fallback action</li>
+      <li>✅ Unlock actions when situation changes significantly</li>
+      <li>❌ Don't lock actions that fail commonly</li>
+      <li>❌ Don't use locking as a cooldown (use momentum instead)</li>
+      <li>❌ Don't lock all actions - AI needs options</li>
+    </ul>
+  </div>
+</div>
+
+<h2>Next Steps</h2>
+
+<div class="next-steps">
+  <a class="button primary" href="#/docs/service-conditions">
+    <i data-lucide="git-merge"></i>
+    Service Conditions
+  </a>
+  <a class="button" href="#/docs/momentum">
+    <i data-lucide="trending-up"></i>
+    Task Momentum
+  </a>
+</div>
+
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="#/docs/resistance"><i data-lucide="shield"></i> Replace Resistance</a> - Complementary anti-thrashing</li>
+  <li><a href="#/docs/action-patterns"><i data-lucide="target"></i> Action Design</a> - Designing with locking</li>
+  <li><a href="#/docs/bp-utility-library"><i data-lucide="code"></i> Blueprint API</a> - Locking functions</li>
+  <li><a href="#/docs/tuning"><i data-lucide="sliders"></i> Tuning Guide</a> - Balancing lock times</li>
+</ul>
+
+<script>lucide.createIcons();</script>

@@ -1,0 +1,221 @@
+<h1>Action Packs (Data Assets)</h1>
+<p>This page documents action pack configuration and runtime accessors via <code>UCINActionPackDA_Base</code> in <code>Plugins/CINPlugin/Source/CINCore/Public/Types/UCINActionPackDA_Base.h</code>. It also references <code>UCINActionBase</code> in <code>Plugins/CINPlugin/Source/CINCore/Public/Actions/CINActionBase.h</code> which implements <code>ICINAction</code>.</p>
+
+<h2>Beginner-friendly: What is this?</h2>
+<p>An <strong>Action Pack</strong> is a list of actions an agent can perform, plus their animation settings and requirements. Designers author these as Data Assets; programmers implement the underlying action C++/Blueprint class. The decision system picks from the enabled actions at runtime.</p>
+
+<div class="callout tip">
+  <span class="icon" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="9"></circle>
+      <path d="M12 10v6"></path>
+      <path d="M12 8h.01"></path>
+    </svg>
+  </span>
+  <div>
+    <strong>At a glance</strong>
+    <ul>
+      <li><strong>What you make</strong>: a Data Asset listing available actions with animation + requirements.</li>
+      <li><strong>You need</strong>: action classes that implement <code>ICINAction</code> (use <code>UCINActionBase</code> if you want Blueprint events).</li>
+      <li><strong>Who uses it</strong>: the Brain/Arbitration picks an enabled action at runtime.</li>
+      <li><strong>Typical flow</strong>: bind game signals with <a href="#/docs/parameter-binding">Parameter Binding</a> → define actions here → runtime selection.</li>
+    </ul>
+    <div style="margin-top:6px">
+      <strong>Related</strong>: <a href="#/docs/goal-templates">Goal Templates</a> · <a href="#/docs/arbitration-strategy">Arbitration Strategy</a> · <a href="#/docs/brain-runtime">Brain Runtime</a> · <a href="#/docs/role-archetypes">Role Archetypes</a>
+    </div>
+  </div>
+</div>
+
+<h2>Why it matters</h2>
+<ul>
+  <li><strong>Modular</strong>: Swap different packs per archetype (e.g., Worker vs Guard).</li>
+  <li><strong>Data-driven</strong>: Tune priorities, utility, requirements without code changes.</li>
+  <li><strong>Animation-ready</strong>: Built-in animation config per action.</li>
+</ul>
+
+<h2>Quick setup (Data Asset)</h2>
+<ol>
+  <li>Create a data asset of type <code>UCINActionPackDA_Base</code> (or subclass).</li>
+  <li>Add entries to <strong>Actions</strong> with unique <strong>ActionID</strong> and an <strong>ActionClass</strong> that implements <code>ICINAction</code> (e.g., a <code>UCINActionBase</code> subclass).</li>
+  <li>Set <strong>BasePriority</strong> and <strong>BaseUtility</strong>. Configure <strong>Animation</strong> and <strong>Requirements</strong>.</li>
+  <li>Optionally set <strong>CompatibilityTags</strong>, <strong>PackPriorityModifier</strong>, <strong>bAllowInterruption</strong>, and any <strong>PackParameters</strong>.</li>
+</ol>
+
+<h2>Action Definition (<code>FCINActionDefinition</code>)</h2>
+<ul>
+  <li><strong>ActionClass</strong>: <code>TSoftClassPtr&lt;UObject&gt;</code> reference to the action class.</li>
+  <li><strong>ActionID</strong>: unique identifier.</li>
+  <li><strong>ActionName</strong>: display label.</li>
+  <li><strong>ActionCategory</strong>: <code>ECINActionCategory</code> enum.</li>
+  <li><strong>BasePriority (0.0–10.0)</strong>: decision priority.</li>
+  <li><strong>BaseUtility (0.0–1.0)</strong>: base utility score.</li>
+  <li><strong>EstimatedDuration (≥ 0.1)</strong>: expected seconds to run.</li>
+  <li><strong>Animation</strong>: <code>FCINActionAnimation</code> (see below).</li>
+  <li><strong>Requirements</strong>: <code>FCINActionRequirements</code> (see below).</li>
+  <li><strong>bIsEnabled</strong>: toggle action availability.</li>
+  <li><strong>ActionParameters</strong>: <code>TMap&lt;FString, float&gt;</code> for per-action tunables.</li>
+  <li><strong>Tags</strong>: labels for filtering/search.</li>
+</ul>
+
+<h3>Animation (<code>FCINActionAnimation</code>)</h3>
+<ul>
+  <li><strong>AnimationAsset</strong>: sequence or montage.</li>
+  <li><strong>PlayRate (0.1–5.0)</strong></li>
+  <li><strong>bShouldLoop</strong></li>
+  <li><strong>BlendInTime (0.0–2.0)</strong>, <strong>BlendOutTime (0.0–2.0)</strong></li>
+  <li><strong>SlotName</strong> (default <code>"DefaultSlot"</code>)</li>
+  <li><strong>AnimationParameters</strong>: extra numeric tunables.</li>
+</ul>
+
+<h3>Execution Requirements (<code>FCINActionRequirements</code>)</h3>
+<ul>
+  <li><strong>MinDistance (≥ 0.0)</strong>, <strong>MaxDistance (≥ 0.0)</strong></li>
+  <li><strong>bRequiresLineOfSight</strong>, <strong>bRequiresStationary</strong></li>
+  <li><strong>RequiredTargetTags</strong>, <strong>ForbiddenTargetTags</strong></li>
+  <li><strong>RequiredStates</strong>: <code>TMap&lt;FString, float&gt;</code> agent state conditions</li>
+  <li><strong>Cooldown (≥ 0.0)</strong>: minimum seconds between uses</li>
+</ul>
+<h3>Selection vs Execution</h3>
+<p>At runtime, the Brain considers enabled actions from the active pack. An action must first pass its <strong>Requirements</strong> (gates) before it is eligible. Among eligible actions, arbitration combines <strong>BasePriority</strong>, <strong>BaseUtility</strong>, and any strategy-specific modifiers to pick one to run. See <a href="#/docs/arbitration-strategy">Arbitration Strategy</a>.</p>
+<ul>
+  <li><strong>BasePriority</strong>: coarse ordering (e.g., critical utilities higher).</li>
+  <li><strong>BaseUtility</strong>: desirability baseline combined with runtime signals.</li>
+  <li><strong>PackPriorityModifier</strong>: scales all contained actions uniformly.</li>
+  <li><strong>Requirements</strong>: hard gates (distance bands, LOS, states).</li>
+  <li><strong>Animation</strong>: plays when the action executes; has no effect on selection.</li>
+</ul>
+
+<h3>Gating vs Utility</h3>
+<p>Use <strong>Requirements</strong> to prevent illegal/unsafe choices (e.g., firing without ammo). Encode preferences with utilities/priorities instead of more gates to keep the search space flexible.</p>
+<ul>
+  <li><em>Gate</em> example: <code>bRequiresLineOfSight = true</code> or <code>RequiredStates["AmmoCurrent"] ≥ 0.10</code>.</li>
+  <li><em>Utility</em> example: give small bonuses for comfortable distance bands or cover.</li>
+</ul>
+<h2>Data Asset Fields (<code>UCINActionPackDA_Base</code>)</h2>
+<ul>
+  <li><strong>PackName</strong></li>
+  <li><strong>Actions</strong>: array of <code>FCINActionDefinition</code></li>
+  <li><strong>CompatibilityTags</strong></li>
+  <li><strong>PackPriorityModifier (0.1–5.0)</strong></li>
+  <li><strong>bAllowInterruption</strong></li>
+  <li><strong>DefaultBlendSettings</strong>: <code>TMap&lt;FString, float&gt;</code></li>
+  <li><strong>PackParameters</strong>: <code>TMap&lt;FString, float&gt;</code></li>
+</ul>
+
+<h2>Blueprint API</h2>
+<ul>
+  <li><code>GetActionDefinition(ActionID)</code> → <code>FCINActionDefinition</code></li>
+  <li><code>GetActionsByCategory(Category, OutActions)</code> → <code>int32</code></li>
+  <li><code>GetEnabledActions(OutActions)</code> → <code>int32</code></li>
+  <li><code>HasAction(ActionID)</code> → <code>bool</code></li>
+  <li><code>GetActionsByTags(FilterTags, bRequireAllTags, OutActions)</code> → <code>int32</code></li>
+  <li><code>IsCompatibleWithArchetype(ArchetypeTags)</code> → <code>bool</code></li>
+  <li><code>GetEffectiveActionPriority(ActionID)</code> → <code>float</code></li>
+  <li><em>Event</em>: <code>OnActionPackApplied(Agent)</code></li>
+</ul>
+
+<h3>Exact C++ Blueprint API signatures</h3>
+<pre><code class="language-cpp">UFUNCTION(BlueprintCallable, Category = "CIN|ActionPack")
+FCINActionDefinition GetActionDefinition(const FString& ActionID) const;
+
+UFUNCTION(BlueprintCallable, Category = "CIN|ActionPack")
+int32 GetActionsByCategory(ECINActionCategory Category, TArray<FCINActionDefinition>& OutActions) const;
+
+UFUNCTION(BlueprintCallable, Category = "CIN|ActionPack")
+int32 GetEnabledActions(TArray<FCINActionDefinition>& OutActions) const;
+
+UFUNCTION(BlueprintCallable, Category = "CIN|ActionPack")
+bool HasAction(const FString& ActionID) const;
+
+UFUNCTION(BlueprintCallable, Category = "CIN|ActionPack")
+int32 GetActionsByTags(const TArray<FString>& FilterTags, bool bRequireAllTags, TArray<FCINActionDefinition>& OutActions) const;
+
+UFUNCTION(BlueprintCallable, Category = "CIN|ActionPack")
+bool IsCompatibleWithArchetype(const TArray<FString>& ArchetypeTags) const;
+
+UFUNCTION(BlueprintCallable, Category = "CIN|ActionPack")
+float GetEffectiveActionPriority(const FString& ActionID) const;
+
+UFUNCTION(BlueprintImplementableEvent, Category = "CIN|ActionPack")
+void OnActionPackApplied(AActor* Agent);
+</code></pre>
+
+<h3>Enums referenced</h3>
+<pre><code class="language-cpp">enum class ECINActionCategory : uint8
+{
+    Movement,
+    Combat,
+    Social,
+    Utility,
+    Exploration,
+    Custom
+};
+</code></pre>
+
+<h2>Runtime Notes</h2>
+<ul>
+  <li>Use <strong>CompatibilityTags</strong> to restrict packs to certain archetypes.</li>
+  <li><strong>PackPriorityModifier</strong> scales all contained actions' priority uniformly.</li>
+  <li>Actions should be implemented as classes that implement <code>ICINAction</code> (e.g., inherit from <code>UCINActionBase</code> for Blueprint events support).</li>
+</ul>
+
+<h2>Common mistakes</h2>
+<ul>
+  <li><strong>Duplicate ActionID</strong>: IDs must be unique within a pack.</li>
+  <li><strong>Disabled action</strong>: <code>bIsEnabled</code> false means it will never be selected.</li>
+  <li><strong>Distance range</strong>: ensure <code>MaxDistance ≥ MinDistance</code>.</li>
+  <li><strong>Missing ActionClass</strong>: must point to a valid action class.</li>
+</ul>
+
+<h2>Example: UCINActionBase subclass + Action Definition</h2>
+<p>Create a simple action by subclassing <code>UCINActionBase</code> and then reference it from an <code>FCINActionDefinition</code> entry in your <code>UCINActionPackDA_Base</code> asset.</p>
+
+<p><strong>C++ (minimal example)</strong></p>
+<pre><code class="language-cpp">// MySprintAction.h (project module)
+#pragma once
+#include "CoreMinimal.h"
+#include "Actions/CINActionBase.h"
+#include "MySprintAction.generated.h"
+
+UCLASS(BlueprintType, Blueprintable)
+class UMySprintAction : public UCINActionBase
+{
+  GENERATED_BODY()
+public:
+  virtual FString GetActionID() const override { return TEXT("Sprint"); }
+  virtual FString GetActionName() const override { return TEXT("Sprint"); }
+  virtual ECINActionCategory GetActionCategory() const override { return ECINActionCategory::Movement; }
+  virtual bool CanExecute(TScriptInterface<ICINAgent> Agent, const FCINContextualEmbedding& Context, const FCINActionParams& Params) const override { return true; }
+  virtual ECINActionResult Execute(TScriptInterface<ICINAgent> Agent, const FCINContextualEmbedding& Context, const FCINActionParams& Params) override;
+  virtual float GetDuration(TScriptInterface<ICINAgent> Agent, const FCINContextualEmbedding& Context, const FCINActionParams& Params) const override { return 1.0f; }
+};
+
+// MySprintAction.cpp
+#include "MySprintAction.h"
+
+ECINActionResult UMySprintAction::Execute(TScriptInterface<ICINAgent> Agent, const FCINContextualEmbedding& Context, const FCINActionParams& Params)
+{
+  OnActionStarted(Params);
+  OnActionCompleted(ECINActionResult::Success);
+  return ECINActionResult::Success;
+}
+</code></pre>
+
+<p><strong>Action Pack entry (<code>FCINActionDefinition</code>)</strong></p>
+<ul>
+  <li><strong>ActionClass</strong>: <code>UMySprintAction</code> (or a Blueprint subclass of it)</li>
+  <li><strong>ActionID</strong>: <code>"Sprint"</code></li>
+  <li><strong>ActionName</strong>: <code>"Sprint"</code></li>
+  <li><strong>ActionCategory</strong>: <code>Movement</code></li>
+  <li><strong>BasePriority</strong>: <code>2.0</code></li>
+  <li><strong>BaseUtility</strong>: <code>0.8</code></li>
+  <li><strong>EstimatedDuration</strong>: <code>1.0</code></li>
+  <li><strong>bIsEnabled</strong>: <code>true</code></li>
+  <li>(Optional) Configure <strong>Animation</strong> and <strong>Requirements</strong> as needed</li>
+  <li>(Optional) Add <strong>Tags</strong> like <code>["Movement","Sprint"]</code></li>
+  <li>(Optional) Add numeric <strong>ActionParameters</strong> for tuning</li>
+  <li>(Optional) Use <strong>PackPriorityModifier</strong> on the data asset to scale priorities uniformly</li>
+  <li>Tip: You can create the action as a Blueprint subclass of <code>UCINActionBase</code> and implement <em>OnActionStarted/Completed</em> events in Blueprint.</li>
+  </ul>
+
+<p>See also: <a href="#/docs/role-archetypes">Role Archetypes</a>, <a href="#/docs/parameter-binding">Parameter Binding</a>, <a href="#/docs/arbitration-strategy">Arbitration Strategy</a>, <a href="#/docs/brain-runtime">Brain Runtime</a>.</p>

@@ -1,0 +1,473 @@
+<h1>Threat Assessment System</h1>
+<p class="note">Quantify danger levels for intelligent defensive behavior. Learn how the threat assessment system evaluates multiple factors to produce a 0-1 threat level that drives tactical decisions.</p>
+
+<div class="page-meta">
+  <span class="time"><i data-lucide="clock"></i> 10 minutes</span>
+  <span class="difficulty"><i data-lucide="bar-chart-2"></i> Advanced</span>
+</div>
+
+<div class="callout tip">
+  <span class="icon"><i data-lucide="lightbulb"></i></span>
+  <div>
+    <strong>Threat Principle:</strong> Consolidate multiple danger signals (enemy distance, visibility, damage, numbers) into a single threat level (0-1) that actions use for scoring.
+  </div>
+</div>
+
+<h2>What is Threat Assessment?</h2>
+
+<h3>The Problem</h3>
+
+<pre><code>Without Threat Assessment:
+  Action: TakeCover needs to know when to activate
+  
+  Check distance? ✓
+  Check if under fire? ✓
+  Check enemy count? ✓
+  Check health? ✓
+  Check visibility? ✓
+  
+  Result: Every action duplicates complex logic</code></pre>
+
+<h3>The Solution</h3>
+
+<pre><code>With Threat Assessment:
+  Service: UService_PerceptionMonitor calculates ThreatLevel
+  
+  ThreatLevel = Combine(
+    Distance factor,
+    Visibility factor,
+    Numbers factor,
+    Damage factor
+  )
+  
+  Publish: ThreatLevel (0-1)
+  
+  Actions: Just read ThreatLevel input
+  Result: Centralized, consistent danger evaluation</code></pre>
+
+<h2>Threat Calculation</h2>
+
+<h3>Formula</h3>
+
+<pre><code>ThreatLevel = Combine:
+  1. Distance Threat (0-1)
+  2. Visibility Threat (0-1)
+  3. Numbers Threat (0-1)
+  4. Damage Threat (0-1)
+
+Final = Weighted Average or Maximum
+
+Example Calculation:
+  Distance: 300 units (close) = 0.8
+  Visible: Yes = 1.0
+  Numbers: 3 enemies vs 1 AI = 0.6
+  Under Fire: Recently damaged = 1.0
+  
+  ThreatLevel = Max(0.8, 1.0, 0.6, 1.0) = 1.0
+  Or: Average = (0.8 + 1.0 + 0.6 + 1.0) / 4 = 0.85</code></pre>
+
+<h3>Distance Threat</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Distance</th>
+      <th>Threat</th>
+      <th>Reason</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>0-500 units</td>
+      <td>1.0</td>
+      <td>Close range - high danger</td>
+    </tr>
+    <tr>
+      <td>500-1500 units</td>
+      <td>0.8-0.3</td>
+      <td>Medium range - moderate danger</td>
+    </tr>
+    <tr>
+      <td>1500-3000 units</td>
+      <td>0.3-0.1</td>
+      <td>Long range - low danger</td>
+    </tr>
+    <tr>
+      <td>3000+ units</td>
+      <td>0.0</td>
+      <td>Out of range - no threat</td>
+    </tr>
+  </tbody>
+</table>
+
+<pre><code>// Distance threat calculation
+float CalculateDistanceThreat(float Distance)
+{
+    if (Distance < CloseThreatDistance) // 500
+    {
+        return 1.0f; // Maximum threat
+    }
+    else if (Distance < MediumThreatDistance) // 1500
+    {
+        // Linear interpolation 500-1500 → 1.0-0.3
+        return FMath::GetMappedRangeValueClamped(
+            FVector2D(CloseThreatDistance, MediumThreatDistance),
+            FVector2D(1.0f, 0.3f),
+            Distance
+        );
+    }
+    else
+    {
+        // Distant threat fades
+        return FMath::Max(0.0f, 1.0f - (Distance / MaxSightRadius));
+    }
+}</code></pre>
+
+<h3>Visibility Threat</h3>
+
+<pre><code>Visibility States:
+  ├─ Visible + Has Line of Sight: 1.0 (full threat)
+  ├─ Visible but No LOS: 0.7 (partial cover)
+  ├─ Not Visible but Memory: 0.4 (remembered)
+  └─ No Info: 0.0 (no threat)
+
+float CalculateVisibilityThreat(bool bVisible, bool bHasLOS)
+{
+    if (bVisible && bHasLOS)
+        return 1.0f; // Can see and shoot
+    else if (bVisible)
+        return 0.7f; // Aware but obstructed
+    else if (HasMemory())
+        return 0.4f; // Remember last position
+    else
+        return 0.0f; // No information
+}</code></pre>
+
+<h3>Numbers Threat</h3>
+
+<pre><code>Numbers Evaluation:
+  1 vs 1: 0.3 (fair fight)
+  1 vs 2: 0.5 (outnumbered)
+  1 vs 3: 0.7 (heavily outnumbered)
+  1 vs 4+: 1.0 (overwhelmed)
+
+float CalculateNumbersThreat(int32 EnemyCount, int32 AllyCount)
+{
+    float Ratio = (float)EnemyCount / FMath::Max(1, AllyCount);
+    
+    if (Ratio >= 4.0f)
+        return 1.0f; // Overwhelmed
+    else if (Ratio >= 2.0f)
+        return 0.7f; // Heavily outnumbered
+    else if (Ratio >= 1.5f)
+        return 0.5f; // Outnumbered
+    else if (Ratio >= 1.0f)
+        return 0.3f; // Fair fight
+    else
+        return 0.1f; // Outnumber enemy
+}</code></pre>
+
+<h3>Damage Threat</h3>
+
+<pre><code>Damage Evaluation:
+  Under Fire (damage within UnderFireWindow):
+    └─ Recent damage = 1.0
+  
+  Not Under Fire:
+    └─ Time since damage decays threat
+
+float CalculateDamageThreat()
+{
+    float TimeSinceDamage = GetTimeSinceLastDamage();
+    
+    if (TimeSinceDamage < UnderFireWindow) // 2.0s
+    {
+        return 1.0f; // Under active fire
+    }
+    else
+    {
+        // Decay over time
+        return FMath::Max(0.0f, 1.0f - (TimeSinceDamage / 10.0f));
+    }
+}</code></pre>
+
+<h2>Combining Threat Factors</h2>
+
+<h3>Method 1: Maximum (Conservative)</h3>
+
+<pre><code>// Take highest threat
+float ThreatLevel = FMath::Max(
+    DistanceThreat,
+    FMath::Max(VisibilityThreat,
+    FMath::Max(NumbersThreat, DamageThreat))
+);
+
+Effect:
+  Any high threat → High overall threat
+  Conservative (safer) AI
+  Good for defensive/cautious AI</code></pre>
+
+<h3>Method 2: Weighted Average (Balanced)</h3>
+
+<pre><code>// Weight different factors
+float ThreatLevel = (
+    DistanceThreat * 0.3 +
+    VisibilityThreat * 0.3 +
+    NumbersThreat * 0.2 +
+    DamageThreat * 0.2
+);
+
+Effect:
+  Multiple factors contribute
+  Balanced evaluation
+  Good for standard AI</code></pre>
+
+<h3>Method 3: Multiplicative (Requires All)</h3>
+
+<pre><code>// All factors must be present
+float ThreatLevel = 
+    DistanceThreat *
+    VisibilityThreat *
+    NumbersThreat *
+    DamageThreat;
+
+Effect:
+  Requires multiple threats to score high
+  Aggressive AI (takes more risks)
+  Good for confident/aggressive AI</code></pre>
+
+<h2>Using Threat in Actions</h2>
+
+<h3>Defensive Actions</h3>
+
+<pre><code>Action: TakeCover
+  BaseScore: 70.0
+  Considerations:
+    - ThreatLevel: 0→0, 0.5→50, 1→100
+      (Higher threat = more urgent)
+    
+    - Health: 0→100, 1→30
+      (More urgent when injured)
+    
+    - HasCoverNearby: 0→0, 1→100
+      (Need cover available)
+
+Effect:
+  High threat + low health = Urgent cover
+  Low threat + high health = Stay aggressive</code></pre>
+
+<h3>Offensive Actions</h3>
+
+<pre><code>Action: AggressiveAttack
+  BaseScore: 65.0
+  Considerations:
+    - ThreatLevel: 0→100, 0.5→50, 1→0 (inverted!)
+      (More aggressive when safe)
+    
+    - Health: 0→20, 1→100
+      (Healthy = aggressive)
+
+Effect:
+  Low threat + high health = Aggressive
+  High threat = Defensive</code></pre>
+
+<h3>Retreat Actions</h3>
+
+<pre><code>Action: Retreat
+  BaseScore: 60.0
+  Considerations:
+    - ThreatLevel: 0→0, 0.7→80, 1→100
+      (Threshold at 0.7)
+    
+    - Health: 0→100, 0.3→80, 1→0
+      (Critical health triggers)
+
+Effect:
+  High threat OR low health = Retreat
+  Survival prioritized</code></pre>
+
+<h2>Archetype-Specific Threat Profiles</h2>
+
+<h3>BaseCombat (Balanced)</h3>
+
+<pre><code>CloseThreatDistance: 500
+MediumThreatDistance: 1500
+UnderFireWindow: 2.0s
+Combination: Weighted Average
+
+Effect:
+  Balanced threat assessment
+  Standard combat behavior</code></pre>
+
+<h3>BaseRanged (Conservative)</h3>
+
+<pre><code>CloseThreatDistance: 800 (wider danger zone)
+MediumThreatDistance: 2000
+UnderFireWindow: 3.0s (longer memory)
+Combination: Maximum (most conservative)
+
+Effect:
+  Treats threats more seriously
+  Maintains distance aggressively</code></pre>
+
+<h3>BaseCreature (Aggressive)</h3>
+
+<pre><code>CloseThreatDistance: 300 (comfortable up close)
+MediumThreatDistance: 1000
+UnderFireWindow: 1.0s (short memory)
+Combination: Multiplicative (requires all)
+
+Effect:
+  Less threatened by proximity
+  More aggressive behavior</code></pre>
+
+<h3>BaseBoss (Fearless)</h3>
+
+<pre><code>CloseThreatDistance: 200
+MediumThreatDistance: 800
+UnderFireWindow: 5.0s
+Combination: Weighted (0.1, 0.1, 0.2, 0.6)
+  (Heavy weight on damage, low weight on distance)
+
+Effect:
+  Not afraid of close enemies
+  Responds to actual damage, not proximity
+  Boss-like confidence</code></pre>
+
+<h2>Dynamic Threat Modifiers</h2>
+
+<h3>Difficulty-Based</h3>
+
+<pre><code>// Easy difficulty: AI perceives more threat
+Easy Mode:
+  ThreatMultiplier: 1.3
+  → All threats feel 30% higher
+  → More defensive AI
+
+// Hard difficulty: AI perceives less threat
+Hard Mode:
+  ThreatMultiplier: 0.7
+  → Threats feel 30% lower
+  → More aggressive AI</code></pre>
+
+<h3>Health-Based</h3>
+
+<pre><code>// Injured AI perceives more threat
+if (Health < 0.5f)
+{
+    ThreatLevel *= 1.0f + (1.0f - Health); // Up to 2x
+}
+
+Effect:
+  Injured AI more cautious
+  Healthy AI more aggressive</code></pre>
+
+<h3>Personality-Based</h3>
+
+<pre><code>// Cautious personality
+Cautious:
+  ThreatMultiplier: 1.4
+  ThreatThreshold: 0.6 (react earlier)
+
+// Aggressive personality
+Aggressive:
+  ThreatMultiplier: 0.7
+  ThreatThreshold: 0.9 (react later)
+
+// Balanced
+Balanced:
+  ThreatMultiplier: 1.0
+  ThreatThreshold: 0.7</code></pre>
+
+<h2>Debugging Threat Assessment</h2>
+
+<h3>Gameplay Debugger</h3>
+
+<pre><code>Press ' → 5 → Select Agent
+
+THREAT ASSESSMENT:
+  Overall Threat: 0.75 ████████░░
+  
+  Breakdown:
+    Distance: 0.6 ██████░░░░ (750 units)
+    Visibility: 1.0 ██████████ (Full LOS)
+    Numbers: 0.4 ████░░░░░░ (2 enemies)
+    Damage: 0.8 ████████░░ (Under fire)
+  
+  Method: Weighted Average
+  Decision: Take cover (threat > 0.7)</code></pre>
+
+<h3>Visual Debug</h3>
+
+<pre><code>UService_PerceptionMonitor:
+  bDebugVisualize: true
+
+Draws:
+  🟢 Green: Low threat (< 0.3)
+  🟡 Yellow: Medium threat (0.3-0.7)
+  🔴 Red: High threat (> 0.7)
+  
+  Sphere size = Threat level</code></pre>
+
+<h2>Blueprint API</h2>
+
+<pre><code>// Get current threat level
+Get Current Threat Level
+  Service: Perception Monitor
+  Return: Float (0-1)
+
+// Check if under fire
+Is Under Fire
+  Service: Perception Monitor
+  Return: Bool
+
+// Get threat breakdown
+Get Threat Factors
+  Service: Perception Monitor
+  Return: Struct (Distance, Visibility, Numbers, Damage)
+
+// Set custom threat modifier
+Set Threat Multiplier
+  Brain: Utility Brain Component
+  Multiplier: 1.3</code></pre>
+
+<h2>Best Practices</h2>
+
+<div class="callout tip">
+  <span class="icon"><i data-lucide="check-square"></i></span>
+  <div>
+    <strong>Threat Assessment Guidelines:</strong>
+    <ul class="compact">
+      <li>✅ Use ThreatLevel as primary danger metric in actions</li>
+      <li>✅ Tune distance thresholds per archetype</li>
+      <li>✅ Combine threat with health for defensive decisions</li>
+      <li>✅ Use threat for dynamic difficulty (multiply by factor)</li>
+      <li>✅ Debug with visual overlays to verify accuracy</li>
+      <li>❌ Don't make thresholds too sensitive (causes flip-flopping)</li>
+      <li>❌ Don't ignore numbers/damage factors</li>
+      <li>❌ Don't use threat for long-term planning (use strategy)</li>
+    </ul>
+  </div>
+</div>
+
+<h2>Next Steps</h2>
+
+<div class="next-steps">
+  <a class="button primary" href="#/docs/stimulus-memory">
+    <i data-lucide="cloud"></i>
+    Stimulus Memory
+  </a>
+  <a class="button" href="#/docs/perception-setup">
+    <i data-lucide="eye"></i>
+    Perception Setup
+  </a>
+</div>
+
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="#/docs/perception-setup"><i data-lucide="eye"></i> Perception Setup</a> - Configure threat system</li>
+  <li><a href="#/docs/action-patterns"><i data-lucide="target"></i> Action Patterns</a> - Using threat in actions</li>
+  <li><a href="#/docs/tuning"><i data-lucide="sliders"></i> Tuning</a> - Balance threat thresholds</li>
+</ul>
+
+<script>lucide.createIcons();</script>

@@ -1,0 +1,553 @@
+<h1>Utility Brain Component API</h1>
+<p class="note">Complete C++ and Blueprint API reference for UUtilityBrainComponent. The core decision-making component that evaluates actions and manages AI state.</p>
+
+<div class="page-meta">
+  <span class="time"><i data-lucide="clock"></i> 25 minutes</span>
+  <span class="difficulty"><i data-lucide="bar-chart-3"></i> Reference</span>
+</div>
+
+<h2>Class Overview</h2>
+
+<pre><code>Class: UUtilityBrainComponent
+Parent: UActorComponent
+Module: CINAI
+Header: Public/UtilityBrainComponent.h
+
+Purpose:
+  Core Utility AI brain that evaluates actions based on
+  scored considerations and executes the highest-scoring action.
+
+Key Responsibilities:
+  - Gather inputs from services and providers
+  - Evaluate all available actions
+  - Select and execute best action
+  - Manage action lifecycle
+  - Track momentum, locking, and modifiers</code></pre>
+
+<h2>Core Properties</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Default</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>AvailableActions</code></td>
+      <td>TArray&lt;UUtilityActionAsset*&gt;</td>
+      <td>Empty</td>
+      <td>All actions the brain can choose from</td>
+    </tr>
+    <tr>
+      <td><code>Services</code></td>
+      <td>TArray&lt;UUtilityService*&gt;</td>
+      <td>Empty</td>
+      <td>Services that gather inputs</td>
+    </tr>
+    <tr>
+      <td><code>InputProviders</code></td>
+      <td>TArray&lt;UInputProviderComponent*&gt;</td>
+      <td>Empty</td>
+      <td>Components that provide inputs</td>
+    </tr>
+    <tr>
+      <td><code>ThinkInterval</code></td>
+      <td>float</td>
+      <td>0.5s</td>
+      <td>How often to reevaluate actions</td>
+    </tr>
+    <tr>
+      <td><code>bPaused</code></td>
+      <td>bool</td>
+      <td>false</td>
+      <td>Is brain paused?</td>
+    </tr>
+    <tr>
+      <td><code>bAutoStart</code></td>
+      <td>bool</td>
+      <td>true</td>
+      <td>Start evaluating automatically</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Core Public Functions</h2>
+
+<h3>Lifecycle Functions</h3>
+
+<h4>StartBrain</h4>
+<pre><code>UFUNCTION(BlueprintCallable, Category = "Utility AI")
+void StartBrain();
+
+Description:
+  Starts brain evaluation and action execution.
+  Call after adding actions/services.
+
+Example:
+  Brain->StartBrain();</code></pre>
+
+<h4>StopBrain</h4>
+<pre><code>UFUNCTION(BlueprintCallable, Category = "Utility AI")
+void StopBrain();
+
+Description:
+  Stops brain evaluation. Current action continues.
+
+Example:
+  Brain->StopBrain();</code></pre>
+
+<h4>PauseBrain</h4>
+<pre><code>UFUNCTION(BlueprintCallable, Category = "Utility AI")
+void PauseBrain(bool bPause);
+
+Parameters:
+  bPause - True to pause, false to resume
+
+Description:
+  Pauses/resumes evaluation without stopping current action.
+
+Example:
+  Brain->PauseBrain(true); // Pause during cutscene</code></pre>
+
+<h3>Action Management</h3>
+
+<h4>AddAction</h4>
+<pre><code>UFUNCTION(BlueprintCallable, Category = "Utility AI")
+void AddAction(UUtilityActionAsset* Action);
+
+Parameters:
+  Action - Action asset to add
+
+Description:
+  Adds an action to the brain's available actions.
+
+Example:
+  Brain->AddAction(AttackAction);</code></pre>
+
+<h4>RemoveAction</h4>
+<pre><code>UFUNCTION(BlueprintCallable, Category = "Utility AI")
+void RemoveAction(const FName& ActionName);
+
+Parameters:
+  ActionName - Name of action to remove
+
+Description:
+  Removes an action from available actions.
+
+Example:
+  Brain->RemoveAction(TEXT("PhaseOneAbility"));</code></pre>
+
+<h4>GetCurrentAction</h4>
+<pre><code>UFUNCTION(BlueprintPure, Category = "Utility AI")
+UUtilityActionAsset* GetCurrentAction() const;
+
+Returns:
+  Currently executing action, or nullptr
+
+Description:
+  Returns the action currently being executed.
+
+Example:
+  if (UUtilityActionAsset* Action = Brain->GetCurrentAction())
+  {
+      UE_LOG(LogAI, Log, TEXT("Current: %s"), *Action->ActionName.ToString());
+  }</code></pre>
+
+<h4>GetCurrentActionName</h4>
+<pre><code>UFUNCTION(BlueprintPure, Category = "Utility AI")
+FName GetCurrentActionName() const;
+
+Returns:
+  Name of current action
+
+Description:
+  Returns name of currently executing action.
+
+Example:
+  FName ActionName = Brain->GetCurrentActionName();</code></pre>
+
+<h4>GetCurrentActionScore</h4>
+<pre><code>UFUNCTION(BlueprintPure, Category = "Utility AI")
+FORCEINLINE float GetCurrentActionScore() const { return CurrentActionScore; }
+
+Returns:
+  Score of current action
+
+Description:
+  Returns the final score of the currently executing action.
+
+Example:
+  float Score = Brain->GetCurrentActionScore();</code></pre>
+
+<h3>Input Management</h3>
+
+<h4>SetNamedInputValue</h4>
+<pre><code>UFUNCTION(BlueprintCallable, Category = "Utility AI")
+void SetNamedInputValue(FName InputName, float Value);
+
+Parameters:
+  InputName - Name of input to set
+  Value - New value (typically 0-1)
+
+Description:
+  Sets a named input value that actions can use for scoring.
+
+Example:
+  Brain->SetNamedInputValue(TEXT("Health"), 0.75f);</code></pre>
+
+<h4>GetNamedInputValue</h4>
+<pre><code>UFUNCTION(BlueprintPure, Category = "Utility AI")
+float GetNamedInputValue(FName InputName) const;
+
+Parameters:
+  InputName - Name of input to query
+
+Returns:
+  Current value of input, or 0.0 if not found
+
+Description:
+  Gets the current value of a named input.
+
+Example:
+  float Health = Brain->GetNamedInputValue(TEXT("Health"));</code></pre>
+
+<h4>ClearNamedInputs</h4>
+<pre><code>UFUNCTION(BlueprintCallable, Category = "Utility AI")
+void ClearNamedInputs();
+
+Description:
+  Clears all named input values.
+
+Example:
+  Brain->ClearNamedInputs(); // Reset state</code></pre>
+
+<h3>Service Management</h3>
+
+<h4>AddService</h4>
+<pre><code>UFUNCTION(BlueprintCallable, Category = "Utility AI")
+void AddService(UUtilityService* Service);
+
+Parameters:
+  Service - Service instance to add
+
+Description:
+  Adds a service to the brain's service list.
+
+Example:
+  UService_PerceptionMonitor* Perception = NewObject<UService_PerceptionMonitor>(this);
+  Brain->AddService(Perception);</code></pre>
+
+<h4>RemoveService</h4>
+<pre><code>UFUNCTION(BlueprintCallable, Category = "Utility AI")
+void RemoveService(UUtilityService* Service);
+
+Parameters:
+  Service - Service to remove
+
+Description:
+  Removes a service from the brain.
+
+Example:
+  Brain->RemoveService(PerceptionService);</code></pre>
+
+<h4>GetServiceByClass</h4>
+<pre><code>template<typename T>
+T* GetServiceByClass() const;
+
+Returns:
+  Service of specified type, or nullptr
+
+Description:
+  Finds and returns a service of the specified class.
+
+Example:
+  if (UService_PerceptionMonitor* Perception = Brain->GetServiceByClass<UService_PerceptionMonitor>())
+  {
+      // Use perception service
+  }</code></pre>
+
+<h2>Momentum Functions</h2>
+
+<h4>GetActionMomentum</h4>
+<pre><code>UFUNCTION(BlueprintPure, Category = "Utility AI|Momentum")
+float GetActionMomentum(const FName& ActionName) const;
+
+Parameters:
+  ActionName - Action to query
+
+Returns:
+  Current momentum value (0 to MaxMomentum)
+
+Description:
+  Returns current momentum for specified action.
+
+Example:
+  float Momentum = Brain->GetActionMomentum(TEXT("Attack"));</code></pre>
+
+<h4>SetActionMomentum</h4>
+<pre><code>UFUNCTION(BlueprintCallable, Category = "Utility AI|Momentum")
+void SetActionMomentum(const FName& ActionName, float NewMomentum);
+
+Parameters:
+  ActionName - Action to modify
+  NewMomentum - New momentum value
+
+Description:
+  Directly sets momentum value for an action.
+
+Example:
+  Brain->SetActionMomentum(TEXT("Attack"), 0.0f);</code></pre>
+
+<h4>ResetActionMomentum</h4>
+<pre><code>UFUNCTION(BlueprintCallable, Category = "Utility AI|Momentum")
+void ResetActionMomentum(const FName& ActionName);
+
+Parameters:
+  ActionName - Action to reset
+
+Description:
+  Resets momentum to zero for specified action.
+
+Example:
+  Brain->ResetActionMomentum(TEXT("SpecialAbility"));</code></pre>
+
+<h4>ResetAllMomentum</h4>
+<pre><code>UFUNCTION(BlueprintCallable, Category = "Utility AI|Momentum")
+void ResetAllMomentum();
+
+Description:
+  Resets momentum to zero for all actions.
+
+Example:
+  Brain->ResetAllMomentum(); // Fresh start</code></pre>
+
+<h2>Locking Functions</h2>
+
+<h4>LockActionForDuration</h4>
+<pre><code>UFUNCTION(BlueprintCallable, Category = "Utility AI|Locking")
+void LockActionForDuration(const FName& ActionName, float Duration);
+
+Parameters:
+  ActionName - Action to lock
+  Duration - Lock duration in seconds (-1 for permanent)
+
+Description:
+  Locks an action, preventing it from being selected.
+
+Example:
+  Brain->LockActionForDuration(TEXT("ThrowGrenade"), 5.0f);</code></pre>
+
+<h4>UnlockAction</h4>
+<pre><code>UFUNCTION(BlueprintCallable, Category = "Utility AI|Locking")
+void UnlockAction(const FName& ActionName);
+
+Parameters:
+  ActionName - Action to unlock
+
+Description:
+  Immediately unlocks a locked action.
+
+Example:
+  Brain->UnlockAction(TEXT("ThrowGrenade"));</code></pre>
+
+<h4>UnlockAllActions</h4>
+<pre><code>UFUNCTION(BlueprintCallable, Category = "Utility AI|Locking")
+void UnlockAllActions();
+
+Description:
+  Unlocks all currently locked actions.
+
+Example:
+  Brain->UnlockAllActions();</code></pre>
+
+<h4>IsActionLocked</h4>
+<pre><code>UFUNCTION(BlueprintPure, Category = "Utility AI|Locking")
+bool IsActionLocked(const FName& ActionName) const;
+
+Parameters:
+  ActionName - Action to check
+
+Returns:
+  True if action is locked
+
+Description:
+  Checks if an action is currently locked.
+
+Example:
+  if (Brain->IsActionLocked(TEXT("Ultimate")))
+  {
+      // Ability on cooldown
+  }</code></pre>
+
+<h2>Delegates</h2>
+
+<h4>OnInputsGathered</h4>
+<pre><code>DECLARE_MULTICAST_DELEGATE_OneParam(FOnInputsGathered, UUtilityBrainComponent*);
+FOnInputsGathered OnInputsGathered;
+
+Description:
+  Broadcasts after all services/providers update inputs.
+
+Usage:
+  Brain->OnInputsGathered.AddUObject(this, &AMyClass::OnInputsUpdated);</code></pre>
+
+<h4>OnActionStarted</h4>
+<pre><code>DECLARE_MULTICAST_DELEGATE_TwoParams(FOnActionStarted, UUtilityBrainComponent*, UUtilityActionAsset*);
+FOnActionStarted OnActionStarted;
+
+Description:
+  Broadcasts when a new action begins execution.
+
+Usage:
+  Brain->OnActionStarted.AddUObject(this, &AMyClass::OnNewAction);</code></pre>
+
+<h2>Advanced Functions</h2>
+
+<h4>AbortCurrentAction</h4>
+<pre><code>UFUNCTION(BlueprintCallable, Category = "Utility AI")
+void AbortCurrentAction();
+
+Description:
+  Immediately stops current action execution.
+  Triggers locking if action has UnlockTime set.
+
+Example:
+  Brain->AbortCurrentAction();</code></pre>
+
+<h4>ForceAction</h4>
+<pre><code>UFUNCTION(BlueprintCallable, Category = "Utility AI")
+void ForceAction(const FName& ActionName);
+
+Parameters:
+  ActionName - Action to force
+
+Description:
+  Forces execution of specified action, bypassing scoring.
+
+Example:
+  Brain->ForceAction(TEXT("CutsceneAction"));</code></pre>
+
+<h4>SetThinkInterval</h4>
+<pre><code>UFUNCTION(BlueprintCallable, Category = "Utility AI")
+void SetThinkInterval(float NewInterval);
+
+Parameters:
+  NewInterval - New evaluation interval in seconds
+
+Description:
+  Changes how frequently the brain reevaluates actions.
+
+Example:
+  Brain->SetThinkInterval(0.2f); // More reactive</code></pre>
+
+<h2>Replication Support</h2>
+
+<pre><code>// Replicated properties
+UPROPERTY(Replicated)
+FName CurrentActionName;
+
+UPROPERTY(Replicated)
+bool bPaused;
+
+// Replication function
+virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;</code></pre>
+
+<h2>Performance Functions</h2>
+
+<h4>SetEvaluationBudget</h4>
+<pre><code>UFUNCTION(BlueprintCallable, Category = "Utility AI|Performance")
+void SetEvaluationBudget(float BudgetMilliseconds);
+
+Parameters:
+  BudgetMilliseconds - Max time per evaluation (0 = unlimited)
+
+Description:
+  Sets maximum time budget for action evaluation.
+  Uses round-robin when budget exceeded.
+
+Example:
+  Brain->SetEvaluationBudget(2.0f); // 2ms budget</code></pre>
+
+<h2>Common Usage Patterns</h2>
+
+<h3>Basic Setup</h3>
+<pre><code>void AMyAIController::OnPossess(APawn* InPawn)
+{
+    Super::OnPossess(InPawn);
+    
+    // Get brain
+    UUtilityBrainComponent* Brain = InPawn->FindComponentByClass<UUtilityBrainComponent>();
+    
+    // Add actions
+    Brain->AddAction(AttackAction);
+    Brain->AddAction(DefendAction);
+    
+    // Add services
+    UService_PerceptionMonitor* Perception = NewObject<UService_PerceptionMonitor>(this);
+    Brain->AddService(Perception);
+    
+    // Start brain
+    Brain->StartBrain();
+}</code></pre>
+
+<h3>Dynamic Behavior Adjustment</h3>
+<pre><code>void AMyAIController::OnDifficultyChanged(EDifficulty NewDifficulty)
+{
+    UUtilityBrainComponent* Brain = GetBrain();
+    
+    switch (NewDifficulty)
+    {
+    case EDifficulty::Easy:
+        Brain->SetThinkInterval(1.0f); // Slower reactions
+        // Nerf aggressive actions via library
+        break;
+        
+    case EDifficulty::Hard:
+        Brain->SetThinkInterval(0.3f); // Faster reactions
+        Brain->ResetAllMomentum(); // More spammy
+        // Boost aggressive actions via library
+        break;
+    }
+}</code></pre>
+
+<h3>Event-Driven Input Updates</h3>
+<pre><code>void AMyCharacter::OnHealthChanged(float NewHealth)
+{
+    if (UUtilityBrainComponent* Brain = GetBrain())
+    {
+        Brain->SetNamedInputValue(TEXT("Health"), NewHealth / MaxHealth);
+        
+        // Emergency action if critical
+        if (NewHealth < MaxHealth * 0.2f)
+        {
+            Brain->SetNamedInputValue(TEXT("Emergency"), 1.0f);
+        }
+    }
+}</code></pre>
+
+<h2>Next Steps</h2>
+
+<div class="next-steps">
+  <a class="button primary" href="#/docs/action-api">
+    <i data-lucide="target"></i>
+    Action Asset API
+  </a>
+  <a class="button" href="#/docs/service-api">
+    <i data-lucide="settings"></i>
+    Service API
+  </a>
+</div>
+
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="#/docs/bp-utility-library"><i data-lucide="code"></i> Blueprint Library</a> - Blueprint-friendly functions</li>
+  <li><a href="#/docs/momentum"><i data-lucide="trending-up"></i> Task Momentum</a> - Momentum system details</li>
+  <li><a href="#/docs/locking"><i data-lucide="lock"></i> Task Locking</a> - Locking system details</li>
+  <li><a href="#/docs/named-inputs"><i data-lucide="database"></i> Named Inputs</a> - Input management</li>
+</ul>
+
+<script>lucide.createIcons();</script>

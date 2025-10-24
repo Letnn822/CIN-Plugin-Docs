@@ -1,0 +1,543 @@
+<h1>Service Configuration</h1>
+<p class="note">Services are the backbone of your AI's intelligence. Learn how to configure built-in services and create custom ones that automatically publish inputs, monitor state, and provide reactive behaviors.</p>
+
+<div class="page-meta">
+  <span class="time"><i data-lucide="clock"></i> 10 minutes</span>
+  <span class="difficulty"><i data-lucide="bar-chart-2"></i> Intermediate</span>
+</div>
+
+<div class="callout tip">
+  <span class="icon"><i data-lucide="lightbulb"></i></span>
+  <div>
+    <strong>What Are Services?</strong> Services run continuously, gathering information and publishing it as <code>NamedInputs</code> that actions use for scoring. Think of them as the AI's sensory and cognitive systems.
+  </div>
+</div>
+
+<h2>Service Lifecycle</h2>
+
+<pre><code>Service Lifecycle:
+┌─────────────────────────────────────────────────┐
+│ 1. Service Added to Brain (via preset/manual)  │
+└────────────────┬────────────────────────────────┘
+                 ▼
+┌─────────────────────────────────────────────────┐
+│ 2. Brain Evaluates StartConditions             │
+│    └─ All conditions met?                      │
+│       YES → OnServiceStart() called            │
+│       NO  → Service remains inactive           │
+└────────────────┬────────────────────────────────┘
+                 ▼
+┌─────────────────────────────────────────────────┐
+│ 3. TickService() called every MinInterval      │
+│    └─ Service publishes NamedInputs            │
+│    └─ Gathers data, processes information      │
+└────────────────┬────────────────────────────────┘
+                 ▼
+┌─────────────────────────────────────────────────┐
+│ 4. Brain Checks bStopWhenConditionsFail         │
+│    └─ If enabled and conditions fail:          │
+│       OnServiceStop() called                   │
+│       Service becomes inactive                 │
+└─────────────────────────────────────────────────┘</code></pre>
+
+<h2>Built-In Services</h2>
+
+<h3>1. UService_PerceptionMonitor</h3>
+
+<p><strong>Purpose:</strong> Bridges UAIPerceptionComponent to Utility AI brain</p>
+
+<p><strong>Auto-Published Inputs (20+):</strong></p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Category</th>
+      <th>Input Names</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Enemy Detection</strong></td>
+      <td><code>HasKnownEnemy</code><br><code>EnemyCount</code><br><code>HasVisibleEnemy</code><br><code>VisibleEnemyCount</code><br><code>NearestEnemyDistance</code><br><code>CanSeeEnemy</code></td>
+      <td>Basic enemy awareness</td>
+    </tr>
+    <tr>
+      <td><strong>Threat Assessment</strong></td>
+      <td><code>ThreatLevel</code><br><code>UnderFire</code></td>
+      <td>Danger evaluation (0-1)</td>
+    </tr>
+    <tr>
+      <td><strong>Stimulus Memory</strong></td>
+      <td><code>TimeSinceLastSawEnemy</code><br><code>LastKnownEnemyLocationX/Y/Z</code><br><code>DistanceToLastKnownEnemy</code></td>
+      <td>Last known positions</td>
+    </tr>
+    <tr>
+      <td><strong>Sound Detection</strong></td>
+      <td><code>HeardSuspiciousSound</code><br><code>HasSuspiciousLocation</code><br><code>SuspiciousLocationDistance</code></td>
+      <td>Audio awareness</td>
+    </tr>
+    <tr>
+      <td><strong>Ally Detection</strong></td>
+      <td><code>AllyCount</code><br><code>NearestAllyDistance</code><br><code>HasAllyNearby</code></td>
+      <td>Friendly awareness</td>
+    </tr>
+  </tbody>
+</table>
+
+<p><strong>Configuration:</strong></p>
+
+<pre><code>UService_PerceptionMonitor Settings:
+├─ MinInterval: 0.2 (tick 5x per second)
+├─ StimulusMemoryDuration: 10.0 (remember for 10s)
+├─ CloseThreatDistance: 500.0
+├─ MediumThreatDistance: 1500.0
+├─ UnderFireWindow: 2.0 (damage within 2s = "under fire")
+├─ bPublishEnemyInputs: true
+├─ bPublishAllyInputs: true
+├─ bPublishThreatInputs: true
+├─ bPublishSoundInputs: true
+├─ bPublishMemoryInputs: true
+└─ bDebugVisualize: false (draws perception in-world)</code></pre>
+
+<p><strong>Setup Example:</strong></p>
+
+<pre><code>// Add to AI Controller
+1. Add AIPerceptionComponent
+   └─ Configure senses (Sight, Hearing, Damage)
+   
+2. Add to Agent Preset
+   DA_YourAI_Preset
+   └─ Extra Services
+      └─ UService_PerceptionMonitor
+         └─ Configure settings above
+
+3. Set Team ID (required!)
+   // In your Pawn or Controller
+   Implement IGenericTeamAgentInterface
+   Return FGenericTeamId(1) // 0=player, 1+=enemies</code></pre>
+
+<div class="callout warn">
+  <span class="icon"><i data-lucide="alert-triangle"></i></span>
+  <div>
+    <strong>Common Mistake:</strong> Forgetting to set <code>GenericTeamId</code>. Without it, the service can't distinguish allies from enemies!
+  </div>
+</div>
+
+<h3>2. UService_TacticalSense</h3>
+
+<p><strong>Purpose:</strong> Reports individual squad member intel to squad manager</p>
+
+<p><strong>What It Does:</strong></p>
+<ul>
+  <li>Polls UAIPerceptionComponent for enemies</li>
+  <li>Reports sightings to UTacticalSquadComponent</li>
+  <li>Optionally publishes perception-style inputs (if PerceptionMonitor not used)</li>
+</ul>
+
+<p><strong>Configuration:</strong></p>
+
+<pre><code>UService_TacticalSense Settings:
+├─ MinInterval: 0.5 (report every 0.5s)
+├─ bPublishInputs: false (let PerceptionMonitor handle this)
+└─ ReportRange: 3000.0 (only report enemies within range)</code></pre>
+
+<p><strong>Use With:</strong> BaseSquadCombat archetype</p>
+
+<h3>3. UService_TacticalStrategy</h3>
+
+<p><strong>Purpose:</strong> Squad leader synthesizes team strategy</p>
+
+<p><strong>Auto-Published Inputs:</strong></p>
+<ul>
+  <li><code>SquadStrategy</code> - Current strategy (0=Search, 0.25=Assault, 0.5=Flank, 0.75=Hold, 1.0=Retreat)</li>
+  <li><code>IsSquadLeader</code> - Is this agent the leader? (0 or 1)</li>
+  <li><code>SquadMemberIndex</code> - Member index in squad (0, 1, 2...)</li>
+  <li><code>SquadEnemyCount</code> - Total enemies known to squad</li>
+</ul>
+
+<p><strong>Configuration:</strong></p>
+
+<pre><code>UService_TacticalStrategy Settings:
+├─ MinInterval: 1.0 (recalculate every second)
+├─ StrategyTTL: 5.0 (strategy valid for 5s)
+└─ bOnlyLeaderEvaluates: true (leader decides for squad)</code></pre>
+
+<p><strong>Strategy Logic:</strong></p>
+
+<pre><code>if (NoEnemiesKnown)
+  → SEARCH (patrol and look for enemies)
+  
+else if (EnemiesKnown && Health > 0.6 && OutnumberEnemies)
+  → ASSAULT (aggressive push)
+  
+else if (EnemiesKnown && NeedTacticalAdvantage)
+  → FLANK (coordinated flanking)
+  
+else if (EnemiesKnown && Defensive)
+  → HOLD (defensive stance)
+  
+else if (Health < 0.3 || Overwhelmed)
+  → RETREAT (fall back)</code></pre>
+
+<h3>4. UService_EnvironmentalMemory</h3>
+
+<p><strong>Purpose:</strong> Tracks object state changes for investigation behaviors</p>
+
+<p><strong>Auto-Published Inputs:</strong></p>
+<ul>
+  <li><code>SuspiciousObjectCount</code> - Number of changed objects</li>
+  <li><code>NearestSuspiciousDistance</code> - Distance to closest anomaly</li>
+  <li><code>HasSuspiciousObject</code> - Any anomalies detected? (0 or 1)</li>
+</ul>
+
+<p><strong>Configuration:</strong></p>
+
+<pre><code>UService_EnvironmentalMemory Settings:
+├─ MinInterval: 1.0
+├─ ScanRadius: 2000.0 (how far to scan)
+├─ MemoryDuration: 30.0 (remember changes for 30s)
+└─ bTrackDoors: true
+└─ bTrackLights: true
+└─ bTrackObjects: true</code></pre>
+
+<p><strong>Use With:</strong> BaseStealth archetype (investigation behaviors)</p>
+
+<h3>5. UService_TagToInput</h3>
+
+<p><strong>Purpose:</strong> Maps GameplayTags to NamedInputs</p>
+
+<p><strong>Configuration:</strong></p>
+
+<pre><code>// In Agent Preset
+Tag Mappings:
+  Tag: "Status.LowHealth" → Input: "IsLowHealth" (1.0)
+  Tag: "Status.Poisoned"  → Input: "IsPoisoned" (1.0)
+  Tag: "Ability.CanFly"   → Input: "CanFly" (1.0)
+
+// Tags automatically publish values when added/removed</code></pre>
+
+<p><strong>Use With:</strong> GAS or GameplayTag-based systems</p>
+
+<h2>Service Conditions</h2>
+
+<p><strong>Declarative Activation:</strong> Services can auto-start/stop based on input conditions</p>
+
+<h3>Condition Types</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Type</th>
+      <th>Description</th>
+      <th>Example</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>GreaterThan</code></td>
+      <td>Input > Threshold</td>
+      <td>Health > 0.5</td>
+    </tr>
+    <tr>
+      <td><code>LessThan</code></td>
+      <td>Input < Threshold</td>
+      <td>Health < 0.3</td>
+    </tr>
+    <tr>
+      <td><code>Equal</code></td>
+      <td>Input == Threshold</td>
+      <td>AlertLevel == 1.0</td>
+    </tr>
+    <tr>
+      <td><code>NotEqual</code></td>
+      <td>Input != Threshold</td>
+      <td>AlertLevel != 0.0</td>
+    </tr>
+    <tr>
+      <td><code>InRange</code></td>
+      <td>Min <= Input <= Max</td>
+      <td>0.3 <= Health <= 0.7</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Example: Dynamic Service Activation</h3>
+
+<pre><code>UService_LowHealthBehavior (Custom Service)
+  
+StartConditions:
+  - Condition 1: Health < 0.3
+  - Condition 2: NotEqual AlertLevel 0.0
+  
+bStopWhenConditionsFail: true
+
+Behavior:
+  OnServiceStart()
+    └─ Publish "InDanger" = 1.0
+    └─ Publish "SeekHealthPack" = 1.0
+    └─ Publish "AvoidCombat" = 1.0
+  
+  OnServiceStop()
+    └─ Clear danger inputs
+
+Result:
+  - Service only active when injured AND alert
+  - Automatically deactivates when healed
+  - No manual management needed</code></pre>
+
+<h2>Creating Custom Services</h2>
+
+<h3>C++ Service Example</h3>
+
+<pre><code>// MyCustomService.h
+#include "UtilityService.h"
+#include "MyCustomService.generated.h"
+
+UCLASS()
+class YOURGAME_API UMyCustomService : public UUtilityService
+{
+    GENERATED_BODY()
+    
+protected:
+    // Called when service starts (conditions met)
+    virtual void OnServiceStart() override;
+    
+    // Called every MinInterval seconds
+    virtual void TickService(float DeltaTime) override;
+    
+    // Called when service stops (conditions fail)
+    virtual void OnServiceStop() override;
+    
+    // Configuration properties
+    UPROPERTY(EditAnywhere, Category = "Settings")
+    float ScanRadius = 1000.0f;
+    
+    UPROPERTY(EditAnywhere, Category = "Settings")
+    bool bPublishDebugInfo = false;
+};
+
+// MyCustomService.cpp
+void UMyCustomService::OnServiceStart()
+{
+    Super::OnServiceStart();
+    
+    // Initialize service state
+    UE_LOG(LogTemp, Log, TEXT("MyService started for %s"), 
+           *GetNameSafe(OwnerPawn));
+}
+
+void UMyCustomService::TickService(float DeltaTime)
+{
+    Super::TickService(DeltaTime);
+    
+    if (!Brain || !OwnerPawn)
+        return;
+    
+    // Gather information
+    float SomeValue = CalculateSomething();
+    
+    // Publish as NamedInput
+    Brain->SetNamedInputValue(TEXT("MyCustomInput"), SomeValue);
+    
+    // Optional: Debug output
+    if (bPublishDebugInfo)
+    {
+        Brain->SetNamedInputValue(TEXT("MyDebugValue"), DebugValue);
+    }
+}
+
+void UMyCustomService::OnServiceStop()
+{
+    Super::OnServiceStop();
+    
+    // Cleanup
+    UE_LOG(LogTemp, Log, TEXT("MyService stopped"));
+}</code></pre>
+
+<h3>Blueprint Service (Limited)</h3>
+
+<p>While you can't create full services in Blueprint, you can:</p>
+
+<pre><code>// In your AI Controller or Pawn Blueprint
+Event Tick
+  Get Utility Brain Component
+  Set Named Input Value
+    Name: "CustomInput"
+    Value: (your calculation)
+
+// This works but is less efficient than C++ services
+// Use C++ services for production</code></pre>
+
+<h2>Service Best Practices</h2>
+
+<h3>✅ DO: Keep Services Focused</h3>
+
+<pre><code>✅ UService_WeaponMonitor
+  └─ Only monitors weapon state
+  └─ Publishes: AmmoCount, IsReloading, WeaponType
+
+✅ UService_HealthMonitor  
+  └─ Only monitors health
+  └─ Publishes: Health, IsInjured, IsCritical
+
+❌ UService_EverythingMonitor
+  └─ Monitors weapons, health, inventory, environment
+  └─ Hard to maintain, reuse, debug</code></pre>
+
+<h3>✅ DO: Use Appropriate Tick Rates</h3>
+
+<pre><code>Fast (0.1s):  Perception, combat state
+Medium (0.5s): Inventory, environment scanning
+Slow (1.0s):  Strategy, long-term planning
+Very Slow (5.0s): Analytics, statistics</code></pre>
+
+<h3>✅ DO: Normalize Input Values</h3>
+
+<pre><code>✅ Brain->SetNamedInputValue(TEXT("Health"), 
+      CurrentHealth / MaxHealth); // 0-1
+
+❌ Brain->SetNamedInputValue(TEXT("Health"), 
+      CurrentHealth); // 0-100, bad for scoring</code></pre>
+
+<h3>✅ DO: Use Service Conditions for Dynamic Behavior</h3>
+
+<pre><code>✅ Services start/stop based on game state
+  └─ Cleaner than manual enable/disable
+  └─ Declarative and easy to understand
+
+❌ Manually enabling/disabling services
+  └─ Error-prone
+  └─ Requires tracking state</code></pre>
+
+<h3>❌ DON'T: Duplicate Perception</h3>
+
+<pre><code>❌ Creating custom perception service when 
+   UService_PerceptionMonitor exists
+
+✅ Use built-in PerceptionMonitor
+✅ Extend it if needed (C++ inheritance)</code></pre>
+
+<h2>Performance Optimization</h2>
+
+<h3>Service Budget Management</h3>
+
+<pre><code>// Brain automatically manages service budget
+// Services execute in order until budget exhausted
+// Remaining services wait until next frame
+
+Configuration in Brain:
+  ServiceEvaluationBudget: 2ms per frame
+  
+Example with 5 services:
+  Frame 1: Service 1 (0.8ms) + Service 2 (1.1ms) = 1.9ms ✓
+  Frame 2: Service 3 (0.5ms) + Service 4 (1.2ms) = 1.7ms ✓
+  Frame 3: Service 5 (0.3ms) + Service 1 (0.8ms) = 1.1ms ✓
+  (Cycle repeats)</code></pre>
+
+<h3>Minimize Work in Tick</h3>
+
+<pre><code>✅ Cache expensive calculations
+float CachedDistance = CalculateDistance();
+if (FrameCount % 10 == 0) // Recalculate every 10 frames
+{
+    CachedDistance = CalculateDistance();
+}
+
+✅ Use event-driven where possible
+OnHealthChanged(float NewHealth)
+{
+    Brain->SetNamedInputValue(TEXT("Health"), NewHealth / MaxHealth);
+}
+// Instead of checking every tick
+
+❌ Expensive operations every tick
+void TickService(float DeltaTime)
+{
+    // Recalculating every frame (expensive!)
+    TArray<AActor*> AllActors = GetAllActorsInWorld();
+    for (AActor* Actor : AllActors) { ... }
+}</code></pre>
+
+<h2>Debugging Services</h2>
+
+<h3>Gameplay Debugger</h3>
+
+<pre><code>Press ' → 5 → Select Agent
+
+ACTIVE SERVICES section shows:
+  • PerceptionMonitor (Tick: 0.2s) ← Running
+  • TacticalSense (Tick: 0.5s) ← Running
+  • CustomService (Tick: 1.0s) ← Running
+
+If service missing:
+  1. Not added to preset → Add it
+  2. Start conditions not met → Check inputs
+  3. Service failed to start → Check logs</code></pre>
+
+<h3>Service Logging</h3>
+
+<pre><code>// Enable in Project Settings → CIN Plugin → Debug
+bLogServiceEvents: true
+
+Output:
+[LogCINServices] Soldier_1: PerceptionMonitor started
+[LogCINServices] Soldier_1: PerceptionMonitor published 12 inputs
+[LogCINServices] Soldier_1: TacticalSense started
+[LogCINServices] Soldier_1: CustomService stopped (conditions failed)</code></pre>
+
+<h2>Common Configurations</h2>
+
+<h3>Combat AI</h3>
+
+<pre><code>Services:
+  ├─ UService_PerceptionMonitor
+  │  └─ MinInterval: 0.2
+  │  └─ Publish all categories
+  │
+  └─ UService_WeaponManager (custom)
+     └─ MinInterval: 0.1
+     └─ Track ammo, weapon state</code></pre>
+
+<h3>Squad Combat AI</h3>
+
+<pre><code>Services:
+  ├─ UService_PerceptionMonitor
+  ├─ UService_TacticalSense
+  │  └─ Report to squad every 0.5s
+  └─ UService_TacticalStrategy
+     └─ Leader recalculates every 1.0s</code></pre>
+
+<h3>Stealth/Investigation AI</h3>
+
+<pre><code>Services:
+  ├─ UService_PerceptionMonitor
+  │  └─ Long memory: 30s
+  │  └─ Enhanced hearing
+  │
+  └─ UService_EnvironmentalMemory
+     └─ Track doors, lights, objects
+     └─ Scan radius: 2000</code></pre>
+
+<h2>Next Steps</h2>
+
+<div class="next-steps">
+  <a class="button primary" href="#/docs/perception-setup">
+    <i data-lucide="eye"></i>
+    Perception Setup
+  </a>
+  <a class="button" href="#/docs/custom-services">
+    <i data-lucide="tool"></i>
+    Create Custom Services
+  </a>
+</div>
+
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="#/docs/service-perception"><i data-lucide="eye"></i> PerceptionMonitor Reference</a> - Complete API</li>
+  <li><a href="#/docs/service-conditions"><i data-lucide="git-merge"></i> Service Conditions</a> - Advanced conditional activation</li>
+  <li><a href="#/docs/named-inputs"><i data-lucide="list"></i> Named Inputs</a> - All auto-published inputs</li>
+  <li><a href="#/docs/optimization"><i data-lucide="activity"></i> Performance Optimization</a> - Service profiling</li>
+</ul>
+
+<script>lucide.createIcons();</script>

@@ -1,0 +1,508 @@
+<h1>Quick Setup Component API</h1>
+<p class="note">Complete reference for UCINQuickSetupComponent. Learn how to enable one-click AI configuration with automatic brain initialization and optional debug visualization.</p>
+
+<div class="page-meta">
+  <span class="time"><i data-lucide="clock"></i> 15 minutes</span>
+  <span class="difficulty"><i data-lucide="bar-chart-2"></i> Reference</span>
+</div>
+
+<h2>Class Overview</h2>
+
+<pre><code>Class: UCINQuickSetupComponent
+Parent: UActorComponent
+Module: CINAI
+Header: Public/Components/CINQuickSetupComponent.h
+
+Purpose:
+  Simplifies AI setup with one-click configuration.
+  Automatically initializes brain, applies presets, and
+  optionally enables debug visualization.
+
+Key Features:
+  - Auto-initialization on possession
+  - Agent preset application
+  - Archetype selection
+  - Optional debug visualization
+  - Designer-friendly workflow</code></pre>
+
+<h2>Core Properties</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Default</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>AgentType</code></td>
+      <td>ECINAgentType</td>
+      <td>Custom</td>
+      <td>Archetype to use</td>
+    </tr>
+    <tr>
+      <td><code>AgentPreset</code></td>
+      <td>UCIN_AgentPreset*</td>
+      <td>nullptr</td>
+      <td>Optional preset (overrides archetype)</td>
+    </tr>
+    <tr>
+      <td><code>bAutoInitialize</code></td>
+      <td>bool</td>
+      <td>true</td>
+      <td>Initialize brain on BeginPlay/Possess</td>
+    </tr>
+    <tr>
+      <td><code>bEnableDebugVisualization</code></td>
+      <td>bool</td>
+      <td>false</td>
+      <td>Show overhead debug widget</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Setup Methods</h2>
+
+<h3>Method 1: Archetype Only</h3>
+
+<pre><code>// AIController or Pawn Blueprint
+Components:
+  + CINQuickSetup (UCINQuickSetupComponent)
+    AgentType: BaseCombat
+    bAutoInitialize: true
+    bEnableDebugVisualization: false
+
+Result:
+  - Brain initializes automatically
+  - BaseCombat archetype applied
+  - Ready to use immediately</code></pre>
+
+<h3>Method 2: Agent Preset</h3>
+
+<pre><code>// AIController Blueprint
+Components:
+  + CINQuickSetup (UCINQuickSetupComponent)
+    AgentPreset: DA_Soldier_Preset
+    bAutoInitialize: true
+
+Result:
+  - Preset overrides archetype selection
+  - All preset settings applied
+  - Brain initialized with preset configuration</code></pre>
+
+<h3>Method 3: Manual Initialization</h3>
+
+<pre><code>// Disable auto-init for custom timing
+Components:
+  + CINQuickSetup (UCINQuickSetupComponent)
+    AgentType: BaseCombat
+    bAutoInitialize: false
+
+// Blueprint
+Event BeginPlay
+  → Delay (5.0 seconds)
+  → Get Component By Class (CINQuickSetup)
+  → Initialize AI
+    
+Manual control over when AI activates</code></pre>
+
+<h2>Public Functions</h2>
+
+<h3>InitializeAI</h3>
+
+<pre><code>UFUNCTION(BlueprintCallable, Category = "CIN AI")
+bool InitializeAI();
+
+Returns:
+  True if successfully initialized
+
+Description:
+  Manually triggers AI initialization.
+  Applies archetype or preset to the owner.
+  Only call once per agent.
+
+Example:
+  UCINQuickSetupComponent* QuickSetup = Pawn->FindComponentByClass<UCINQuickSetupComponent>();
+  if (QuickSetup)
+  {
+      bool Success = QuickSetup->InitializeAI();
+  }</code></pre>
+
+<h3>SetAgentPreset</h3>
+
+<pre><code>UFUNCTION(BlueprintCallable, Category = "CIN AI")
+void SetAgentPreset(UCIN_AgentPreset* NewPreset);
+
+Parameters:
+  NewPreset - Preset to use for initialization
+
+Description:
+  Sets the agent preset to use.
+  Must be called before initialization.
+
+Example:
+  QuickSetup->SetAgentPreset(LoadObject<UCIN_AgentPreset>(nullptr, TEXT("/Game/AI/Presets/DA_Elite")));</code></pre>
+
+<h3>SetDebugVisualization</h3>
+
+<pre><code>UFUNCTION(BlueprintCallable, Category = "CIN AI|Debug")
+void SetDebugVisualization(bool bEnabled);
+
+Parameters:
+  bEnabled - Enable or disable debug widget
+
+Description:
+  Toggles overhead debug visualization at runtime.
+
+Example:
+  // Blueprint
+  Key Press (F1)
+    → Get Component By Class (CINQuickSetup)
+    → Set Debug Visualization (true)</code></pre>
+
+<h3>GetUtilityBrain</h3>
+
+<pre><code>UFUNCTION(BlueprintPure, Category = "CIN AI")
+UUtilityBrainComponent* GetUtilityBrain() const;
+
+Returns:
+  Utility brain component, or nullptr
+
+Description:
+  Returns the brain component that was initialized.
+
+Example:
+  UUtilityBrainComponent* Brain = QuickSetup->GetUtilityBrain();
+  if (Brain)
+  {
+      FName ActionName = Brain->GetCurrentActionName();
+  }</code></pre>
+
+<h2>Archetype Selection</h2>
+
+<h3>ECINAgentType Enum</h3>
+
+<pre><code>UENUM(BlueprintType)
+enum class ECINAgentType : uint8
+{
+    Custom,           // Manual configuration
+    BaseAgent,        // Minimal foundation
+    BaseCombat,       // Combat fundamentals
+    BaseSquadCombat,  // Squad coordination
+    BaseNPC,          // Interactive non-combat
+    BaseCompanion,    // Follower/ally
+    BaseStealth,      // Investigation
+    BaseCreature,     // Animal/monster
+    BaseBoss,         // Elite combat
+    BaseRanged,       // Ranged combat
+    BaseCaster        // Spell/ability
+};</code></pre>
+
+<h3>Archetype Capabilities</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Archetype</th>
+      <th>Actions</th>
+      <th>Services</th>
+      <th>Best For</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>BaseCombat</strong></td>
+      <td>Attack, TakeCover, Reload, Retreat</td>
+      <td>PerceptionMonitor</td>
+      <td>Standard enemies</td>
+    </tr>
+    <tr>
+      <td><strong>BaseSquadCombat</strong></td>
+      <td>BaseCombat + squad actions</td>
+      <td>TacticalSense, TacticalStrategy</td>
+      <td>Coordinated teams</td>
+    </tr>
+    <tr>
+      <td><strong>BaseStealth</strong></td>
+      <td>Patrol, Investigate, Alert, Search</td>
+      <td>PerceptionMonitor (long memory)</td>
+      <td>Guards, stealth enemies</td>
+    </tr>
+    <tr>
+      <td><strong>BaseCreature</strong></td>
+      <td>Roam, Hunt, Territorial, Flee</td>
+      <td>PerceptionMonitor (short memory)</td>
+      <td>Animals, monsters</td>
+    </tr>
+    <tr>
+      <td><strong>BaseBoss</strong></td>
+      <td>Multi-phase abilities, Summon, Enrage</td>
+      <td>Full perception suite</td>
+      <td>Boss encounters</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Integration Patterns</h2>
+
+<h3>Pattern 1: AIController Setup</h3>
+
+<pre><code>// C++ AIController
+AMyAIController::AMyAIController()
+{
+    // Add quick setup component
+    QuickSetupComponent = CreateDefaultSubobject<UCINQuickSetupComponent>(TEXT("QuickSetup"));
+}
+
+// Set defaults
+void AMyAIController::BeginPlay()
+{
+    Super::BeginPlay();
+    
+    if (QuickSetupComponent)
+    {
+        // Already auto-initializes if bAutoInitialize = true
+        // Or manually:
+        // QuickSetupComponent->InitializeAI();
+    }
+}</code></pre>
+
+<h3>Pattern 2: Pawn Setup</h3>
+
+<pre><code>// Blueprint Pawn
+Components:
+  + CINQuickSetup
+    AgentType: BaseCombat
+    
+Event BeginPlay
+  → (Quick setup auto-initializes)
+  → AI is ready
+
+// Or C++
+AMyAIPawn::AMyAIPawn()
+{
+    QuickSetupComponent = CreateDefaultSubobject<UCINQuickSetupComponent>(TEXT("QuickSetup"));
+    QuickSetupComponent->AgentType = ECINAgentType::BaseCombat;
+    QuickSetupComponent->bAutoInitialize = true;
+}</code></pre>
+
+<h3>Pattern 3: Difficulty Variants</h3>
+
+<pre><code>// Spawner system
+void AEnemySpawner::SpawnEnemy(EDifficulty Difficulty)
+{
+    // Spawn pawn
+    AMyAIPawn* Enemy = GetWorld()->SpawnActor<AMyAIPawn>(EnemyClass, Location, Rotation);
+    
+    // Get quick setup
+    UCINQuickSetupComponent* QuickSetup = Enemy->FindComponentByClass<UCINQuickSetupComponent>();
+    
+    // Set preset based on difficulty
+    switch (Difficulty)
+    {
+    case EDifficulty::Easy:
+        QuickSetup->SetAgentPreset(EasyPreset);
+        break;
+    case EDifficulty::Hard:
+        QuickSetup->SetAgentPreset(HardPreset);
+        break;
+    }
+    
+    // Initialize
+    QuickSetup->InitializeAI();
+}</code></pre>
+
+<h2>Debug Visualization</h2>
+
+<h3>Enabling Debug Display</h3>
+
+<pre><code>// Option 1: Enable per agent
+QuickSetupComponent->bEnableDebugVisualization = true;
+
+// Option 2: Toggle at runtime
+QuickSetup->SetDebugVisualization(true);
+
+// Option 3: Enable all agents
+UCIN_UtilityAILibrary::EnableDebugVisualizationOnAllAgents();</code></pre>
+
+<h3>Debug Widget Shows</h3>
+
+<pre><code>Overhead Display:
+┌─────────────────────────┐
+│ ✓ Attack (75.0)        │
+│ Services: 3            │
+│ Squad: Alpha [2/4]     │
+│ Strategy: Assault      │
+└─────────────────────────┘
+
+Contents:
+  - Current action name
+  - Current action score
+  - Number of active services
+  - Squad information (if in squad)
+  - Squad strategy (if using tactical)</code></pre>
+
+<h2>Lifecycle</h2>
+
+<h3>Initialization Flow</h3>
+
+<pre><code>1. Component Created (Constructor)
+   └─ Properties set
+
+2. BeginPlay (if bAutoInitialize = true)
+   └─ InitializeAI() called automatically
+   
+3. InitializeAI()
+   ├─ Find or create UtilityBrainComponent
+   ├─ Apply archetype or preset
+   │  ├─ Set up actions
+   │  ├─ Add services
+   │  ├─ Configure inputs
+   │  └─ Set squad/team
+   ├─ Start brain
+   └─ Enable debug (if requested)
+
+4. AI Running
+   └─ Brain evaluates and executes actions</code></pre>
+
+<h3>Cleanup</h3>
+
+<pre><code>// Automatic cleanup on destruction
+void UCINQuickSetupComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+    Super::EndPlay(EndPlayReason);
+    
+    // Brain component handles its own cleanup
+    // No manual cleanup needed
+}</code></pre>
+
+<h2>Best Practices</h2>
+
+<div class="callout tip">
+  <span class="icon"><i data-lucide="check-square"></i></span>
+  <div>
+    <strong>Quick Setup Best Practices:</strong>
+    <ul class="compact">
+      <li>✅ Use QuickSetup for rapid prototyping</li>
+      <li>✅ Start with archetype, customize with preset</li>
+      <li>✅ Enable debug visualization during development</li>
+      <li>✅ Disable auto-init for custom spawn timing</li>
+      <li>✅ Use presets for difficulty variants</li>
+      <li>✅ Add to AIController for server-side AI</li>
+      <li>✅ Keep bAutoInitialize = true for simple cases</li>
+      <li>❌ Don't call InitializeAI() multiple times</li>
+      <li>❌ Don't modify properties after initialization</li>
+      <li>❌ Don't forget to set AgentType or AgentPreset</li>
+    </ul>
+  </div>
+</div>
+
+<h2>Troubleshooting</h2>
+
+<h3>Common Issues</h3>
+
+<pre><code>Problem: AI doesn't start
+Solution:
+  - Check bAutoInitialize is true, OR
+  - Call InitializeAI() manually
+  - Verify AgentType or AgentPreset is set
+  - Check HasAuthority() in multiplayer
+
+Problem: Preset not applying
+Solution:
+  - Set preset before initialization
+  - Verify preset asset is valid
+  - Check preset properties are configured
+  
+Problem: Debug visualization not showing
+Solution:
+  - Enable bEnableDebugVisualization
+  - Check widget class is valid
+  - Verify UMG module is loaded
+  - Test with gameplay debugger instead
+
+Problem: Multiple brains created
+Solution:
+  - Only call InitializeAI() once
+  - Check for existing brain before adding
+  - Use GetUtilityBrain() to retrieve existing</code></pre>
+
+<h2>Performance</h2>
+
+<pre><code>Component Overhead:
+  Memory: ~200 bytes per component
+  CPU: Minimal (only runs during initialization)
+  
+Optimization:
+  ✅ Component is lightweight
+  ✅ Auto-initialization happens once
+  ✅ No per-frame overhead
+  ✅ Debug widget only if enabled
+  
+Recommendation:
+  Safe to add to all AI pawns/controllers</code></pre>
+
+<h2>Comparison: Quick Setup vs Manual</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Feature</th>
+      <th>Quick Setup</th>
+      <th>Manual Setup</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Setup Time</strong></td>
+      <td>1 minute</td>
+      <td>10-15 minutes</td>
+    </tr>
+    <tr>
+      <td><strong>Code Required</strong></td>
+      <td>None (Blueprint only)</td>
+      <td>C++ or complex BP</td>
+    </tr>
+    <tr>
+      <td><strong>Flexibility</strong></td>
+      <td>Archetype + preset</td>
+      <td>Full control</td>
+    </tr>
+    <tr>
+      <td><strong>Debug Tools</strong></td>
+      <td>Built-in toggle</td>
+      <td>Manual setup</td>
+    </tr>
+    <tr>
+      <td><strong>Best For</strong></td>
+      <td>Prototyping, standard AI</td>
+      <td>Custom systems</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Next Steps</h2>
+
+<div class="next-steps">
+  <a class="button primary" href="#/docs/preset-api">
+    <i data-lucide="package"></i>
+    Agent Preset API
+  </a>
+  <a class="button" href="#/docs/debug-component-api">
+    <i data-lucide="bug"></i>
+    Debug Component API
+  </a>
+</div>
+
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="#/docs/setup-workflow"><i data-lucide="workflow"></i> Setup Workflow</a> - Step-by-step guide</li>
+  <li><a href="#/docs/archetype-guide"><i data-lucide="layers"></i> Archetype Guide</a> - Choose archetype</li>
+  <li><a href="#/docs/preset-api"><i data-lucide="package"></i> Preset API</a> - Agent preset system</li>
+  <li><a href="#/docs/debug-component-api"><i data-lucide="bug"></i> Debug Component</a> - Debug visualization</li>
+</ul>
+
+<script>lucide.createIcons();</script>

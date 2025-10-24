@@ -1,0 +1,347 @@
+<h1>Actions & Executors</h1>
+<p>Actions are the discrete behaviors your AI can perform. Learn how to create, configure, and execute actions in CIN Plugin.</p>
+
+<h2>What is an Action?</h2>
+<p>An Action is a <code>UUtilityActionAsset</code> Data Asset that defines:</p>
+<ul>
+  <li><strong>Scoring Logic</strong>: How to calculate desirability based on Named Inputs</li>
+  <li><strong>Execution</strong>: What happens when the action runs (Behavior Tree, Blueprint, Animation)</li>
+  <li><strong>Properties</strong>: Momentum, resistance, locking, priorities</li>
+</ul>
+
+<div class="callout note">
+  <span class="icon" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10"></circle>
+      <line x1="12" y1="16" x2="12" y2="12"></line>
+      <line x1="12" y1="8" x2="12.01" y2="8"></line>
+    </svg>
+  </span>
+  <div>
+    <strong>Key Insight:</strong> Actions are data-driven and stateless. The Brain Component manages state (current action, momentum, locks). Actions just score and execute.
+  </div>
+</div>
+
+<h2>Creating an Action</h2>
+
+<h3>Step 1: Create the Data Asset</h3>
+<ol>
+  <li>Right-click in Content Browser → <strong>Miscellaneous</strong> → <strong>Data Asset</strong></li>
+  <li>Choose <code>UtilityActionAsset</code></li>
+  <li>Name it <code>DA_Action_Attack</code></li>
+</ol>
+
+<h3>Step 2: Configure Basic Properties</h3>
+<pre><code>Action Name: "Attack"
+Description: "Engage known enemy with primary weapon"
+Base Score: 50.0
+Priority: 5 (1-10 scale, used for tie-breaking)</code></pre>
+
+<h3>Step 3: Add Scoring Curves</h3>
+<p>Scoring Curves map Named Inputs to score contributions.</p>
+
+<pre><code>Scoring Curves:
+  [0] Input: "HasKnownEnemy"
+      Curve Points:
+        (0.0, 0.0)    // No enemy = +0 points
+        (1.0, 100.0)  // Enemy present = +100 points
+  
+  [1] Input: "AmmoCount"
+      Curve Points:
+        (0.0, -50.0)  // No ammo = -50 penalty
+        (0.2, -20.0)  // Low ammo = -20 penalty
+        (0.5, 0.0)    // Half ammo = no modifier
+        (1.0, 0.0)    // Full ammo = no modifier
+  
+  [2] Input: "NearestEnemyDistance"
+      Curve Points:
+        (0.0, 50.0)   // Very close = +50 bonus
+        (0.5, 0.0)    // Medium range = no modifier
+        (1.0, -30.0)  // Very far = -30 penalty</code></pre>
+
+<div class="callout tip">
+  <span class="icon" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
+    </svg>
+  </span>
+  <div>
+    <strong>Curve Design Tip:</strong> Use Unreal's curve editor to visualize scoring. Positive outputs = more desirable, negative = less desirable. Steep slopes = sensitive to changes.
+  </div>
+</div>
+
+<h3>Step 4: Configure Anti-Thrashing</h3>
+<pre><code>// Momentum (prevents spam)
+Max Momentum: 3.0
+Momentum Score Reduction: 25.0
+Momentum Decay Time: 4.0
+
+// Replace Resistance (prevents interruption)
+Replace Resistance: 1.8x
+bInterruptible: true
+
+// Task Locking (prevents retry after failure)
+Unlock Time: 2.5 seconds</code></pre>
+
+<h3>Step 5: Set Up Executor</h3>
+<p>Executors define what happens when the action runs.</p>
+
+<h4>Behavior Tree Executor</h4>
+<pre><code>Executor Type: UtilityActionExecutor_BehaviorTree
+Behavior Tree Asset: BT_Attack
+bRestartOnReselect: false
+bStopOnAbort: true</code></pre>
+
+<h4>Blueprint Executor (Custom)</h4>
+<p>Create a Blueprint class derived from <code>UUtilityActionExecutor</code>:</p>
+<pre><code>// Override Execute event in Blueprint
+Event Execute(Brain, Pawn):
+  1. Play attack animation montage
+  2. Fire weapon trace
+  3. Apply damage
+  4. Notify Brain of completion</code></pre>
+
+<h2>Action Properties Reference</h2>
+
+<h3>Core Properties</h3>
+<table class="comparison">
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Action Name</td>
+      <td>String</td>
+      <td>Display name (debugging, logs)</td>
+    </tr>
+    <tr>
+      <td>Base Score</td>
+      <td>Float</td>
+      <td>Starting score before curves (typically 0-100)</td>
+    </tr>
+    <tr>
+      <td>Priority</td>
+      <td>Int (1-10)</td>
+      <td>Tie-breaker when scores are equal</td>
+    </tr>
+    <tr>
+      <td>Scoring Curves</td>
+      <td>Array</td>
+      <td>Input → score contribution mappings</td>
+    </tr>
+    <tr>
+      <td>Executor</td>
+      <td>Object</td>
+      <td>BehaviorTree, Blueprint, or custom executor</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Anti-Thrashing Properties</h3>
+<table class="comparison">
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Range</th>
+      <th>Purpose</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>MaxMomentum</td>
+      <td>0.0 - 5.0</td>
+      <td>Maximum momentum penalty accumulation</td>
+    </tr>
+    <tr>
+      <td>MomentumScoreReduction</td>
+      <td>0.0 - 100.0</td>
+      <td>Points subtracted per momentum unit</td>
+    </tr>
+    <tr>
+      <td>MomentumDecayTime</td>
+      <td>1.0 - 10.0</td>
+      <td>Seconds for momentum to fully decay</td>
+    </tr>
+    <tr>
+      <td>ReplaceResistance</td>
+      <td>1.0 - 5.0</td>
+      <td>Multiplier new action must beat to interrupt</td>
+    </tr>
+    <tr>
+      <td>bInterruptible</td>
+      <td>Bool</td>
+      <td>Can this action be interrupted?</td>
+    </tr>
+    <tr>
+      <td>UnlockTime</td>
+      <td>0.0 - 10.0</td>
+      <td>Lock duration after failure (seconds)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Action Executors</h2>
+
+<h3>Built-In Executors</h3>
+
+<h4>1. Behavior Tree Executor</h4>
+<p>Runs a Behavior Tree when the action executes.</p>
+<pre><code>// Most common executor type
+Advantages:
+  ✓ Reuse existing BT logic
+  ✓ Complex multi-step behaviors
+  ✓ Visual debugging in BT editor
+  ✓ Built-in task library
+
+Use For:
+  - Complex behaviors (patrol routes, search patterns)
+  - Multi-stage actions (approach → attack → retreat)
+  - Actions needing subtasks and decorators</code></pre>
+
+<h4>2. Blueprint Executor (Custom)</h4>
+<p>Execute custom Blueprint logic.</p>
+<pre><code>Advantages:
+  ✓ Simple one-off behaviors
+  ✓ Direct Blueprint control
+  ✓ Quick iteration
+
+Use For:
+  - Simple actions (play animation, trigger ability)
+  - Prototyping
+  - Game-specific logic</code></pre>
+
+<h4>3. C++ Custom Executor</h4>
+<p>Create a C++ class derived from <code>UUtilityActionExecutor</code>.</p>
+<pre><code>// C++ Example
+class UMyAttackExecutor : public UUtilityActionExecutor
+{
+public:
+    virtual void Execute(UUtilityBrainComponent* Brain, APawn* Pawn) override
+    {
+        // Custom execution logic
+        PlayAttackAnimation(Pawn);
+        FireWeapon(Pawn);
+        NotifyComplete(Brain, EActionResult::Success);
+    }
+};</code></pre>
+
+<h2>Action Lifecycle</h2>
+
+<pre><code>┌─────────────────────────────────────────────────┐
+│            ACTION LIFECYCLE                     │
+└─────────────────────────────────────────────────┘
+
+1. SCORING PHASE (Every Tick)
+   ├─ Check if action is locked → Skip if locked
+   ├─ Evaluate all scoring curves
+   ├─ Sum: BaseScore + CurveOutputs - Momentum
+   └─ Return final score
+
+2. SELECTION PHASE
+   ├─ Brain picks highest-scoring action
+   ├─ Check replace resistance
+   └─ If winner != current → Execute new action
+
+3. EXECUTION PHASE
+   ├─ Stop current action (if any)
+   ├─ Call Executor.Execute()
+   ├─ Update momentum tracking
+   └─ Broadcast OnActionStarted delegate
+
+4. COMPLETION PHASE
+   ├─ Executor notifies completion
+   ├─ Result: Success, Failure, or Abort
+   ├─ If Failed → Lock action
+   └─ If Success → Apply momentum
+
+5. CONTINUOUS RE-EVALUATION
+   └─ Loop back to SCORING PHASE next tick</code></pre>
+
+<h2>Example Actions</h2>
+
+<h3>Attack Action</h3>
+<pre><code>Name: "Attack"
+Base Score: 50
+Curves:
+  HasKnownEnemy: (0→0, 1→100)
+  AmmoCount: (0→-50, 0.3→0, 1→0)
+  NearestEnemyDistance: (0→50, 0.5→0, 1→-30)
+Momentum: 3.0 / 25.0 / 4.0s
+Resistance: 1.8x
+Executor: BT_Attack</code></pre>
+
+<h3>Reload Action</h3>
+<pre><code>Name: "Reload"
+Base Score: 60
+Curves:
+  AmmoCount: (0→100, 0.3→80, 0.5→20, 1→0)
+  InCover: (0→20, 1→50)
+Momentum: 5.0 / 50.0 / 8.0s (heavy penalty!)
+Resistance: 0.8x (easy to interrupt if threat appears)
+Executor: BT_Reload</code></pre>
+
+<h3>Patrol Action</h3>
+<pre><code>Name: "Patrol"
+Base Score: 20
+Curves:
+  HasKnownEnemy: (0→50, 1→-100) (only when no threats)
+  TimeSinceLastEnemy: (0→-50, 10→0, 30→20)
+Momentum: 0.0 (no momentum, patrol freely)
+Resistance: 1.0x (easy to interrupt)
+Executor: BT_Patrol</code></pre>
+
+<h2>Best Practices</h2>
+
+<div class="callout tip">
+  <span class="icon" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
+    </svg>
+  </span>
+  <div>
+    <strong>Action Design Guidelines:</strong>
+    <ul>
+      <li><strong>Name Clearly:</strong> Use descriptive names (Attack, TakeCover, not Action1, Action2)</li>
+      <li><strong>Start Simple:</strong> 1-3 curves per action, add complexity only when needed</li>
+      <li><strong>Test Scores:</strong> Use debug visualization to see actual scores in-game</li>
+      <li><strong>Balance Ranges:</strong> Keep base scores 0-100, curve outputs ±100</li>
+      <li><strong>Use Momentum:</strong> Apply to prevent spam (Attack, Reload, Ability)</li>
+      <li><strong>Skip Momentum:</strong> For flexible actions (Patrol, Idle, Wander)</li>
+      <li><strong>High Resistance:</strong> For committed actions (Reload, HeavyAttack)</li>
+      <li><strong>Low Resistance:</strong> For flexible actions (Patrol, Idle)</li>
+    </ul>
+  </div>
+</div>
+
+<h2>Debugging Actions</h2>
+
+<h3>Gameplay Debugger</h3>
+<p>Press <kbd>'</kbd> (apostrophe) → Select <strong>Utility AI</strong> category:</p>
+<pre><code>Current Action: Attack (150 pts)
+All Scores:
+  Attack:     150 ← EXECUTING
+  Reload:     120
+  TakeCover:   85
+  Patrol:      20 (LOCKED)</code></pre>
+
+<h3>Debug Component</h3>
+<p>Add <code>UCINDebugComponent</code> to your AI Controller for overhead widgets showing real-time scores.</p>
+
+<h2>Next Steps</h2>
+<div class="hero-cta">
+  <a class="button primary" href="#/docs/brain">Brain Component</a>
+  <a class="button" href="#/docs/services">Services</a>
+  <a class="button" href="#/docs/presets">Agent Presets</a>
+</div>
+
+<h3>Related Documentation</h3>
+<ul>
+  <li><a href="#/docs/utility-ai">Utility AI System</a> - Scoring mechanics</li>
+  <li><a href="#/docs/momentum-locking">Momentum & Locking</a> - Anti-thrashing deep dive</li>
+  <li><a href="#/docs/behavior-tree">Behavior Tree Integration</a> - Using BT executors</li>
+  <li><a href="#/examples/combat-setup">Combat Example</a> - Complete action setup</li>
+</ul>

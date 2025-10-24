@@ -1,0 +1,337 @@
+<h1>Networking & Multiplayer API</h1>
+<p class="note">Complete guide to multiplayer integration, replication, and network optimization for CIN Plugin AI systems.</p>
+
+<div class="page-meta">
+  <span class="time"><i data-lucide="clock"></i> 15 minutes</span>
+  <span class="difficulty"><i data-lucide="bar-chart-3"></i> Reference</span>
+</div>
+
+<h2>Network Architecture</h2>
+
+<pre><code>Server-Authoritative Design:
+├─ Server: Runs all AI brains
+├─ Server: Evaluates actions
+├─ Server: Executes behavior
+└─ Clients: Receive replicated state
+
+Replicated Data:
+├─ CurrentActionName (FName)
+├─ bPaused (bool)
+└─ Custom state as needed</code></pre>
+
+<h2>Automatic Replication</h2>
+
+<h3>Built-In Replication</h3>
+
+<pre><code>// UUtilityBrainComponent automatically replicates:
+UPROPERTY(Replicated)
+FName CurrentActionName;
+
+UPROPERTY(Replicated)
+bool bPaused;
+
+// Setup in constructor:
+SetIsReplicatedByDefault(true);
+
+// GetLifetimeReplicatedProps:
+DOREPCLASS(UUtilityBrainComponent, CurrentActionName);
+DOREPCLASS(UUtilityBrainComponent, bPaused);</code></pre>
+
+<h3>Client Usage</h3>
+
+<pre><code>// Clients can read current action
+void AMyCharacter::UpdateAnimations()
+{
+    UUtilityBrainComponent* Brain = GetBrain();
+    FName Action = Brain->GetCurrentActionName();
+    
+    // Update animations based on action
+    if (Action == "Attack")
+        PlayAttackAnim();
+    else if (Action == "Reload")
+        PlayReloadAnim();
+}</code></pre>
+
+<h2>Replication Hooks</h2>
+
+<h3>OnRep Functions</h3>
+
+<pre><code>// Called when replicated value changes on client
+UFUNCTION()
+void OnRep_CurrentActionName()
+{
+    // React to action change
+    UE_LOG(LogAI, Log, TEXT("Action changed to: %s"), *CurrentActionName.ToString());
+    
+    // Update visuals
+    UpdateActionVisuals();
+    
+    // Play effects
+    if (CurrentActionName == "SpecialAbility")
+        PlaySpecialEffects();
+}
+
+// In header:
+UPROPERTY(ReplicatedUsing=OnRep_CurrentActionName)
+FName CurrentActionName;</code></pre>
+
+<h2>Custom Replication</h2>
+
+<h3>Additional State</h3>
+
+<pre><code>// Extend brain or create separate component
+UCLASS()
+class UMyAIReplicationComponent : public UActorComponent
+{
+    GENERATED_BODY()
+    
+public:
+    // Replicate custom AI state
+    UPROPERTY(Replicated)
+    int32 CurrentPhase;
+    
+    UPROPERTY(Replicated)
+    float CombatIntensity;
+    
+    UPROPERTY(ReplicatedUsing=OnRep_SpecialState)
+    bool bSpecialStateActive;
+    
+    virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override
+    {
+        Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+        DOREPLIFETIME(UMyAIReplicationComponent, CurrentPhase);
+        DOREPLIFETIME(UMyAIReplicationComponent, CombatIntensity);
+        DOREPLIFETIME(UMyAIReplicationComponent, bSpecialStateActive);
+    }
+    
+    UFUNCTION()
+    void OnRep_SpecialState()
+    {
+        // Client reaction
+        if (bSpecialStateActive)
+            ActivateSpecialVisuals();
+    }
+};</code></pre>
+
+<h2>Network Optimization</h2>
+
+<h3>Update Frequency</h3>
+
+<pre><code>// Control replication frequency
+void AMyAIController::BeginPlay()
+{
+    Super::BeginPlay();
+    
+    // Reduce update rate for AI (default 100Hz)
+    SetNetUpdateFrequency(10.0f); // 10Hz sufficient for AI
+    
+    // Prioritize closer AI
+    bNetUseOwnerRelevancy = false;
+}
+
+Recommendations:
+  Important AI (boss): 20Hz
+  Standard AI: 10Hz
+  Background AI: 5Hz</code></pre>
+
+<h3>Relevancy</h3>
+
+<pre><code>// Optimize what clients see
+bool AMyAIPawn::IsNetRelevantFor(const AActor* RealViewer, const AActor* ViewTarget, const FVector& SrcLocation) const
+{
+    // Don't replicate if too far
+    float Distance = FVector::Dist(SrcLocation, GetActorLocation());
+    if (Distance > MaxReplicationDistance)
+        return false;
+    
+    // Don't replicate if not visible
+    if (!IsVisibleToPlayer(RealViewer))
+        return false;
+    
+    return Super::IsNetRelevantFor(RealViewer, ViewTarget, SrcLocation);
+}</code></pre>
+
+<h2>Server-Only Processing</h2>
+
+<h3>Authority Checks</h3>
+
+<pre><code>// Brain only ticks on server
+void UUtilityBrainComponent::TickComponent(float DeltaTime, ...)
+{
+    // Skip on clients
+    if (GetOwnerRole() != ROLE_Authority)
+        return;
+    
+    // Server-only AI evaluation
+    Super::TickComponent(DeltaTime, ...);
+}
+
+// Services only run on server
+void UUtilityService::TickService(float DeltaTime)
+{
+    if (GetOwnerRole() != ROLE_Authority)
+        return;
+    
+    // Gather inputs (server-only)
+    PublishInputs();
+}</code></pre>
+
+<h2>Cosmetic Client Effects</h2>
+
+<h3>Client-Side Visual Updates</h3>
+
+<pre><code>// Run visuals on all machines
+void AMyAIPawn::Tick(float DeltaTime)
+{
+    Super::Tick(DeltaTime);
+    
+    // Replicated action name available on clients
+    FName CurrentAction = Brain->GetCurrentActionName();
+    
+    // Update client-side visuals
+    if (CurrentAction == "Attack")
+    {
+        UpdateAttackEffects(); // Runs on all clients
+    }
+}
+
+// Multicast for effects
+UFUNCTION(NetMulticast, Reliable)
+void Multicast_PlaySpecialEffect()
+{
+    // Runs on server and all clients
+    PlayParticleEffect();
+    PlaySound();
+}
+
+// Call from server
+if (HasAuthority())
+{
+    Multicast_PlaySpecialEffect();
+}</code></pre>
+
+<h2>Squad Replication</h2>
+
+<h3>Squad Coordination</h3>
+
+<pre><code>// TacticalSquadComponent automatically handles replication
+// Squad state managed on server
+// Member coordination server-only
+
+void UTacticalSquadComponent::UpdateSquadStrategy()
+{
+    // Server authority
+    if (GetOwnerRole() != ROLE_Authority)
+        return;
+    
+    // Calculate strategy
+    DetermineStrategy();
+    
+    // Publish to all squad members
+    for (UTacticalMemberComponent* Member : SquadMembers)
+    {
+        // Each member's brain gets updated inputs
+        // Clients see results via action replication
+    }
+}</code></pre>
+
+<h2>Debugging Multiplayer AI</h2>
+
+<h3>Network Simulation</h3>
+
+<pre><code>Console Commands:
+  Net PktLag=100 // Add 100ms latency
+  Net PktLoss=5  // Add 5% packet loss
+  stat net       // Show network stats
+  
+Test scenarios:
+  1. High latency (200ms+)
+  2. Packet loss (5-10%)
+  3. Multiple clients
+  4. Client join mid-game</code></pre>
+
+<h3>Logging</h3>
+
+<pre><code>// Identify server vs client logs
+UE_LOG(LogAI, Warning, TEXT("[%s] Action: %s"),
+    GetOwnerRole() == ROLE_Authority ? TEXT("SERVER") : TEXT("CLIENT"),
+    *CurrentActionName.ToString());</code></pre>
+
+<h2>Common Patterns</h2>
+
+<h3>Pattern 1: Replicate Important State</h3>
+
+<pre><code>Server:
+  - Runs brain evaluation
+  - Selects action
+  - Updates CurrentActionName
+  - Replicates to clients
+
+Clients:
+  - Receive CurrentActionName
+  - Update animations
+  - Play effects
+  - No AI logic</code></pre>
+
+<h3>Pattern 2: Client Prediction (Optional)</h3>
+
+<pre><code>// Predict client visuals before replication
+void AMyAIPawn::PredictAction()
+{
+    // Client-side prediction
+    if (GetOwnerRole() != ROLE_Authority)
+    {
+        // Guess next action based on visible state
+        if (CanSeePlayer() && HasAmmo())
+        {
+            // Start attack animation early
+            PredictedAction = "Attack";
+            StartAttackAnim();
+        }
+    }
+}
+
+// Correct if wrong when replication arrives
+void OnRep_CurrentActionName()
+{
+    if (PredictedAction != CurrentActionName)
+    {
+        // Prediction wrong, correct it
+        CorrectAnimation();
+    }
+}</code></pre>
+
+<h2>Best Practices</h2>
+
+<div class="callout tip">
+  <span class="icon"><i data-lucide="check-square"></i></span>
+  <div>
+    <strong>Multiplayer Best Practices:</strong>
+    <ul class="compact">
+      <li>✅ Run all AI logic on server only</li>
+      <li>✅ Replicate minimal state (action name, flags)</li>
+      <li>✅ Use multicast for effects</li>
+      <li>✅ Reduce update frequency (10Hz typical)</li>
+      <li>✅ Test with network simulation</li>
+      <li>✅ Optimize relevancy for distant AI</li>
+      <li>❌ Don't run brain on clients</li>
+      <li>❌ Don't replicate inputs or scores</li>
+      <li>❌ Don't replicate every frame</li>
+    </ul>
+  </div>
+</div>
+
+<h2>Next Steps</h2>
+
+<div class="next-steps">
+  <a class="button primary" href="#/docs/replication">
+    <i data-lucide="wifi"></i>
+    Replication Guide
+  </a>
+  <a class="button" href="#/docs/optimization">
+    <i data-lucide="zap"></i>
+    Optimization
+  </a>
+</div>
+
+<script>lucide.createIcons();</script>

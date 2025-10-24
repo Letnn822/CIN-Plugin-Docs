@@ -1,0 +1,105 @@
+<h1>Module Architecture</h1>
+<p class="note">Technical overview of CIN Plugin's module structure, dependencies, and extensibility points for advanced developers.</p>
+
+<div class="page-meta">
+  <span class="time"><i data-lucide="clock"></i> 12 minutes</span>
+  <span class="difficulty"><i data-lucide="bar-chart-3"></i> Reference</span>
+</div>
+
+<h2>Module Structure</h2>
+
+<pre><code>CINPlugin/
+├─ CINAI (Runtime Module)
+│  ├─ Public/
+│  │  ├─ Components/
+│  │  ├─ Config/
+│  │  ├─ Services/
+│  │  ├─ Executors/
+│  │  ├─ Providers/
+│  │  └─ Blueprint/
+│  └─ Private/
+│     └─ Implementation files
+└─ CINPlugin.uplugin (Plugin descriptor)</code></pre>
+
+<h2>Core Classes</h2>
+
+<h3>Brain System</h3>
+<ul>
+  <li><strong>UUtilityBrainComponent</strong> - Main brain component</li>
+  <li><strong>UUtilityActionAsset</strong> - Action data assets</li>
+  <li><strong>UUtilityBrainPreset</strong> - Brain configuration</li>
+</ul>
+
+<h3>Execution</h3>
+<ul>
+  <li><strong>UUtilityActionExecutor</strong> - Base executor</li>
+  <li><strong>UUtilityActionExecutor_BehaviorTree</strong> - BT executor</li>
+  <li><strong>UUtilityActionExecutor_Blueprint</strong> - BP executor</li>
+</ul>
+
+<h3>Services</h3>
+<ul>
+  <li><strong>UUtilityService</strong> - Base service class</li>
+  <li><strong>UService_PerceptionMonitor</strong> - Perception integration</li>
+  <li><strong>UService_TacticalSense</strong> - Squad perception</li>
+  <li><strong>UService_TacticalStrategy</strong> - Squad strategy</li>
+</ul>
+
+<h2>Dependencies</h2>
+
+<pre><code>// CINAI.Build.cs
+PublicDependencyModuleNames.AddRange(new string[] 
+{
+    "Core",
+    "CoreUObject",
+    "Engine",
+    "AIModule",
+    "GameplayTasks"
+});
+
+PrivateDependencyModuleNames.AddRange(new string[] 
+{
+    "UMG",
+    "Slate",
+    "SlateCore"
+});</code></pre>
+
+<h2>Extension Points</h2>
+
+<h3>Custom Services</h3>
+<pre><code>Inherit from: UUtilityService
+Override: TickService(), OnServiceStart(), OnServiceStop()
+Location: YourGame/Source/YourGame/AI/</code></pre>
+
+<h3>Custom Executors</h3>
+<pre><code>Inherit from: UUtilityActionExecutor
+Override: Execute(), TickExecute(), StopExecution()
+Location: YourGame/Source/YourGame/AI/Executors/</code></pre>
+
+<h3>Custom Components</h3>
+<pre><code>Extend: UActorComponent
+Integration: Publish to NamedInputs via brain
+Location: YourGame/Source/YourGame/AI/Components/</code></pre>
+
+<h2>Build Configuration</h2>
+
+<pre><code>// YourGame.Build.cs
+PublicDependencyModuleNames.AddRange(new string[] 
+{
+    "CINAI" // Add CIN Plugin dependency
+});
+
+// Now you can #include CIN headers:
+#include "UtilityBrainComponent.h"
+#include "UtilityService.h"</code></pre>
+
+<h2>Next Steps</h2>
+
+<div class="next-steps">
+  <a class="button primary" href="#/docs/custom-services">
+    <i data-lucide="tool"></i>
+    Custom Services
+  </a>
+</div>
+
+<script>lucide.createIcons();</script>

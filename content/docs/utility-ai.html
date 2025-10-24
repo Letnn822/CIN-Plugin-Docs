@@ -1,0 +1,273 @@
+<h1>Utility AI System</h1>
+<p>Deep dive into CIN Plugin's Utility AI implementation, scoring mechanics, and anti-thrashing features.</p>
+
+<h2>What Makes Utility AI Powerful?</h2>
+<p>Unlike Behavior Trees (which traverse a tree structure) or FSMs (which maintain explicit states), Utility AI evaluates <em>all possible actions simultaneously</em> and picks the best one based on context. This creates emergent, adaptive behavior without complex state management.</p>
+
+<h3>Key Advantages</h3>
+<ul>
+  <li><strong>Context-Aware</strong>: Decisions automatically adapt to changing circumstances</li>
+  <li><strong>No State Hell</strong>: No need to manage transitions between hundreds of states</li>
+  <li><strong>Emergent Behavior</strong>: Complex patterns emerge from simple scoring rules</li>
+  <li><strong>Designer-Friendly</strong>: Tune behaviors by adjusting curves, not rewriting logic</li>
+  <li><strong>Predictable Math</strong>: All inputs normalized, scoring is transparent</li>
+</ul>
+
+<div class="callout tip">
+  <span class="icon" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
+    </svg>
+  </span>
+  <div>
+    <strong>Best For:</strong> Games with complex decision spaces (combat AI, stealth, squad tactics) where behavior trees become unwieldy and state machines explode in complexity.
+  </div>
+</div>
+
+<h2>The Evaluation Loop</h2>
+<p>Every tick, the Brain Component runs this loop:</p>
+
+<pre><code>// UUtilityBrainComponent::TickComponent()
+void UUtilityBrainComponent::TickComponent(float DeltaTime)
+{
+    // 1. GATHER INPUTS
+    GatherInputs();
+    // → Runs all services
+    // → Services publish Named Inputs
+    
+    // 2. SCORE ALL ACTIONS
+    TMap&lt;UUtilityActionAsset*, float&gt; Scores;
+    for (UUtilityActionAsset* Action : Actions)
+    {
+        if (IsActionLocked(Action)) continue;
+        
+        float Score = ComputeActionScore(Action);
+        // → Evaluate scoring curves
+        // → Apply momentum penalty
+        // → Sum all contributions
+        
+        Scores.Add(Action, Score);
+    }
+    
+    // 3. FIND BEST ACTION
+    UUtilityActionAsset* BestAction = FindBestAction(Scores);
+    // → Get highest score
+    // → Check replace resistance
+    
+    // 4. EXECUTE
+    if (BestAction != CurrentAction)
+    {
+        ExecuteAction(BestAction);
+        // → Stop old action
+        // → Start new action
+        // → Update momentum
+    }
+}</code></pre>
+
+<h2>Scoring Mechanics</h2>
+
+<h3>1. Base Score</h3>
+<p>Every action has a base score (typically 0-100). This represents the action's baseline desirability before considering context.</p>
+
+<pre><code>Action: "Attack"
+Base Score: 50.0</code></pre>
+
+<h3>2. Scoring Curves</h3>
+<p>Actions define curves that map Named Inputs to score contributions. The curve output is added to the base score.</p>
+
+<h4>Linear Curve Example</h4>
+<pre><code>Input: "HasKnownEnemy"
+Curve: [(0.0, 0.0), (1.0, 100.0)]
+
+// When HasKnownEnemy = 0.0:  +0 points
+// When HasKnownEnemy = 0.5:  +50 points
+// When HasKnownEnemy = 1.0:  +100 points</code></pre>
+
+<h4>Inverse Curve Example</h4>
+<pre><code>Input: "AmmoCount"
+Curve: [(0.0, 100.0), (1.0, 0.0)]
+
+// When AmmoCount = 0.0:  +100 points (RELOAD URGENTLY!)
+// When AmmoCount = 0.5:  +50 points
+// When AmmoCount = 1.0:  +0 points (full, no need)</code></pre>
+
+<h4>Threshold Curve Example</h4>
+<pre><code>Input: "Health"
+Curve: [(0.0, 100.0), (0.3, 100.0), (0.31, 0.0), (1.0, 0.0)]
+
+// When Health ≤ 0.3:  +100 points (critical!)
+// When Health > 0.3:  +0 points (healthy)</code></pre>
+
+<h3>3. Final Score Calculation</h3>
+<pre><code>FinalScore = BaseScore + Σ(CurveOutputs) - MomentumPenalty
+
+Example "Reload" Action:
+  Base Score:              50
+  + HasKnownEnemy curve:   +0 (no enemy = 0.0)
+  + AmmoCount curve:       +80 (low ammo = 0.2)
+  - Momentum penalty:      -10 (used recently)
+  ──────────────────────
+  = Final Score:           120 points</code></pre>
+
+<h2>Anti-Thrashing Features</h2>
+<p>CIN includes three powerful mechanisms to prevent action thrashing (rapidly switching between actions):</p>
+
+<h3>1. Task Momentum</h3>
+<p>Actions recently executed get a score penalty that decays over time.</p>
+
+<pre><code>// UUtilityActionAsset properties:
+MaxMomentum: 3.0              // Maximum penalty
+MomentumScoreReduction: 20.0  // Points subtracted per momentum unit
+MomentumDecayTime: 5.0        // Seconds to decay fully
+
+// If action used 2 seconds ago:
+MomentumValue = 3.0 * (1.0 - 2.0/5.0) = 1.8
+Penalty = 1.8 * 20.0 = -36 points</code></pre>
+
+<div class="callout note">
+  <span class="icon" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10"></circle>
+      <line x1="12" y1="16" x2="12" y2="12"></line>
+      <line x1="12" y1="8" x2="12.01" y2="8"></line>
+    </svg>
+  </span>
+  <div>
+    <strong>Example:</strong> An agent that just attacked will have "Attack" score reduced for ~5 seconds, making it more likely to consider Cover, Reload, or Reposition instead of attacking repeatedly.
+  </div>
+</div>
+
+<h3>2. Replace Resistance</h3>
+<p>Current action requires new actions to beat its score by a multiplier to interrupt.</p>
+
+<pre><code>// UUtilityActionAsset properties:
+ReplaceResistance: 1.5x
+
+// Current action "Attack" scored 100
+// New action "TakeCover" scores 120
+// Required to interrupt: 100 * 1.5 = 150
+// Result: Attack continues (120 < 150)
+
+// If "TakeCover" scores 160:
+// Result: Interrupt! (160 > 150)</code></pre>
+
+<div class="callout tip">
+  <span class="icon" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
+    </svg>
+  </span>
+  <div>
+    <strong>Tuning Tip:</strong> Use higher resistance (1.5-2.5x) for actions that should commit (attacking, reloading). Use lower resistance (1.0-1.2x) for flexible actions (patrolling, wandering).
+  </div>
+</div>
+
+<h3>3. Task Locking</h3>
+<p>Actions that fail or abort automatically lock for a duration, preventing repeated failures.</p>
+
+<pre><code>// UUtilityActionAsset properties:
+UnlockTime: 3.0  // Seconds to lock after failure
+
+// Action "Attack" fails (target died)
+// → Action locks for 3.0 seconds
+// → Agent considers other options (Patrol, Search, Reposition)
+// → After 3.0s, Attack becomes available again</code></pre>
+
+<h2>Practical Example: Combat Soldier</h2>
+
+<pre><code>Scenario: Soldier in firefight, ammo running low
+
+Named Inputs:
+  HasKnownEnemy: 1.0
+  AmmoCount: 0.2 (low!)
+  Health: 0.6
+  InCover: 0.0
+  ThreatLevel: 0.7
+
+Action Scores:
+  Attack:
+    Base: 50
+    + HasKnownEnemy (1.0 → 100): +100
+    + AmmoCount (0.2 → -40): -40
+    - Momentum: -30 (just attacked)
+    = 80 points
+  
+  Reload:
+    Base: 50
+    + AmmoCount (0.2 → 80): +80
+    + InCover (0.0 → 20): +20
+    = 150 points ← WINNER!
+  
+  TakeCover:
+    Base: 40
+    + ThreatLevel (0.7 → 56): +56
+    + Health (0.6 → 20): +20
+    = 116 points
+
+Decision: Execute "Reload"
+  → Find cover position
+  → Play reload animation
+  → Replenish ammo
+  → Apply momentum to "Reload"
+
+Next Frame (after reload completes):
+  AmmoCount: 1.0
+  
+  Attack: 50 + 100 + 0 - 0 = 150 points ← NOW WINS
+  Reload: LOCKED (just completed)
+  
+Decision: Execute "Attack"</code></pre>
+
+<h2>Best Practices</h2>
+
+<h3>1. Keep Curves Simple</h3>
+<p>Start with 1-3 curves per action. Add complexity only when needed.</p>
+
+<h3>2. Normalize Everything</h3>
+<p>All inputs should be 0-1. Makes scoring predictable and portable.</p>
+
+<h3>3. Test Score Ranges</h3>
+<p>Use debug visualization to see actual scores in-game. Tune until behavior feels right.</p>
+
+<h3>4. Use Momentum Wisely</h3>
+<p>Apply momentum to prevent spam (Attack, Reload). Skip momentum for flexible actions (Patrol, Idle).</p>
+
+<h3>5. Balance Base Scores</h3>
+<p>High-priority actions (Reload, TakeCover) should have higher base scores or aggressive curves.</p>
+
+<h2>Common Pitfalls</h2>
+
+<div class="callout warn">
+  <span class="icon" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"></path>
+      <line x1="12" y1="9" x2="12" y2="13"></line>
+      <line x1="12" y1="17" x2="12.01" y2="17"></line>
+    </svg>
+  </span>
+  <div>
+    <strong>Watch Out For:</strong>
+    <ul>
+      <li><strong>Score Inflation:</strong> If all actions score 500+, small differences won't matter</li>
+      <li><strong>Missing Momentum:</strong> Actions spam without momentum penalties</li>
+      <li><strong>Too Much Resistance:</strong> Agent "sticks" to bad actions</li>
+      <li><strong>Unnormalized Inputs:</strong> Raw health (0-100) makes curves game-specific</li>
+      <li><strong>Ignoring Locks:</strong> Actions retry immediately after failing</li>
+    </ul>
+  </div>
+</div>
+
+<h2>Next Steps</h2>
+<div class="hero-cta">
+  <a class="button primary" href="#/docs/actions">Create Actions</a>
+  <a class="button" href="#/docs/brain">Brain Component</a>
+  <a class="button" href="#/docs/named-inputs">Named Inputs</a>
+</div>
+
+<h3>Related Documentation</h3>
+<ul>
+  <li><a href="#/docs/core-concepts">Core Concepts</a> - System overview</li>
+  <li><a href="#/docs/services">Services</a> - How inputs get published</li>
+  <li><a href="#/docs/momentum-locking">Momentum & Locking</a> - Anti-thrashing deep dive</li>
+  <li><a href="#/examples/combat-setup">Combat Example</a> - See it in action</li>
+</ul>

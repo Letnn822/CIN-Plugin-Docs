@@ -1,0 +1,329 @@
+<h1>CIN Plugin Best Practices Guide</h1>
+<p class="note">This guide establishes the recommended patterns and workflows for building production-quality AI with CIN Plugin. Follow these practices to maximize maintainability, performance, and team collaboration.</p>
+
+<div class="callout tip">
+  <span class="icon" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="9"></circle>
+      <path d="M12 10v6"></path>
+      <path d="M12 8h.01"></path>
+    </svg>
+  </span>
+  <div>
+    <strong>Philosophy:</strong> CIN Plugin promotes <em>archetype inheritance</em> over monolithic configurations. Start with a base archetype, extend it in Blueprint, and customize for your game's specific needs.
+  </div>
+</div>
+
+<h2>Core Principles</h2>
+
+<h3>1. Use Archetype Inheritance</h3>
+<p><strong>✅ DO:</strong> Create Blueprint children of archetypes</p>
+<pre><code>// Correct approach
+BP_Soldier (Blueprint) extends BaseCombat archetype
+  ├─ Custom actions: ThrowGrenade, CallForBackup
+  ├─ Custom inputs: GrenadeCount, BackupAvailable
+  └─ Game-specific tuning: Momentum, resistance values
+
+BP_EliteGuard (Blueprint) extends BP_Soldier
+  ├─ Enhanced perception range
+  ├─ Additional action: ActivateAlarm
+  └─ Higher replace resistance (less interruptible)</code></pre>
+
+<p><strong>❌ DON'T:</strong> Create monolithic presets from scratch</p>
+<pre><code>// Avoid this
+DA_CompletelyCustomAI with 20+ actions configured manually
+  └─ Hard to maintain, difficult to extend, no reuse</code></pre>
+
+<h3>2. Centralize Configuration with Agent Presets</h3>
+<p><strong>✅ DO:</strong> Use <code>UCIN_AgentPreset</code> as the single source of truth</p>
+<pre><code>DA_Soldier_Preset (CIN_AgentPreset)
+  ├─ Archetype: BaseCombat
+  ├─ Actions: [Attack, TakeCover, Reload, Retreat, Patrol]
+  ├─ Services: [PerceptionMonitor, TacticalSense]
+  ├─ NamedInput Overrides: {"Health": 1.0, "AmmoCount": 1.0}
+  ├─ Squad: "Alpha Squad"
+  └─ Team: FGenericTeamId(1)</code></pre>
+
+<p><strong>Why:</strong> Designers can modify AI behavior without touching code or Blueprints. Version control friendly, easy to A/B test.</p>
+
+<h3>3. Leverage Services for Input Publishing</h3>
+<p><strong>✅ DO:</strong> Let services auto-publish inputs</p>
+<pre><code>// Services automatically provide these inputs:
+UService_PerceptionMonitor → 20+ inputs (HasKnownEnemy, ThreatLevel, etc.)
+UService_TacticalStrategy → Squad inputs (SquadStrategy, IsLeader, etc.)
+UService_EnvironmentalMemory → Investigation inputs (SuspiciousObjectCount, etc.)</code></pre>
+
+<p><strong>❌ DON'T:</strong> Manually set inputs every tick in Blueprint</p>
+<pre><code>// Avoid this pattern
+Event Tick
+  └─ Set Named Input "HasKnownEnemy" (manual perception check)
+  └─ Set Named Input "ThreatLevel" (manual calculation)
+  └─ Set Named Input "SquadStrategy" (manual squad logic)
+// This is error-prone and duplicates service functionality</code></pre>
+
+<h3>4. Design Actions with Clear Responsibilities</h3>
+<p><strong>✅ DO:</strong> Single-purpose actions with focused scoring</p>
+<pre><code>Action_Attack
+  ├─ Purpose: Engage visible enemy with weapon
+  ├─ Scoring: HasKnownEnemy * (1 - NearestEnemyDistance) * AmmoCount
+  ├─ Executor: BT_Attack (aim, fire, track target)
+  └─ Momentum: 3.0 (prevents spam)
+
+Action_TakeCover
+  ├─ Purpose: Move to cover when under threat
+  ├─ Scoring: ThreatLevel * (1 - Health) * HasCoverNearby
+  ├─ Executor: BT_TakeCover (find cover, move, crouch)
+  └─ Replace Resistance: 2.0 (hard to interrupt once committed)</code></pre>
+
+<p><strong>❌ DON'T:</strong> Monolithic "do everything" actions</p>
+<pre><code>// Avoid this
+Action_CombatBehavior
+  ├─ Tries to handle: attack, cover, reload, retreat
+  └─ Complex scoring with 10+ considerations
+  └─ Difficult to tune, debug, and maintain</code></pre>
+
+<h3>5. Use Momentum and Resistance to Prevent Thrashing</h3>
+<p><strong>✅ DO:</strong> Configure momentum for frequently-used actions</p>
+<pre><code>Action_Attack
+  ├─ MaxMomentum: 5.0
+  ├─ MomentumScoreReduction: 10.0 (reduces score by 10 per momentum point)
+  └─ MomentumDecayTime: 3.0 seconds
+  // After attacking, score reduced by 50 for 3 seconds, prevents spam
+
+Action_Patrol
+  ├─ ReplaceResistance: 1.2
+  └─ New action must score 1.2x higher to interrupt patrol
+  // Prevents jittery behavior when scores are close</code></pre>
+
+<h3>6. Lock Actions That Can Fail</h3>
+<p><strong>✅ DO:</strong> Use task locking for actions that might fail</p>
+<pre><code>Action_ThrowGrenade
+  ├─ UnlockTime: 5.0 seconds
+  └─ If throw fails (no grenade, blocked), locks for 5s
+  // Prevents repeated failed attempts
+
+Action_CallForBackup
+  ├─ UnlockTime: 30.0 seconds
+  └─ If backup unavailable, locks for 30s
+  // Prevents spamming backup requests</code></pre>
+
+<h3>7. Use Service Conditions for Dynamic Behavior</h3>
+<p><strong>✅ DO:</strong> Declarative service activation</p>
+<pre><code>UService_LowHealthBehavior
+  ├─ StartConditions: [Health < 0.3]
+  ├─ bStopWhenConditionsFail: true
+  └─ Publishes: "InDanger" = 1.0, "SeekHealthPack" = 1.0
+  // Automatically starts/stops based on health</code></pre>
+
+<h3>8. Organize by Archetype Hierarchy</h3>
+<p><strong>Project Structure:</strong></p>
+<pre><code>Content/
+├─ AI/
+│  ├─ Presets/
+│  │  ├─ DA_BaseCombat_Preset (base for all combat AI)
+│  │  ├─ DA_Soldier_Preset (extends BaseCombat)
+│  │  ├─ DA_EliteGuard_Preset (extends Soldier)
+│  │  └─ DA_Boss_Preset (extends BaseBoss)
+│  ├─ Actions/
+│  │  ├─ Combat/
+│  │  │  ├─ DA_Action_Attack
+│  │  │  ├─ DA_Action_TakeCover
+│  │  │  └─ DA_Action_Reload
+│  │  ├─ Stealth/
+│  │  │  ├─ DA_Action_Patrol
+│  │  │  ├─ DA_Action_Investigate
+│  │  │  └─ DA_Action_Alert
+│  │  └─ Squad/
+│  │     ├─ DA_Action_Flank
+│  │     └─ DA_Action_SuppressFire
+│  ├─ BehaviorTrees/
+│  │  ├─ BT_Attack
+│  │  ├─ BT_TakeCover
+│  │  └─ BT_Patrol
+│  └─ Blackboards/
+│     └─ BB_CombatAI</code></pre>
+
+<h2>Workflow Best Practices</h2>
+
+<h3>Initial Setup (One-Time)</h3>
+<ol>
+  <li><strong>Choose Base Archetype:</strong> Select from 11 archetypes based on AI role</li>
+  <li><strong>Create Agent Preset:</strong> <code>DA_YourAI_Preset</code> with archetype selected</li>
+  <li><strong>Add Custom Actions:</strong> Create actions specific to your game</li>
+  <li><strong>Configure Services:</strong> Add/remove services based on needs</li>
+  <li><strong>Apply to AI Controller:</strong> Use <code>UCINQuickSetupComponent</code> or <code>ApplyAgentPresetToPawn</code></li>
+</ol>
+
+<h3>Iteration Workflow</h3>
+<ol>
+  <li><strong>Test in PIE:</strong> Use Gameplay Debugger (<kbd>'</kbd> key) to observe action scores</li>
+  <li><strong>Tune Scoring Curves:</strong> Adjust considerations in action assets</li>
+  <li><strong>Adjust Momentum/Resistance:</strong> Fine-tune to prevent thrashing</li>
+  <li><strong>Add Debug Visualization:</strong> Use <code>UCINDebugComponent</code> for overhead widgets</li>
+  <li><strong>Profile Performance:</strong> Check LOD Manager for budget allocation</li>
+</ol>
+
+<h3>Team Collaboration</h3>
+<ul>
+  <li><strong>Designers:</strong> Modify Agent Presets, tune action scores, adjust momentum values</li>
+  <li><strong>Programmers:</strong> Create custom services, executors, and actions in C++</li>
+  <li><strong>Animators:</strong> Hook animations to action executors via Behavior Trees</li>
+  <li><strong>Level Designers:</strong> Place AI with presets, configure squad names and team IDs</li>
+</ul>
+
+<h2>Performance Best Practices</h2>
+
+<h3>1. Use LOD System</h3>
+<pre><code>// LOD Manager automatically adjusts AI complexity based on distance
+// Configure in Project Settings → CIN Plugin → LOD Settings
+LOD 0 (Close): Full evaluation, all services active
+LOD 1 (Medium): Reduced tick rate, essential services only
+LOD 2 (Far): Minimal evaluation, perception only
+LOD 3 (Very Far): Paused, no evaluation</code></pre>
+
+<h3>2. Budget Service Ticks</h3>
+<pre><code>UService_PerceptionMonitor
+  └─ MinInterval: 0.2 (ticks every 0.2 seconds, not every frame)
+
+UService_TacticalStrategy
+  └─ MinInterval: 1.0 (leader synthesizes strategy once per second)</code></pre>
+
+<h3>3. Use Round-Robin Evaluation</h3>
+<pre><code>// Brain automatically spreads action evaluation across frames
+// Configure in UUtilityBrainComponent
+EvaluationBudget: 5 actions per frame
+  └─ With 20 actions, full evaluation takes 4 frames
+  └─ Reduces CPU spikes, maintains 60 FPS</code></pre>
+
+<h3>4. Profile with Gameplay Debugger</h3>
+<pre><code>// Press ' (apostrophe) in PIE
+// Select "Utility AI" category
+// Shows:
+//   - Current action and score
+//   - All action scores
+//   - Active services
+//   - Named inputs
+//   - Performance metrics (evaluation time)</code></pre>
+
+<h2>Debugging Best Practices</h2>
+
+<h3>1. Enable Debug Visualization</h3>
+<pre><code>// Add to AI Controller
+UCINDebugComponent
+  ├─ Shows overhead widget with:
+  │  ├─ Current action name
+  │  ├─ Current action score
+  │  ├─ Top 3 action scores
+  │  ├─ Active services
+  │  └─ Squad info (if in squad)
+  └─ Configurable tick interval and visibility</code></pre>
+
+<h3>2. Use Gameplay Debugger</h3>
+<pre><code>// Press ' (apostrophe) in PIE
+// Select agent with numpad 1-9
+// Category 5: Utility AI
+//   - Shows all action scores in real-time
+//   - Highlights locked actions
+//   - Shows momentum values
+//   - Displays named inputs</code></pre>
+
+<h3>3. Log Action Selection</h3>
+<pre><code>// Enable in Project Settings → CIN Plugin → Debug
+bLogActionSelection: true
+  └─ Logs: "Agent [Name] selected action [Action] with score [Score]"
+
+bLogInputChanges: true
+  └─ Logs: "Input [Name] changed from [Old] to [New]"</code></pre>
+
+<h2>Common Patterns</h2>
+
+<h3>Pattern: Combat AI with Cover</h3>
+<pre><code>Archetype: BaseCombat
+Actions:
+  - Attack (scores high when enemy visible + has ammo)
+  - TakeCover (scores high when under threat + low health)
+  - Reload (scores high when low ammo + not under immediate threat)
+  - Retreat (scores high when very low health + no cover nearby)
+Services:
+  - PerceptionMonitor (provides enemy detection, threat level)
+Tuning:
+  - Attack: Momentum 3.0, prevents spam
+  - TakeCover: ReplaceResistance 2.0, hard to interrupt
+  - Reload: Priority 10, wins ties (critical action)</code></pre>
+
+<h3>Pattern: Stealth Guard with Investigation</h3>
+<pre><code>Archetype: BaseStealth
+Actions:
+  - Patrol (scores high when no alerts)
+  - Investigate (scores high when suspicious object detected)
+  - Alert (scores high when enemy confirmed)
+  - Search (scores high when lost track of enemy)
+Services:
+  - PerceptionMonitor (long memory: 30s, enhanced hearing)
+  - EnvironmentalMemory (tracks object state changes)
+Tuning:
+  - Patrol: Low momentum, allows frequent interruption
+  - Investigate: ReplaceResistance 1.5, commits to investigation
+  - Alert: Priority 20, always wins (critical state change)</code></pre>
+
+<h3>Pattern: Squad Coordination</h3>
+<pre><code>Archetype: BaseSquadCombat
+Actions:
+  - Attack (scores high when squad strategy = Assault)
+  - FlankLeft (scores high when strategy = Flank + member index = 0)
+  - FlankRight (scores high when strategy = Flank + member index = 1)
+  - HoldPosition (scores high when strategy = Hold)
+  - Retreat (scores high when strategy = Retreat)
+Services:
+  - PerceptionMonitor (personal perception)
+  - TacticalSense (reports intel to squad)
+  - TacticalStrategy (leader synthesizes strategy)
+Squad Setup:
+  - SquadName: "Alpha Squad" (auto-joins on spawn)
+  - TeamID: FGenericTeamId(1) (distinguishes allies from enemies)</code></pre>
+
+<h2>Anti-Patterns to Avoid</h2>
+
+<h3>❌ Manual Input Management</h3>
+<pre><code>// DON'T do this in Blueprint Event Tick
+Get All Enemies → Count → Set Named Input "EnemyCount"
+Get Nearest Enemy → Distance → Set Named Input "EnemyDistance"
+// Use UService_PerceptionMonitor instead!</code></pre>
+
+<h3>❌ Ignoring Momentum</h3>
+<pre><code>// Without momentum, AI rapidly switches between similar-scoring actions
+Frame 1: Attack (score 50.1)
+Frame 2: TakeCover (score 50.2)
+Frame 3: Attack (score 50.3)
+Frame 4: TakeCover (score 50.1)
+// Result: Jittery, unrealistic behavior</code></pre>
+
+<h3>❌ Too Many Actions</h3>
+<pre><code>// 50+ actions in a single brain
+// Problems:
+//   - Evaluation performance hit
+//   - Difficult to tune and debug
+//   - Unclear decision-making
+// Solution: Group related behaviors, use fewer high-level actions</code></pre>
+
+<h3>❌ Hardcoded Values</h3>
+<pre><code>// DON'T hardcode in C++
+if (Health < 0.3f) { TakeCover(); }
+// Use utility scoring instead:
+Action_TakeCover: Score = ThreatLevel * (1 - Health)
+// Emergent behavior, tunable by designers</code></pre>
+
+<h2>Next Steps</h2>
+<div class="hero-cta">
+  <a class="button primary" href="#/docs/setup-workflow">Complete Setup Workflow</a>
+  <a class="button" href="#/docs/archetype-guide">Archetype Selection Guide</a>
+  <a class="button" href="#/docs/configuration">Configuration Checklist</a>
+</div>
+
+<h3>Further Reading</h3>
+<ul>
+  <li><a href="#/docs/module-structure">Module Architecture</a> - Understand the plugin structure</li>
+  <li><a href="#/docs/brain-component">UUtilityBrainComponent</a> - Deep dive into the brain</li>
+  <li><a href="#/docs/service-perception">Perception Service</a> - Auto-published inputs reference</li>
+  <li><a href="#/examples/combat-setup">Combat AI Example</a> - Complete working example</li>
+</ul>

@@ -1,0 +1,61 @@
+<h1>Customization Tips</h1>
+
+    <h2>Agent behaviors</h2>
+    <ul>
+      <li>Tune curves that map raw inputs to agent-friendly responses (e.g., ramp <em>Aggression</em> faster after 60% <em>Alertness</em>).</li>
+      <li>Swap strategies per map/faction by loading different Data Assets and setting different bindings.</li>
+    </ul>
+
+    <h2>Perception</h2>
+    <ul>
+      <li>Use multiple sense IDs (e.g., <code>Vision.Near</code>, <code>Vision.Far</code>) and enable/disable based on LOD.</li>
+    </ul>
+
+    <h2>Animation</h2>
+    <ul>
+      <li>Expose a handful of high-impact parameters and keep the rest derived in AnimBP to reduce complexity.</li>
+    </ul>
+
+    <h2>Parameter naming and organization</h2>
+    <ul>
+      <li>Adopt a small, stable vocabulary: <em>Health</em>, <em>Stamina</em>, <em>Mana</em>, <em>Aggression</em>, <em>ThreatLevel</em>, <em>DistanceToPlayer</em>.</li>
+      <li>Keep all decision/animation logic reading from <code>GetAgentParameter(Name)</code> to avoid tight coupling to gameplay systems.</li>
+      <li>Group related parameters by prefix when needed (e.g., <code>Weapon.Accuracy</code>, <code>Weapon.Recoil</code>).</li>
+    </ul>
+
+    <h2>Binding strategies</h2>
+    <ul>
+      <li><strong>Gameplay attributes:</strong> Prefer <code>BindToGameplayAttributeByHandle</code> for stability.</li>
+      <li><strong>Object properties:</strong> Use <code>BindToObjectProperty</code> for simple component fields (ensure types are float or convertible).</li>
+      <li><strong>Blueprint functions:</strong> <code>BindToBlueprintFunction</code> for computed values (e.g., <code>GetDistanceToPlayer</code>).</li>
+      <li><strong>Curves:</strong> <code>BindToCurve</code> to remap a source value into a designer-authored response curve.</li>
+      <li><strong>Direct values:</strong> <code>SetDirectParameter</code> for temporary overrides or debug scaffolding.</li>
+    </ul>
+
+    <h2>Config profiles &amp; Data Assets</h2>
+    <ul>
+      <li>Create distinct profiles per difficulty/faction by authoring separate Data Assets and parameter sets.</li>
+      <li>Switch profiles at runtime via <code>LoadConfiguration(...)</code> and call <code>RefreshParameterBindings()</code> afterwards.</li>
+      <li>Store normalization ranges alongside the binding so all downstream logic stays 0..1.</li>
+    </ul>
+
+    <h2>LOD-aware toggles</h2>
+    <ul>
+      <li>Lower decision tick rate for distant agents (see <em>LOD &amp; Performance</em>).</li>
+      <li>Disable secondary senses on <code>UCINPerceptionComponent</code> via <code>SetSenseEnabled(SenseID, false)</code> at lower LODs.</li>
+      <li>Gate expensive AnimBP paths behind parameters like <code>DetailLevel</code> or <code>PoseFidelity</code>.</li>
+    </ul>
+
+    <h2>Blueprint utilities for reuse</h2>
+    <ul>
+      <li>Wrap common bind patterns in your own BP Function Library (e.g., <em>ProjectAI_QuickBindHealth</em>).</li>
+      <li>Centralize thresholds and hysteresis constants; reference them from decision/animation graphs.</li>
+      <li>Provide a one-click validation function that checks all expected parameters and prints a report.</li>
+    </ul>
+
+    <h2>Debugging &amp; validation</h2>
+    <ul>
+      <li>Call <code>ValidateParameterBindings()</code> during setup; log missing objects or attributes.</li>
+      <li>Use <code>OnContextUpdated</code> to sample and print a compact snapshot (top parameters, LOD, distance).</li>
+      <li>In AnimBP, add a small debug panel driven by parameters to visualize ranges and gating.</li>
+    </ul>

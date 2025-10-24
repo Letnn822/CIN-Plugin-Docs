@@ -1,0 +1,569 @@
+<h1>Service Conditions</h1>
+<p class="note">Create declarative, reactive services with automatic start/stop conditions. Learn how to configure services that activate only when specific input conditions are met, creating dynamic, context-aware AI behavior.</p>
+
+<div class="page-meta">
+  <span class="time"><i data-lucide="clock"></i> 10 minutes</span>
+  <span class="difficulty"><i data-lucide="bar-chart-2"></i> Advanced</span>
+</div>
+
+<div class="callout tip">
+  <span class="icon"><i data-lucide="lightbulb"></i></span>
+  <div>
+    <strong>Declarative Power:</strong> Instead of manually enabling/disabling services, declare when they should run. The brain automatically manages service lifecycle based on input conditions.
+  </div>
+</div>
+
+<h2>What Are Service Conditions?</h2>
+
+<h3>Imperative Approach (Old Way)</h3>
+
+<pre><code>// Manual service management - error-prone
+void OnHealthChanged(float NewHealth)
+{
+    if (NewHealth < 0.3f && !LowHealthService->IsActive())
+    {
+        LowHealthService->Activate();
+    }
+    else if (NewHealth >= 0.3f && LowHealthService->IsActive())
+    {
+        LowHealthService->Deactivate();
+    }
+}
+
+// Have to track state manually
+// Easy to forget to deactivate
+// Code scattered across multiple places</code></pre>
+
+<h3>Declarative Approach (Service Conditions)</h3>
+
+<pre><code>// Declarative - automatic management
+UService_LowHealthBehavior:
+  StartConditions:
+    - Health < 0.3
+  
+  bStopWhenConditionsFail: true
+
+// Brain automatically:
+// - Starts service when Health < 0.3
+// - Stops service when Health >= 0.3
+// - No manual management needed</code></pre>
+
+<h2>Condition Types</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Type</th>
+      <th>Operator</th>
+      <th>Example</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>GreaterThan</strong></td>
+      <td>&gt;</td>
+      <td>Health > 0.5</td>
+    </tr>
+    <tr>
+      <td><strong>LessThan</strong></td>
+      <td>&lt;</td>
+      <td>AmmoCount < 0.3</td>
+    </tr>
+    <tr>
+      <td><strong>Equal</strong></td>
+      <td>==</td>
+      <td>AlertLevel == 1.0</td>
+    </tr>
+    <tr>
+      <td><strong>NotEqual</strong></td>
+      <td>!=</td>
+      <td>AlertLevel != 0.0</td>
+    </tr>
+    <tr>
+      <td><strong>GreaterOrEqual</strong></td>
+      <td>&gt;=</td>
+      <td>Health >= 0.5</td>
+    </tr>
+    <tr>
+      <td><strong>LessOrEqual</strong></td>
+      <td>&lt;=</td>
+      <td>Health <= 0.3</td>
+    </tr>
+    <tr>
+      <td><strong>InRange</strong></td>
+      <td>min-max</td>
+      <td>0.3 <= Health <= 0.7</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Service Lifecycle</h2>
+
+<pre><code>Service Lifecycle with Conditions:
+
+1. Service Added to Brain
+   └─ Initially inactive
+
+2. Brain Evaluates StartConditions
+   └─ All conditions met? → OnServiceStart()
+   └─ Any condition fails? → Remain inactive
+
+3. Service Active
+   └─ TickService() called every MinInterval
+   └─ Publishes inputs, processes data
+
+4. Brain Checks bStopWhenConditionsFail
+   └─ If enabled and conditions fail:
+      └─ OnServiceStop() called
+      └─ Service becomes inactive
+
+5. Repeat from step 2</code></pre>
+
+<h2>Configuration Examples</h2>
+
+<h3>Single Condition</h3>
+
+<pre><code>Service: UService_LowHealthBehavior
+  
+StartConditions:
+  - Input: "Health"
+    Type: LessThan
+    Threshold: 0.3
+
+bStopWhenConditionsFail: true
+
+Behavior:
+  Health drops to 0.25 → Service starts
+  Publishes: "SeekHealthPack" = 1.0
+  Health recovers to 0.4 → Service stops</code></pre>
+
+<h3>Multiple Conditions (AND Logic)</h3>
+
+<pre><code>Service: UService_StealthDetection
+  
+StartConditions:
+  - Input: "AlertLevel"
+    Type: GreaterThan
+    Threshold: 0.0
+    
+  - Input: "HasVisibleEnemy"
+    Type: Equal
+    Threshold: 0.0
+
+bStopWhenConditionsFail: true
+
+Behavior:
+  Alert AND no visible enemy → Service starts
+  Searches for threat source
+  Finds enemy OR alert clears → Service stops</code></pre>
+
+<h3>Range Condition</h3>
+
+<pre><code>Service: UService_MediumRangeBehavior
+  
+StartConditions:
+  - Input: "DistanceToEnemy"
+    Type: InRange
+    MinValue: 0.3
+    MaxValue: 0.7
+
+bStopWhenConditionsFail: true
+
+Behavior:
+  Enemy at medium range → Service starts
+  Publishes medium-range tactics
+  Enemy too close or too far → Service stops</code></pre>
+
+<h3>Never Stop (Manual Control)</h3>
+
+<pre><code>Service: UService_PerceptionMonitor
+  
+StartConditions:
+  - Input: "IsAlive"
+    Type: Equal
+    Threshold: 1.0
+
+bStopWhenConditionsFail: false
+
+Behavior:
+  Starts when alive
+  Runs continuously until death
+  Doesn't auto-stop (manual control if needed)</code></pre>
+
+<h2>Practical Examples</h2>
+
+<h3>Example 1: Panic Behavior</h3>
+
+<pre><code>Service: UService_PanicBehavior
+
+StartConditions:
+  - Health < 0.2
+  - EnemyCount > 2
+  - AllyCount == 0
+
+bStopWhenConditionsFail: true
+
+OnServiceStart():
+  // Boost flee/retreat actions
+  Brain->BoostAction("Retreat", 2.0)
+  Brain->BoostAction("FindCover", 1.5)
+  Brain->SetNamedInputValue("Panicked", 1.0)
+
+OnServiceStop():
+  // Reset boosts
+  Brain->ResetActionScoreModifier("Retreat")
+  Brain->ResetActionScoreModifier("FindCover")
+  Brain->SetNamedInputValue("Panicked", 0.0)
+
+TickService():
+  // Published panic-related inputs
+  Brain->SetNamedInputValue("PanicIntensity", CalculatePanicLevel())
+
+Effect:
+  Critical health + outnumbered + alone = Panic
+  AI retreats aggressively
+  Recovers when conditions improve</code></pre>
+
+<h3>Example 2: Rage Mode</h3>
+
+<pre><code>Service: UService_RageMode
+
+StartConditions:
+  - Health < 0.5
+  - TimeSinceLastDamage < 2.0
+
+bStopWhenConditionsFail: true
+
+OnServiceStart():
+  // Enter rage mode
+  Brain->ResetAllMomentum() // Allow spam attacks
+  Brain->BoostAction("Attack", 1.5)
+  Brain->NerfAction("TakeCover", 0.5)
+  PlayRageAnimation()
+
+OnServiceStop():
+  // Exit rage mode
+  Brain->ResetActions()
+  StopRageAnimation()
+
+Effect:
+  Injured and recently damaged = Rage
+  More aggressive, less defensive
+  Calms down when safe or healed</code></pre>
+
+<h3>Example 3: Stealth Investigation</h3>
+
+<pre><code>Service: UService_Investigation
+
+StartConditions:
+  - AlertLevel > 0.5
+  - HasSuspiciousLocation == 1.0
+  - HasVisibleEnemy == 0.0
+
+bStopWhenConditionsFail: true
+
+OnServiceStart():
+  // Store investigation point
+  InvestigationPoint = GetSuspiciousLocation()
+  StartTime = GetTime()
+
+TickService():
+  // Publish investigation data
+  float DistanceToPoint = GetDistanceTo(InvestigationPoint)
+  Brain->SetNamedInputValue("InvestigationDistance", DistanceToPoint)
+  
+  float TimeInvestigating = GetTime() - StartTime
+  Brain->SetNamedInputValue("InvestigationDuration", TimeInvestigating)
+
+OnServiceStop():
+  // Clear investigation
+  InvestigationPoint = None
+  Brain->SetNamedInputValue("InvestigationActive", 0.0)
+
+Effect:
+  Alert + suspicious location + no visible threat = Investigate
+  Tracks progress toward investigation point
+  Stops when enemy found or alert clears</code></pre>
+
+<h3>Example 4: Boss Phase Transitions</h3>
+
+<pre><code>Service: UService_Phase2Behavior
+
+StartConditions:
+  - Health <= 0.75
+  - Health > 0.50
+  - CurrentPhase == 1.0
+
+bStopWhenConditionsFail: false // Don't auto-stop
+
+OnServiceStart():
+  // Transition to phase 2
+  Brain->SetNamedInputValue("CurrentPhase", 2.0)
+  Brain->LockAction("PhaseTransition", -1.0) // Lock permanently
+  
+  // Enable phase 2 abilities
+  Brain->BoostAction("AreaAttack", 2.0)
+  Brain->BoostAction("SummonMinions", 1.5)
+  
+  PlayPhaseTransitionAnimation()
+
+Effect:
+  Health drops to 75% = Phase 2
+  New abilities available
+  Can't transition again (one-way)</code></pre>
+
+<h2>Advanced Patterns</h2>
+
+<h3>Pattern 1: State Machine via Services</h3>
+
+<pre><code>Service: UService_IdleState
+  Conditions: EnemyCount == 0
+  → Publishes idle behaviors
+
+Service: UService_CombatState
+  Conditions: EnemyCount > 0, Health > 0.3
+  → Publishes aggressive behaviors
+
+Service: UService_RetreatState
+  Conditions: EnemyCount > 0, Health <= 0.3
+  → Publishes defensive behaviors
+
+Result: Simple state machine without FSM complexity</code></pre>
+
+<h3>Pattern 2: Hierarchical Conditions</h3>
+
+<pre><code>Base Service: UService_CombatBase
+  Conditions: InCombat == 1.0
+  → Always active during combat
+
+Child Service: UService_CloseCombat
+  Conditions: InCombat == 1.0, Distance < 0.3
+  → Active during close combat
+  → Inherits from CombatBase
+
+Child Service: UService_RangedCombat
+  Conditions: InCombat == 1.0, Distance > 0.6
+  → Active during ranged combat
+  → Inherits from CombatBase
+
+Result: Nested behaviors based on distance</code></pre>
+
+<h3>Pattern 3: Cooldown Services</h3>
+
+<pre><code>Service: UService_UltimateAbility
+
+StartConditions:
+  - UltimateReady == 1.0
+  - EnemyCount >= 3
+
+OnServiceStart():
+  // Use ultimate
+  ExecuteUltimate()
+  Brain->SetNamedInputValue("UltimateReady", 0.0)
+  
+  // Start cooldown
+  SetTimer(60.0, []{
+    Brain->SetNamedInputValue("UltimateReady", 1.0)
+  })
+
+bStopWhenConditionsFail: true
+
+Result: Cooldown-based ability system</code></pre>
+
+<h2>C++ Implementation</h2>
+
+<h3>Defining Conditions</h3>
+
+<pre><code>// In service header
+UPROPERTY(EditAnywhere, Category = "Conditions")
+TArray<FServiceCondition> StartConditions;
+
+UPROPERTY(EditAnywhere, Category = "Conditions")
+bool bStopWhenConditionsFail = true;
+
+// FServiceCondition struct
+USTRUCT()
+struct FServiceCondition
+{
+    GENERATED_BODY()
+    
+    UPROPERTY(EditAnywhere)
+    FName InputName;
+    
+    UPROPERTY(EditAnywhere)
+    EServiceConditionType ConditionType;
+    
+    UPROPERTY(EditAnywhere)
+    float Threshold = 0.0f;
+    
+    UPROPERTY(EditAnywhere)
+    float MinValue = 0.0f; // For InRange
+    
+    UPROPERTY(EditAnywhere)
+    float MaxValue = 1.0f; // For InRange
+};</code></pre>
+
+<h3>Custom Service with Conditions</h3>
+
+<pre><code>// MyCustomService.h
+UCLASS()
+class UMyCustomService : public UUtilityService
+{
+    GENERATED_BODY()
+    
+protected:
+    virtual void OnServiceStart() override;
+    virtual void TickService(float DeltaTime) override;
+    virtual void OnServiceStop() override;
+    
+    UPROPERTY(EditAnywhere, Category = "Conditions")
+    TArray<FServiceCondition> StartConditions;
+    
+    UPROPERTY(EditAnywhere, Category = "Conditions")
+    bool bStopWhenConditionsFail = true;
+};
+
+// MyCustomService.cpp
+void UMyCustomService::OnServiceStart()
+{
+    Super::OnServiceStart();
+    
+    // Service just activated - setup
+    UE_LOG(LogAI, Log, TEXT("Service started!"));
+}
+
+void UMyCustomService::TickService(float DeltaTime)
+{
+    Super::TickService(DeltaTime);
+    
+    // Service is active - do work
+    ProcessData();
+}
+
+void UMyCustomService::OnServiceStop()
+{
+    Super::OnServiceStop();
+    
+    // Service just deactivated - cleanup
+    UE_LOG(LogAI, Log, TEXT("Service stopped!"));
+}</code></pre>
+
+<h2>Debugging Service Conditions</h2>
+
+<h3>Gameplay Debugger</h3>
+
+<pre><code>Press ' → 5 → Select Agent
+
+SERVICES section:
+  PerceptionMonitor: ACTIVE ✓
+  LowHealthBehavior: INACTIVE (Health: 0.8 >= 0.3) ✗
+  RageMode: ACTIVE ✓ (Health: 0.4 < 0.5, Recent damage)
+
+Shows:
+  - Service state (active/inactive)
+  - Condition evaluation results
+  - Why service is active/inactive</code></pre>
+
+<h3>Console Commands</h3>
+
+<pre><code>// Show service conditions
+CIN.Debug.ShowServiceConditions 1
+
+Output:
+  LowHealthBehavior:
+    Conditions:
+      Health < 0.3: FAIL (0.8)
+    State: Inactive
+  
+  RageMode:
+    Conditions:
+      Health < 0.5: PASS (0.4)
+      TimeSinceDamage < 2.0: PASS (1.2)
+    State: Active
+
+// Force service state (testing)
+CIN.Debug.ForceServiceActive LowHealthBehavior 1</code></pre>
+
+<h2>Best Practices</h2>
+
+<div class="callout tip">
+  <span class="icon"><i data-lucide="check-square"></i></span>
+  <div>
+    <strong>Service Condition Guidelines:</strong>
+    <ul class="compact">
+      <li>✅ Use for situational behaviors (panic, rage, investigation)</li>
+      <li>✅ Combine multiple conditions for complex states</li>
+      <li>✅ Set bStopWhenConditionsFail for temporary behaviors</li>
+      <li>✅ Use OnServiceStart/Stop for setup/cleanup</li>
+      <li>✅ Keep condition checks lightweight (< 0.1ms)</li>
+      <li>❌ Don't use for always-on services (PerceptionMonitor)</li>
+      <li>❌ Don't create circular dependencies between services</li>
+      <li>❌ Don't put heavy logic in condition evaluation</li>
+    </ul>
+  </div>
+</div>
+
+<h2>Performance Considerations</h2>
+
+<pre><code>Condition Evaluation Cost:
+  Per Condition: 1 comparison (~0.001ms)
+  Per Service: Sum of all conditions
+  
+Typical Agent (5 conditional services, 3 conditions each):
+  15 comparisons per frame
+  Cost: ~0.015ms (negligible)
+
+Optimization:
+  Only evaluate conditions when inputs change
+  Cache condition results
+  Disable unused services</code></pre>
+
+<h2>Troubleshooting</h2>
+
+<h3>Issue: "Service never starts"</h3>
+
+<p><strong>Diagnosis:</strong></p>
+<pre><code>Gameplay Debugger shows:
+  Condition: Health < 0.3
+  Current: Health = 0.8
+  Status: FAIL
+
+Fix: Check input values are correct
+  - Is "Health" being published?
+  - Is it normalized (0-1)?
+  - Is threshold appropriate?</code></pre>
+
+<h3>Issue: "Service starts/stops rapidly"</h3>
+
+<p><strong>Diagnosis:</strong></p>
+<pre><code>Input oscillating around threshold:
+  Frame 100: Health = 0.29 → START
+  Frame 102: Health = 0.31 → STOP
+  Frame 104: Health = 0.29 → START
+
+Fix: Add hysteresis
+  StartConditions: Health < 0.3
+  StopConditions: Health > 0.4 (higher threshold)
+  → Only stops when significantly recovered</code></pre>
+
+<h2>Next Steps</h2>
+
+<div class="next-steps">
+  <a class="button primary" href="#/docs/stimulus-memory">
+    <i data-lucide="cloud"></i>
+    Stimulus Memory
+  </a>
+  <a class="button" href="#/docs/service-configuration">
+    <i data-lucide="settings"></i>
+    Service Configuration
+  </a>
+</div>
+
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="#/docs/service-configuration"><i data-lucide="settings"></i> Service Setup</a> - Basic service configuration</li>
+  <li><a href="#/docs/custom-services"><i data-lucide="tool"></i> Custom Services</a> - Creating your own services</li>
+  <li><a href="#/docs/intelligence-layers"><i data-lucide="cpu"></i> Intelligence Layers</a> - Service role in architecture</li>
+</ul>
+
+<script>lucide.createIcons();</script>

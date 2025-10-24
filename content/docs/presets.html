@@ -1,0 +1,484 @@
+<h1>Agent Presets</h1>
+<p>Agent Presets (<code>UCIN_AgentPreset</code>) are Data Assets that bundle archetype, actions, services, and configuration into a single reusable package.</p>
+
+<h2>What is an Agent Preset?</h2>
+<p>Instead of manually configuring each AI agent, Presets let you define everything once and apply it with a single function call:</p>
+
+<pre><code>Agent Preset: "Soldier_Preset"
+├─ Archetype: BaseCombat
+├─ Actions: [Attack, Reload, TakeCover, Patrol]
+├─ Services: [PerceptionMonitor, TacticalSense]
+├─ Named Input Overrides: {Courage: 0.8}
+├─ Squad Settings: {Name: "Alpha", TeamID: 1}
+└─ Perception Config: {Sight: 3000, Hearing: 2000}
+
+Apply with one Blueprint node:
+ApplyAgentPresetToPawn(Pawn, Soldier_Preset)</code></pre>
+
+<div class="callout note">
+  <span class="icon" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10"></circle>
+      <line x1="12" y1="16" x2="12" y2="12"></line>
+      <line x1="12" y1="8" x2="12.01" y2="8"></line>
+    </svg>
+  </span>
+  <div>
+    <strong>Design Philosophy:</strong> Presets are the <em>designer interface</em>. Modular assets (Actions, Services, Archetypes) provide flexibility, but Presets provide convenience.
+  </div>
+</div>
+
+<h2>Creating a Preset</h2>
+
+<h3>Step 1: Create Data Asset</h3>
+<ol>
+  <li>Right-click in Content Browser → <strong>Miscellaneous</strong> → <strong>Data Asset</strong></li>
+  <li>Choose <code>CIN_AgentPreset</code></li>
+  <li>Name it <code>DA_Preset_Soldier</code></li>
+</ol>
+
+<h3>Step 2: Select Archetype</h3>
+<pre><code>Archetype Type: BaseCombat
+
+This provides foundation:
+  - Perception service (sight, hearing, damage)
+  - Basic combat inputs (Health, Ammo, ThreatLevel)
+  - Recommended actions (Attack, Cover, Reload, Retreat)
+  - Team affiliation support</code></pre>
+
+<h3>Step 3: Add Actions</h3>
+<pre><code>Actions Array:
+  [0] DA_Action_Attack
+  [1] DA_Action_Reload
+  [2] DA_Action_TakeCover
+  [3] DA_Action_Patrol
+  [4] DA_Action_Investigate</code></pre>
+
+<h3>Step 4: Configure Services</h3>
+<pre><code>Extra Services (beyond archetype defaults):
+  [0] Service_TacticalSense
+      └─ Reports perception to squad
+  
+  [1] Service_EnvironmentalMemory
+      └─ Tracks objects for investigation</code></pre>
+
+<h3>Step 5: Set Overrides</h3>
+<pre><code>Named Input Overrides:
+  Courage: 0.8 (higher than default 0.5)
+  Aggression: 0.7
+
+Squad Settings:
+  Squad Name: "Alpha"
+  Team ID: 1
+  Auto Join Squad: true
+
+Perception Settings:
+  Sight Range: 3000
+  Hearing Range: 2000
+  FOV: 90</code></pre>
+
+<h2>Preset Properties</h2>
+
+<h3>Core Configuration</h3>
+<table class="comparison">
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Preset Name</td>
+      <td>String</td>
+      <td>Display name for debugging</td>
+    </tr>
+    <tr>
+      <td>Archetype Type</td>
+      <td>Enum</td>
+      <td>BaseCombat, BaseStealth, BaseSquadCombat, etc.</td>
+    </tr>
+    <tr>
+      <td>Actions</td>
+      <td>Array</td>
+      <td>UUtilityActionAsset references</td>
+    </tr>
+    <tr>
+      <td>Extra Services</td>
+      <td>Array</td>
+      <td>Services beyond archetype defaults</td>
+    </tr>
+    <tr>
+      <td>Named Input Overrides</td>
+      <td>Map</td>
+      <td>Custom initial input values</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Squad & Team</h3>
+<table class="comparison">
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Squad Name</td>
+      <td>String</td>
+      <td>Auto-join squad with this name</td>
+    </tr>
+    <tr>
+      <td>Team ID</td>
+      <td>Int</td>
+      <td>GenericTeamId for perception</td>
+    </tr>
+    <tr>
+      <td>bAutoJoinSquad</td>
+      <td>Bool</td>
+      <td>Auto-join on spawn</td>
+    </tr>
+    <tr>
+      <td>bCanBeLeader</td>
+      <td>Bool</td>
+      <td>Eligible for squad leader election</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Perception (Optional Overrides)</h3>
+<table class="comparison">
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Sight Range</td>
+      <td>Float</td>
+      <td>Override archetype default</td>
+    </tr>
+    <tr>
+      <td>Hearing Range</td>
+      <td>Float</td>
+      <td>Override archetype default</td>
+    </tr>
+    <tr>
+      <td>FOV</td>
+      <td>Float</td>
+      <td>Field of view (degrees)</td>
+    </tr>
+    <tr>
+      <td>bEnableDamageSense</td>
+      <td>Bool</td>
+      <td>React to damage events</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Applying Presets</h2>
+
+<h3>Method 1: Quick Setup Component (Automatic)</h3>
+<pre><code>// Best for most cases
+AI Controller Blueprint:
+  1. Add Component: UUtilityBrainComponent
+  2. Add Component: UCINQuickSetupComponent
+  3. Set "Agent Preset" property: DA_Preset_Soldier
+  4. Done!
+
+On Pawn Possession:
+  → QuickSetup automatically calls ApplyAgentPresetToPawn
+  → Brain initialized
+  → Actions added
+  → Services started
+  → Squad joined</code></pre>
+
+<h3>Method 2: Manual Blueprint Call</h3>
+<pre><code>// AI Controller BeginPlay or OnPossess
+Event On Possess(Pawn)
+  ├─ Get Utility Brain Component
+  ├─ Call "Apply Agent Preset To Pawn"
+  │  ├─ Target: CIN AI Blueprint Library
+  │  ├─ Pawn: (possessed pawn)
+  │  ├─ Preset: DA_Preset_Soldier
+  │  └─ Apply Services: true
+  └─ Log: "Soldier preset applied"</code></pre>
+
+<h3>Method 3: C++ Application</h3>
+<pre><code>// C++ AI Controller
+#include "Blueprint/CIN_AIBlueprintLibrary.h"
+#include "Config/CINAgentPreset.h"
+
+void AMyAIController::OnPossess(APawn* InPawn)
+{
+    Super::OnPossess(InPawn);
+    
+    if (AgentPreset && InPawn)
+    {
+        UCIN_AIBlueprintLibrary::ApplyAgentPresetToPawn(
+            InPawn, 
+            AgentPreset, 
+            true  // bApplyServices
+        );
+    }
+}</code></pre>
+
+<h2>Archetypes Reference</h2>
+
+<h3>BaseCombat</h3>
+<pre><code>Purpose: General combat AI (soldiers, enemies, guards)
+
+Default Actions:
+  - Attack
+  - TakeCover
+  - Reload
+  - Retreat
+
+Default Services:
+  - Service_PerceptionMonitor (combat-focused)
+
+Default Inputs:
+  - Health, AmmoCount, ThreatLevel
+  - HasKnownEnemy, NearestEnemyDistance
+  - InCover, CanSeeEnemy
+
+Perception:
+  - Sight: 3000 units
+  - Hearing: 2000 units
+  - Damage sense: enabled
+
+Extend With:
+  - Tactical movements (flank, suppress)
+  - Weapon-specific actions
+  - Grenade/ability actions</code></pre>
+
+<h3>BaseSquadCombat</h3>
+<pre><code>Purpose: Coordinated squad combat (team tactics)
+
+Extends: BaseCombat + Squad
+
+Additional Services:
+  - Service_TacticalSense (perception → squad)
+  - Service_TacticalStrategy (leader only)
+
+Additional Inputs:
+  - SquadStrategy, IsSquadLeader
+  - SquadMemberCount, AssignedRole
+
+Squad Settings Required:
+  - Squad Name
+  - Team ID
+  - bCanBeLeader
+
+Use For:
+  - Military squads
+  - Enemy fireteams
+  - Coordinated patrols</code></pre>
+
+<h3>BaseStealth</h3>
+<pre><code>Purpose: Investigation and stealth (guards, detectives)
+
+Default Actions:
+  - Patrol
+  - Investigate
+  - Alert
+  - Search
+
+Default Services:
+  - Service_PerceptionMonitor (long memory 30s)
+  - Service_EnvironmentalMemory
+
+Default Inputs:
+  - AlertLevel, HeardSuspiciousSound
+  - HasDisplacedObjects, HasOpenDoors
+  - TimeSinceLastSawEnemy
+
+Perception:
+  - Sight: 2500 units
+  - Hearing: 3000 units (enhanced)
+  - Long stimulus memory
+
+Extend With:
+  - Radio alerts
+  - Reinforcement calls
+  - Investigation tools</code></pre>
+
+<h3>BaseCreature</h3>
+<pre><code>Purpose: Animals, monsters, wildlife
+
+Default Actions:
+  - Roam
+  - Hunt
+  - Territorial
+  - Flee
+
+Default Services:
+  - Service_PerceptionMonitor (short memory 5s)
+
+Default Inputs:
+  - Health, Hunger (if implemented)
+  - NearestPreyDistance
+  - IsInTerritory
+
+Perception:
+  - Sight: 2000 units
+  - Hearing: 1500 units
+  - Wide FOV: 180°
+
+Extend With:
+  - Pack behavior
+  - Territory marking
+  - Nest/den mechanics</code></pre>
+
+<h2>Preset Inheritance Pattern</h2>
+
+<p>Create hierarchies of presets for organized configuration:</p>
+
+<pre><code>// Base preset for all soldiers
+DA_Preset_Soldier_Base:
+  Archetype: BaseCombat
+  Actions: [Attack, Reload, TakeCover, Patrol]
+  Services: [PerceptionMonitor]
+
+// Specialized variants
+DA_Preset_Soldier_Assault (inherits Soldier_Base):
+  + Extra Actions: [ChargeAttack, Grenade]
+  + Input Override: Aggression: 0.9
+  + Squad Settings: bCanBeLeader: true
+
+DA_Preset_Soldier_Sniper (inherits Soldier_Base):
+  - Remove Action: ChargeAttack
+  + Add Action: SniperShot, Reposition
+  + Input Override: Patience: 0.8
+  + Perception Override: Sight: 5000</code></pre>
+
+<div class="callout tip">
+  <span class="icon" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
+    </svg>
+  </span>
+  <div>
+    <strong>Organization Tip:</strong> Create folder structure like <code>/Game/AI/Presets/Soldiers/</code>, <code>/Game/AI/Presets/Creatures/</code> to keep presets organized by archetype.
+  </div>
+</div>
+
+<h2>Runtime Preset Swapping</h2>
+
+<p>Change agent behavior on the fly by swapping presets:</p>
+
+<pre><code>// Blueprint: Switch from patrol to combat preset
+Event On Combat Started
+  ├─ Get Utility Brain
+  ├─ Clear All Actions
+  ├─ Apply New Preset: DA_Preset_Soldier_Combat
+  └─ Log: "Switched to combat mode"
+
+Event On Combat Ended
+  ├─ Get Utility Brain
+  ├─ Clear All Actions
+  ├─ Apply New Preset: DA_Preset_Soldier_Patrol
+  └─ Log: "Switched to patrol mode"</code></pre>
+
+<h2>Best Practices</h2>
+
+<div class="callout tip">
+  <span class="icon" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
+    </svg>
+  </span>
+  <div>
+    <strong>Preset Design Guidelines:</strong>
+    <ul>
+      <li><strong>Start Generic:</strong> Create base presets per archetype</li>
+      <li><strong>Specialize Carefully:</strong> Only override what's truly different</li>
+      <li><strong>Name Clearly:</strong> DA_Preset_Role_Variant (e.g., DA_Preset_Soldier_Assault)</li>
+      <li><strong>Document Overrides:</strong> Add description explaining what's special</li>
+      <li><strong>Test Incrementally:</strong> Start with archetype, add actions one by one</li>
+      <li><strong>Share Actions:</strong> Multiple presets can reference same action assets</li>
+      <li><strong>Version Control:</strong> Keep presets in source control, easy to diff</li>
+    </ul>
+  </div>
+</div>
+
+<h2>Common Preset Patterns</h2>
+
+<h3>Role-Based Presets</h3>
+<pre><code>DA_Preset_Soldier_Rifleman
+DA_Preset_Soldier_Medic
+DA_Preset_Soldier_Sniper
+DA_Preset_Soldier_Engineer</code></pre>
+
+<h3>Difficulty-Based Presets</h3>
+<pre><code>DA_Preset_Enemy_Easy
+  └─ Lower perception ranges, slower reactions
+
+DA_Preset_Enemy_Normal
+  └─ Standard values
+
+DA_Preset_Enemy_Hard
+  └─ Enhanced perception, faster reactions, more aggressive</code></pre>
+
+<h3>Phase-Based Presets</h3>
+<pre><code>DA_Preset_Boss_Phase1
+  └─ Basic attacks, moderate aggression
+
+DA_Preset_Boss_Phase2
+  └─ Enhanced attacks, summons minions
+
+DA_Preset_Boss_Phase3
+  └─ Enraged, maximum aggression, area attacks</code></pre>
+
+<h2>Debugging Presets</h2>
+
+<h3>Verify Application</h3>
+<pre><code>// Check if preset applied correctly
+Gameplay Debugger:
+  Brain: Active
+  Actions: 5 (from preset)
+  Services: 3 (PerceptionMonitor, TacticalSense, ...)
+  Squad: Alpha (from preset)
+  Team: 1 (from preset)</code></pre>
+
+<h3>Common Issues</h3>
+<div class="callout warn">
+  <span class="icon" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"></path>
+      <line x1="12" y1="9" x2="12" y2="13"></line>
+      <line x1="12" y1="17" x2="12.01" y2="17"></line>
+    </svg>
+  </span>
+  <div>
+    <ul>
+      <li><strong>Preset Not Applied:</strong> Check QuickSetupComponent is on AI Controller</li>
+      <li><strong>Actions Missing:</strong> Verify action references are valid</li>
+      <li><strong>Services Not Running:</strong> Check bApplyServices = true</li>
+      <li><strong>Squad Not Joined:</strong> Ensure UTacticalMemberComponent on pawn</li>
+      <li><strong>Perception Issues:</strong> Check AIPerceptionComponent exists</li>
+    </ul>
+  </div>
+</div>
+
+<h2>Next Steps</h2>
+<div class="hero-cta">
+  <a class="button primary" href="#/docs/archetypes">Archetype Reference</a>
+  <a class="button" href="#/docs/quick-start">Quick Start Guide</a>
+  <a class="button" href="#/examples/combat-setup">Combat Example</a>
+</div>
+
+<h3>Related Documentation</h3>
+<ul>
+  <li><a href="#/docs/core-concepts">Core Concepts</a> - System overview</li>
+  <li><a href="#/docs/actions">Actions</a> - Creating actions for presets</li>
+  <li><a href="#/docs/services">Services</a> - Understanding service configuration</li>
+  <li><a href="#/docs/tactical-squad">Squad System</a> - Squad configuration</li>
+</ul>

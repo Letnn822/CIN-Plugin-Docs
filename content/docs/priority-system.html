@@ -1,0 +1,527 @@
+<h1>Priority & Tie-Breaking</h1>
+<p class="note">Master deterministic action selection. Learn how the priority system resolves score ties, ensures consistent behavior, and prevents decision oscillation.</p>
+
+<div class="page-meta">
+  <span class="time"><i data-lucide="clock"></i> 12 minutes</span>
+  <span class="difficulty"><i data-lucide="bar-chart-3"></i> Advanced</span>
+</div>
+
+<div class="callout tip">
+  <span class="icon"><i data-lucide="lightbulb"></i></span>
+  <div>
+    <strong>Why Priority Matters:</strong> When two actions have identical scores, the system needs a deterministic way to choose. Without priority, the AI can oscillate between actions unpredictably. Priority provides stable, predictable tie-breaking.
+  </div>
+</div>
+
+<h2>The Problem: Score Ties</h2>
+
+<h3>What Happens Without Priority</h3>
+
+<pre><code>Frame 1:
+  Attack: 75.0
+  Defend: 75.0  ← Array position wins (unstable)
+  
+Frame 2: (slight input variation)
+  Attack: 75.0
+  Defend: 75.0  ← Still tied, different action chosen
+  
+Result: Action thrashing between Attack and Defend</code></pre>
+
+<h3>Real-World Scenario</h3>
+
+<pre><code>AI has 50% health, enemy at medium range
+
+Actions:
+  Attack: BaseScore 60 → Final: 50.0
+  TakeCover: BaseScore 70 → Final: 50.0
+  Retreat: BaseScore 55 → Final: 50.0
+
+Without priority: Random choice or first-in-array wins
+With priority: Explicit decision hierarchy</code></pre>
+
+<h2>Priority System</h2>
+
+<h3>How It Works</h3>
+
+<pre><code>Action Selection Process:
+1. Calculate all action scores
+2. Find highest score
+3. If multiple actions have same score:
+   → Compare Priority values
+   → Higher priority wins
+4. If priorities also tied:
+   → Use ActionName alphabetical order (deterministic)</code></pre>
+
+<h3>Priority Property</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Default</th>
+      <th>Range</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>Priority</code></td>
+      <td>int32</td>
+      <td>0</td>
+      <td>-100 to +100</td>
+    </tr>
+  </tbody>
+</table>
+
+<pre><code>UPROPERTY(EditAnywhere, Category = "Scoring")
+int32 Priority = 0;</code></pre>
+
+<h2>Priority Configuration</h2>
+
+<h3>Priority Levels Guide</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Priority</th>
+      <th>Category</th>
+      <th>Use Case</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>90-100</strong></td>
+      <td>Critical</td>
+      <td>Emergency survival actions</td>
+    </tr>
+    <tr>
+      <td><strong>70-89</strong></td>
+      <td>High</td>
+      <td>Important defensive actions</td>
+    </tr>
+    <tr>
+      <td><strong>40-69</strong></td>
+      <td>Medium</td>
+      <td>Standard combat actions</td>
+    </tr>
+    <tr>
+      <td><strong>10-39</strong></td>
+      <td>Low</td>
+      <td>Utility and support actions</td>
+    </tr>
+    <tr>
+      <td><strong>0-9</strong></td>
+      <td>Default</td>
+      <td>Most actions (no specific priority)</td>
+    </tr>
+    <tr>
+      <td><strong>-1 to -100</strong></td>
+      <td>Fallback</td>
+      <td>Last resort actions</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Example: Combat AI Priority Hierarchy</h3>
+
+<pre><code>Action: FleeWhenCritical
+  BaseScore: 80
+  Priority: 100  ← Highest priority (survival)
+  Considerations: Health < 0.15
+
+Action: TakeCover
+  BaseScore: 70
+  Priority: 80   ← High priority (defensive)
+  Considerations: ThreatLevel > 0.7
+
+Action: Heal
+  BaseScore: 65
+  Priority: 75   ← High priority (recovery)
+  Considerations: Health < 0.5, HasHealthKit
+
+Action: Attack
+  BaseScore: 60
+  Priority: 50   ← Medium priority (standard)
+  Considerations: HasKnownEnemy
+
+Action: Reload
+  BaseScore: 55
+  Priority: 60   ← Medium-high (preparation)
+  Considerations: AmmoCount < 0.3
+
+Action: SearchForEnemy
+  BaseScore: 45
+  Priority: 20   ← Low priority (utility)
+  Considerations: !HasKnownEnemy
+
+Action: Idle
+  BaseScore: 30
+  Priority: -10  ← Fallback (last resort)
+  Considerations: None</code></pre>
+
+<h2>Tie-Breaking Algorithm</h2>
+
+<h3>Complete Resolution Process</h3>
+
+<pre><code>// Pseudocode from UtilityBrainComponent
+UUtilityActionAsset* ResolveTie(TArray<UUtilityActionAsset*> TiedActions)
+{
+    if (TiedActions.Num() == 1)
+        return TiedActions[0];
+    
+    // Step 1: Sort by Priority (highest first)
+    TiedActions.Sort([](const UUtilityActionAsset& A, const UUtilityActionAsset& B)
+    {
+        return A.Priority > B.Priority;
+    });
+    
+    // Step 2: Check if top priority is unique
+    if (TiedActions[0].Priority > TiedActions[1].Priority)
+        return TiedActions[0];
+    
+    // Step 3: Multiple actions have same top priority
+    // Filter to only top priority actions
+    int32 TopPriority = TiedActions[0].Priority;
+    TArray<UUtilityActionAsset*> TopPriorityActions;
+    for (auto* Action : TiedActions)
+    {
+        if (Action->Priority == TopPriority)
+            TopPriorityActions.Add(Action);
+        else
+            break; // Already sorted
+    }
+    
+    // Step 4: Sort by ActionName (deterministic)
+    TopPriorityActions.Sort([](const UUtilityActionAsset& A, const UUtilityActionAsset& B)
+    {
+        return A.ActionName.ToString() < B.ActionName.ToString();
+    });
+    
+    return TopPriorityActions[0];
+}</code></pre>
+
+<h3>Visual Example</h3>
+
+<pre><code>Scenario: 3 actions with same score (60.0)
+
+Actions:
+  Attack:    Score=60.0, Priority=50, Name="Attack"
+  TakeCover: Score=60.0, Priority=80, Name="TakeCover"
+  Reload:    Score=60.0, Priority=50, Name="Reload"
+
+Step 1: Sort by Priority
+  TakeCover: Priority=80 ✓
+  Attack:    Priority=50
+  Reload:    Priority=50
+
+Step 2: Check uniqueness
+  TakeCover has highest priority (80 > 50)
+  
+Result: TakeCover selected ✓
+
+---
+
+If priorities were tied:
+  Attack:  Score=60.0, Priority=50, Name="Attack"
+  Reload:  Score=60.0, Priority=50, Name="Reload"
+
+Step 3: Sort by name alphabetically
+  Attack:  "Attack" < "Reload"
+  Reload:  "Reload"
+
+Result: Attack selected (alphabetically first) ✓</code></pre>
+
+<h2>Design Patterns</h2>
+
+<h3>Pattern 1: Survival Priority</h3>
+
+<pre><code>Purpose: Ensure survival actions always win when needed
+
+Action: EmergencyFlee
+  Priority: 100 (critical)
+  Considerations:
+    Health: (0,100) → (0.2,50) → (1,0) // Urgent when low
+  
+Action: TakeCover
+  Priority: 80 (high)
+  Considerations:
+    ThreatLevel: (0,0) → (1,100)
+  
+Action: Attack
+  Priority: 50 (medium)
+  Considerations:
+    HasEnemy: (0,0) → (1,100)
+
+Result: If scores tied, flee > cover > attack</code></pre>
+
+<h3>Pattern 2: Boss Phase Priority</h3>
+
+<pre><code>Purpose: Control which abilities are preferred in ties
+
+Phase 1 Actions:
+  Melee:       Priority: 60
+  Ranged:      Priority: 55
+  GroundSlam:  Priority: 50
+
+Phase 2 Actions:
+  Ultimate:    Priority: 90 ← Always preferred
+  Summon:      Priority: 85
+  EnrageMode:  Priority: 80
+  Melee:       Priority: 40 ← Deprioritized
+
+Result: Phase 2 abilities win ties over Phase 1</code></pre>
+
+<h3>Pattern 3: Role-Based Priority</h3>
+
+<pre><code>Tank Role:
+  Taunt:       Priority: 90
+  TakeCover:   Priority: 85
+  Protect:     Priority: 80
+  Attack:      Priority: 40
+
+DPS Role:
+  Attack:      Priority: 90
+  Ability:     Priority: 85
+  Reload:      Priority: 70
+  TakeCover:   Priority: 50
+
+Healer Role:
+  HealAlly:    Priority: 95
+  Protect:     Priority: 85
+  Attack:      Priority: 30
+
+Result: Each role prioritizes their core function</code></pre>
+
+<h3>Pattern 4: Contextual Priority Adjustment</h3>
+
+<pre><code>// In Blueprint or C++
+Event OnDifficultyChanged
+  Branch (Difficulty == Hard):
+    // Make defensive actions higher priority
+    SetActionPriority("TakeCover", 90)
+    SetActionPriority("Heal", 85)
+    SetActionPriority("Attack", 60)
+  Else (Difficulty == Easy):
+    // Make aggressive actions higher priority
+    SetActionPriority("Attack", 90)
+    SetActionPriority("Ability", 85)
+    SetActionPriority("TakeCover", 50)
+
+Note: This requires custom implementation, not built-in</code></pre>
+
+<h2>Priority vs Other Systems</h2>
+
+<h3>Priority vs Base Score</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Feature</th>
+      <th>Base Score</th>
+      <th>Priority</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Purpose</strong></td>
+      <td>Starting score before considerations</td>
+      <td>Tie-breaker only</td>
+    </tr>
+    <tr>
+      <td><strong>When Used</strong></td>
+      <td>Always (in scoring calculation)</td>
+      <td>Only when scores are equal</td>
+    </tr>
+    <tr>
+      <td><strong>Effect</strong></td>
+      <td>Directly affects final score</td>
+      <td>No effect unless tied</td>
+    </tr>
+    <tr>
+      <td><strong>Best For</strong></td>
+      <td>Making action more/less likely overall</td>
+      <td>Resolving ambiguous choices</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Priority vs Replace Resistance</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Feature</th>
+      <th>Priority</th>
+      <th>Replace Resistance</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Purpose</strong></td>
+      <td>Choose between equal scores</td>
+      <td>Prevent premature interruption</td>
+    </tr>
+    <tr>
+      <td><strong>Scope</strong></td>
+      <td>Compares multiple actions</td>
+      <td>Protects current action</td>
+    </tr>
+    <tr>
+      <td><strong>Effect</strong></td>
+      <td>Determines winner of tie</td>
+      <td>New action must score higher by multiplier</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Common Mistakes</h2>
+
+<div class="callout warning">
+  <span class="icon"><i data-lucide="alert-triangle"></i></span>
+  <div>
+    <strong>Priority Anti-Patterns:</strong>
+    <ul class="compact">
+      <li>❌ <strong>Setting all actions to same priority:</strong> Defeats the purpose</li>
+      <li>❌ <strong>Using priority instead of base score:</strong> Priority doesn't affect scores</li>
+      <li>❌ <strong>Extreme priority gaps (0 vs 1000):</strong> Use reasonable ranges (0-100)</li>
+      <li>❌ <strong>Ignoring priority entirely:</strong> Leads to unpredictable behavior</li>
+      <li>❌ <strong>Over-relying on priority:</strong> Fix scoring instead</li>
+    </ul>
+  </div>
+</div>
+
+<h3>Good Priority Hygiene</h3>
+
+<pre><code>✅ DO:
+- Use priority sparingly (only 20% of actions need custom priority)
+- Set priority based on importance (survival > utility)
+- Document why each priority value was chosen
+- Use consistent priority ranges across project
+- Test for score ties during development
+
+❌ DON'T:
+- Set every action to unique priority (over-engineering)
+- Use priority to compensate for bad scoring
+- Change priority randomly during tuning
+- Ignore alphabetical fallback behavior</code></pre>
+
+<h2>Debugging Priority</h2>
+
+<h3>Gameplay Debugger</h3>
+
+<pre><code>Press ' → 5 → Select Agent
+
+ACTION SCORES:
+  ✓ TakeCover: 60.0 (Priority: 80) ← Winner
+    Melee: 60.0 (Priority: 50)
+    Reload: 60.0 (Priority: 50)
+    
+Tie Resolution:
+  - TakeCover priority (80) > Others (50)
+  - TakeCover selected</code></pre>
+
+<h3>Logging</h3>
+
+<pre><code>LogUtilityAI Verbose
+
+Output:
+  [UtilityAI] Evaluating actions...
+  [UtilityAI] Top Score: 60.0 (3 actions tied)
+  [UtilityAI] Resolving tie:
+  [UtilityAI]   TakeCover: Priority=80 ✓
+  [UtilityAI]   Melee: Priority=50
+  [UtilityAI]   Reload: Priority=50
+  [UtilityAI] Winner: TakeCover (priority)</code></pre>
+
+<h2>Advanced Techniques</h2>
+
+<h3>Dynamic Priority (Custom Implementation)</h3>
+
+<pre><code>// Not built-in, requires custom system
+class UDynamicPriorityService : public UUtilityService
+{
+    void TickService(float DeltaTime) override
+    {
+        // Adjust priorities based on context
+        if (IsPlayerNearby())
+        {
+            // Stealth has higher priority when player close
+            AdjustActionPriority("Stealth", 90);
+            AdjustActionPriority("Attack", 40);
+        }
+        else
+        {
+            // Normal priorities
+            AdjustActionPriority("Stealth", 50);
+            AdjustActionPriority("Attack", 60);
+        }
+    }
+};</code></pre>
+
+<h3>Priority Groups</h3>
+
+<pre><code>// Organize actions into priority tiers
+Tier 1 (Emergency): Priority 90-100
+  - Flee
+  - EmergencyHeal
+  
+Tier 2 (Defensive): Priority 70-89
+  - TakeCover
+  - Dodge
+  - Block
+  
+Tier 3 (Offensive): Priority 50-69
+  - Attack
+  - Ability
+  - Charge
+  
+Tier 4 (Utility): Priority 30-49
+  - Reload
+  - SearchEnemy
+  
+Tier 5 (Idle): Priority 0-29
+  - Patrol
+  - Idle
+
+Result: Within each tier, scoring decides. Between tiers, priority decides.</code></pre>
+
+<h2>Best Practices</h2>
+
+<div class="callout tip">
+  <span class="icon"><i data-lucide="check-square"></i></span>
+  <div>
+    <strong>Priority Best Practices:</strong>
+    <ul class="compact">
+      <li>✅ Use priority for importance hierarchy (survival > combat > utility)</li>
+      <li>✅ Reserve high priorities (80+) for critical actions</li>
+      <li>✅ Leave most actions at default (0) if no tie-breaking needed</li>
+      <li>✅ Test for ties by setting all action scores to same value</li>
+      <li>✅ Document priority decisions in action descriptions</li>
+      <li>✅ Use priority ranges consistently across all agents</li>
+      <li>✅ Prefer fixing scoring over relying on priority</li>
+    </ul>
+  </div>
+</div>
+
+<h2>Next Steps</h2>
+
+<div class="next-steps">
+  <a class="button primary" href="#/docs/resistance">
+    <i data-lucide="shield"></i>
+    Replace Resistance
+  </a>
+  <a class="button" href="#/docs/action-api">
+    <i data-lucide="target"></i>
+    Action API Reference
+  </a>
+</div>
+
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="#/docs/resistance"><i data-lucide="shield"></i> Replace Resistance</a> - Prevent action thrashing</li>
+  <li><a href="#/docs/action-patterns"><i data-lucide="target"></i> Action Patterns</a> - Design patterns</li>
+  <li><a href="#/docs/tuning"><i data-lucide="sliders"></i> Tuning Guide</a> - Balance priorities with scoring</li>
+  <li><a href="#/docs/action-api"><i data-lucide="book-open"></i> Action API</a> - Priority property reference</li>
+</ul>
+
+<script>lucide.createIcons();</script>

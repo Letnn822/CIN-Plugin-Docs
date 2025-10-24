@@ -1,0 +1,600 @@
+<h1>Blueprint Integration Guide</h1>
+<p class="note">Complete guide for Blueprint developers. Learn how to create AI entirely in Blueprints, extend C++ components, and integrate with Blueprint systems.</p>
+
+<div class="page-meta">
+  <span class="time"><i data-lucide="clock"></i> 22 minutes</span>
+  <span class="difficulty"><i data-lucide="bar-chart-2"></i> Guide</span>
+</div>
+
+<h2>Blueprint-First Development</h2>
+
+<pre><code>CIN Plugin Philosophy:
+├─ Blueprint-friendly by design
+├─ No C++ required for basic use
+├─ Full feature access in Blueprints
+├─ Custom extensions via Blueprint
+└─ C++ optional for advanced features
+
+Blueprint Coverage:
+✓ Complete AI setup
+✓ Action creation
+✓ Service implementation
+✓ Custom executors
+✓ Input providers
+✓ Debugging tools</code></pre>
+
+<h2>Pure Blueprint AI Setup</h2>
+
+<h3>Step 1: Create AI Pawn (Blueprint)</h3>
+
+<pre><code>Create New Blueprint:
+  Parent Class: Character
+  Name: BP_MyAIPawn
+  
+Components:
+  1. Add Component: CIN Quick Setup
+     - AgentType: BaseCombat (or any archetype)
+     - bAutoInitialize: true
+     - bEnableDebugVisualization: true (optional)
+     
+  2. Add Component: AI Perception
+     - Add Sight Config
+     - Add Hearing Config
+     - Configure team ID in details
+
+Variables (add as needed):
+  - Health (float): 100.0
+  - MaxHealth (float): 100.0
+  - AmmoCount (int32): 30
+  - MaxAmmo (int32): 30
+
+That's it! Basic AI is ready.</code></pre>
+
+<h3>Step 2: Create Custom Action (Blueprint)</h3>
+
+<pre><code>Create Data Asset:
+  Class: Utility Action Asset
+  Name: DA_MyCustomAction
+  
+In Details Panel:
+  Action Name: "MyAction"
+  Display Name: "My Custom Action"
+  Base Score: 60.0
+  Priority: 50
+  
+Add Considerations:
+  Click "+ Add Consideration"
+  
+  Consideration 1:
+    Input Name: "Health"
+    Response Curve: Edit curve
+      Add Key: (0, 0)
+      Add Key: (1, 100)
+    Weight: 1.0
+    
+  Consideration 2:
+    Input Name: "HasKnownEnemy"
+    Response Curve: Binary curve
+      Add Key: (0, 0)
+      Add Key: (1, 100)
+    Weight: 1.0
+
+Executor:
+  Executor Class: Utility Action Executor Behavior Tree
+  Behavior Tree: Select BT_MyAction</code></pre>
+
+<h3>Step 3: Create Behavior Tree (Blueprint Tasks)</h3>
+
+<pre><code>Create Behavior Tree: BT_MyAction
+
+Create Blueprint Task: BTTask_MyCustomTask
+  Parent: BTTask_BlueprintBase
+  
+  Event Receive Execute AI
+    → Get Controlled Pawn
+    → Cast to BP_MyAIPawn
+    → Do custom logic
+    → Finish Execute (Success/Fail)
+
+Add to BT:
+  Root → BTTask_MyCustomTask</code></pre>
+
+<h2>Blueprint Custom Executors</h2>
+
+<h3>Creating a Blueprint Executor</h3>
+
+<pre><code>Create Blueprint:
+  Parent: Utility Action Executor Blueprint
+  Name: BP_CustomExecutor
+  
+Event On Execute
+  Parameters:
+    - Owner (Actor)
+    - Brain (Utility Brain Component)
+    
+  Implementation:
+    → Store Owner reference
+    → Store Brain reference
+    → Start your custom logic
+    → Call Mark Complete when done
+
+Event On Tick Execute
+  Parameters:
+    - Delta Time (float)
+    
+  Implementation:
+    → Update your logic each frame
+    → Check completion condition
+    → If complete: Mark Complete (true/false)
+
+Event On Stop Execution
+  Implementation:
+    → Clean up
+    → Stop timers
+    → Reset state
+
+Example: Play Animation Executor
+  Event On Execute
+    → Get Owner
+    → Get Skeletal Mesh
+    → Play Animation Montage
+    → Bind to On Montage Ended
+    
+  On Montage Ended
+    → Mark Complete (true)
+    
+  Event On Stop Execution
+    → Stop Montage</code></pre>
+
+<h2>Blueprint Services</h2>
+
+<h3>Creating a Blueprint Service</h3>
+
+<pre><code>Create Blueprint:
+  Parent: Utility Service
+  Name: BP_MyService
+  
+Variables:
+  - UpdateInterval (float): 0.2
+  - TimeSinceUpdate (float): 0.0
+  
+Event Tick Service
+  Parameters:
+    - Delta Time (float)
+    
+  Implementation:
+    → Add Delta Time to TimeSinceUpdate
+    → Branch (TimeSinceUpdate >= UpdateInterval)
+      Yes:
+        → Reset TimeSinceUpdate
+        → Gather data from world
+        → Normalize values
+        → Get Owning Brain
+        → Set Named Input Value (repeat for each input)
+      No:
+        → Continue
+
+Example: Health Service
+  Event Tick Service
+    → Get Owning Pawn
+    → Get Health Component
+    → Get Current Health
+    → Divide by Max Health (normalize 0-1)
+    → Get Owning Brain
+    → Set Named Input Value
+      Input Name: "Health"
+      Value: Normalized Health</code></pre>
+
+<h3>Service Lifecycle Events</h3>
+
+<pre><code>Event On Service Start
+  → Initialize service
+  → Cache references
+  → Start timers
+  
+Event Tick Service
+  → Main logic
+  → Publish inputs
+  
+Event On Service Stop
+  → Clean up
+  → Stop timers
+  → Clear references
+
+Example: Enemy Scanner Service
+  Event On Service Start
+    → Store brain reference
+    → Initialize enemy list
+    
+  Event Tick Service
+    → Get all actors of class (Enemy)
+    → Filter by distance
+    → Count visible enemies
+    → Publish "EnemyCount" input
+    
+  Event On Service Stop
+    → Clear enemy list</code></pre>
+
+<h2>Blueprint Input Providers</h2>
+
+<h3>Creating Custom Input Provider</h3>
+
+<pre><code>Create Blueprint:
+  Parent: Actor Component
+  Name: BP_CustomInputProvider
+  
+Variables:
+  - CachedBrain (Utility Brain Component)
+  - UpdateInterval (float): 0.2
+  - TimeSinceUpdate (float): 0.0
+  
+Event BeginPlay
+  → Get Owner
+  → Find Component by Class (Utility Brain Component)
+  → Store in CachedBrain
+  
+Event Component Tick
+  → Add Delta Time to TimeSinceUpdate
+  → Branch (TimeSinceUpdate >= UpdateInterval)
+    Yes:
+      → Reset TimeSinceUpdate
+      → Publish Inputs (custom function)
+
+Custom Function: Publish Inputs
+  → Gather your data
+  → Normalize values
+  → CachedBrain → Set Named Input Value (repeat)
+
+Example: Inventory Provider
+  Function: Publish Inputs
+    → Get Owner
+    → Get Inventory Component
+    → Get Current Ammo / Max Ammo
+    → CachedBrain → Set Named Input Value
+      Input Name: "AmmoLevel"
+      Value: AmmoPercent
+    → Check Has Item ("HealthPack")
+    → CachedBrain → Set Named Input Value
+      Input Name: "HasHealthPack"
+      Value: HasItem ? 1.0 : 0.0</code></pre>
+
+<h2>Blueprint Function Library Access</h2>
+
+<h3>Available Blueprint Functions</h3>
+
+<pre><code>All CIN functions are accessible in Blueprints:
+
+Brain Queries:
+  - Get Utility Brain From Pawn
+  - Get Current Action Name
+  - Get Current Action Score
+  - Get All Action Names
+  - Get Named Input
+  - Is Brain Active
+
+Action Control:
+  - Boost Action
+  - Nerf Action
+  - Set Action Score Modifier
+  - Reset Action Score Modifier
+  - Lock Action For Duration
+  - Unlock Action
+  - Is Action Locked
+
+Momentum:
+  - Get Action Momentum
+  - Reset Action Momentum
+  - Reset All Momentum
+
+Debug:
+  - Toggle Debug For Pawn
+  - Enable Debug Visualization On All Agents
+  - Add Debug Component To Pawn
+
+Utility:
+  - Get All Utility AI Pawns
+  - Pause Brain
+  - Resume Brain
+
+Example Usage:
+  Event On Player Attack
+    → Get All Utility AI Pawns
+    → ForEach
+      → Get Utility Brain From Pawn
+      → Set Named Input Value
+        Input Name: "PlayerAttacking"
+        Value: 1.0</code></pre>
+
+<h2>Blueprint Best Practices</h2>
+
+<h3>Performance Considerations</h3>
+
+<div class="callout tip">
+  <span class="icon"><i data-lucide="zap"></i></span>
+  <div>
+    <strong>Blueprint Performance Tips:</strong>
+    <ul class="compact">
+      <li>✅ Cache component references in BeginPlay</li>
+      <li>✅ Use Update Interval for services (don't tick every frame)</li>
+      <li>✅ Avoid expensive operations in Tick</li>
+      <li>✅ Use Event-driven logic when possible</li>
+      <li>✅ Prefer GetComponentByClass over GetAllActorsOfClass</li>
+      <li>✅ Cache frequently-used calculations</li>
+      <li>❌ Don't use GetAllActorsOfClass every frame</li>
+      <li>❌ Don't forget to normalize inputs (0-1 range)</li>
+      <li>❌ Don't create new objects in Tick</li>
+    </ul>
+  </div>
+</div>
+
+<h3>Organization Patterns</h3>
+
+<pre><code>Recommended Blueprint Structure:
+
+Content/
+├─ AI/
+│  ├─ Pawns/
+│  │  ├─ BP_SoldierPawn
+│  │  ├─ BP_GuardPawn
+│  │  └─ BP_BossPawn
+│  ├─ Actions/
+│  │  ├─ DA_Action_Attack
+│  │  ├─ DA_Action_Patrol
+│  │  └─ DA_Action_Heal
+│  ├─ Services/
+│  │  ├─ BP_HealthService
+│  │  ├─ BP_InventoryService
+│  │  └─ BP_CustomService
+│  ├─ Executors/
+│  │  ├─ BP_AnimationExecutor
+│  │  └─ BP_CustomExecutor
+│  ├─ Presets/
+│  │  ├─ DA_Preset_Soldier
+│  │  └─ DA_Preset_Guard
+│  └─ BehaviorTrees/
+│     ├─ BT_Attack
+│     └─ BT_Patrol
+
+Keep related assets together
+Use consistent naming conventions</code></pre>
+
+<h2>Blueprint-C++ Interop</h2>
+
+<h3>Extending C++ in Blueprint</h3>
+
+<pre><code>Many CIN classes are Blueprint-extendable:
+
+1. Create C++ Base (optional)
+   UCLASS(Blueprintable)
+   class UMyCustomService : public UUtilityService
+   {
+       GENERATED_BODY()
+   };
+
+2. Create Blueprint Child
+   Parent Class: MyCustomService
+   Name: BP_MyCustomService_Soldier
+   
+3. Override in Blueprint
+   Override: Tick Service
+   Add custom Blueprint logic
+
+Result: C++ performance + Blueprint flexibility</code></pre>
+
+<h3>Calling C++ from Blueprint</h3>
+
+<pre><code>All UFUNCTION(BlueprintCallable) are accessible:
+
+Example C++ Function:
+  UFUNCTION(BlueprintCallable, Category = "AI")
+  float CalculateThreat(AActor* Enemy);
+
+Used in Blueprint:
+  Event Tick Service
+    → Get Nearest Enemy
+    → Calculate Threat (C++ function)
+    → Set Named Input Value
+      Input Name: "ThreatLevel"
+      Value: Calculated Threat</code></pre>
+
+<h2>Blueprint Debugging</h2>
+
+<h3>Debug Visualization</h3>
+
+<pre><code>Enable in-game debugging:
+
+Method 1: Quick Setup Component
+  - Enable "Debug Visualization" checkbox
+  - Shows overhead widget with current action
+  
+Method 2: Blueprint Function
+  Event BeginPlay
+    → CIN Utility AI Library
+    → Add Debug Component To Pawn
+      Pawn: Self
+      
+Method 3: Runtime Toggle
+  Player Input (e.g., F5 key)
+    → CIN Utility AI Library
+    → Toggle Debug For Pawn
+      Pawn: Target Pawn
+      
+  Global Toggle:
+    → Enable Debug Visualization On All Agents</code></pre>
+
+<h3>Blueprint Breakpoints</h3>
+
+<pre><code>Debug execution flow:
+
+1. Set Breakpoint in Blueprint
+   - In Event Tick Service
+   - In Event On Execute
+   
+2. Play in Editor (PIE)
+
+3. When breakpoint hits:
+   - Inspect variables
+   - Check input values
+   - Verify logic flow
+   
+4. Step through execution
+   - F10: Step over
+   - F11: Step into
+   - F5: Continue
+
+Example Debug Checks:
+  In Event Tick Service:
+    → Print String (Current Health)
+    → Print String (Normalized Health)
+    → Verify Set Named Input Value is called</code></pre>
+
+<h2>Common Blueprint Patterns</h2>
+
+<h3>Pattern 1: Health Monitoring</h3>
+
+<pre><code>Blueprint Service: BP_HealthMonitor
+
+Event Tick Service
+  → Get Owning Pawn
+  → Get Health (interface or variable)
+  → Divide by Max Health
+  → Get Owning Brain
+  → Set Named Input Value ("Health", Percent)
+  → Branch (Percent < 0.3)
+    Yes:
+      → Set Named Input Value ("HealthCritical", 1.0)
+    No:
+      → Set Named Input Value ("HealthCritical", 0.0)</code></pre>
+
+<h3>Pattern 2: Proximity Detection</h3>
+
+<pre><code>Blueprint Service: BP_ProximityDetector
+
+Variables:
+  - SearchRadius (float): 1000.0
+  
+Event Tick Service
+  → Get Owning Pawn
+  → Get Actor Location
+  → Get All Actors Of Class (Enemy)
+  → Filter by Distance < SearchRadius
+  → Count filtered enemies
+  → Normalize (Count / 10.0, Clamp 0-1)
+  → Get Owning Brain
+  → Set Named Input Value ("NearbyEnemyCount", Normalized)</code></pre>
+
+<h3>Pattern 3: State Publishing</h3>
+
+<pre><code>Blueprint Actor: BP_AIPawn
+
+Variables:
+  - CurrentState (Enum): Idle
+  
+Function: Update AI State
+  Called when state changes
+  
+  → Get Utility Brain
+  → Set Named Input Value ("State_Idle", IsIdle ? 1.0 : 0.0)
+  → Set Named Input Value ("State_Combat", IsCombat ? 1.0 : 0.0)
+  → Set Named Input Value ("State_Fleeing", IsFleeing ? 1.0 : 0.0)</code></pre>
+
+<h3>Pattern 4: Event Response</h3>
+
+<pre><code>Blueprint Actor: BP_AIPawn
+
+Event On Take Any Damage
+  → Get Utility Brain
+  → Set Named Input Value ("UnderFire", 1.0)
+  → Set Timer by Function Name
+    Function: Clear Under Fire
+    Time: 2.0
+    Looping: false
+    
+Function: Clear Under Fire
+  → Get Utility Brain
+  → Set Named Input Value ("UnderFire", 0.0)</code></pre>
+
+<h2>Blueprint UI Integration</h2>
+
+<h3>AI Status Widget</h3>
+
+<pre><code>Create Widget Blueprint: WBP_AIStatus
+
+Variables:
+  - TargetPawn (Actor)
+  - Brain (Utility Brain Component)
+  
+Event Construct
+  → Get Target Pawn
+  → Find Component (Utility Brain Component)
+  → Store in Brain variable
+  
+Event Tick
+  → Get Current Action Name
+  → Set Text (Action Name Text Block)
+  → Get Current Action Score
+  → Set Text (Score Text Block)
+  → Get Named Input ("Health")
+  → Update Health Bar
+
+Usage:
+  Create Widget → WBP_AIStatus
+  Add to Viewport
+  Set Target Pawn</code></pre>
+
+<h2>Blueprint Testing</h2>
+
+<h3>Test Harness</h3>
+
+<pre><code>Create Blueprint: BP_AITestController
+
+Variables:
+  - TestPawn (Actor)
+  - TestScenarios (Array of Struct)
+  
+Function: Run Test
+  Parameters:
+    - Scenario Name (string)
+    
+  Implementation:
+    → Find scenario
+    → Set up test conditions
+    → Spawn test pawn
+    → Wait for action selection
+    → Verify expected action
+    → Print results
+    
+Example Test:
+  Scenario: "Low Health Retreat"
+  Setup:
+    → Set Health to 0.2
+    → Set HasKnownEnemy to 1.0
+  Expected:
+    → Action "Retreat" selected
+  Verify:
+    → Get Current Action Name
+    → Compare to "Retreat"
+    → Print: Pass or Fail</code></pre>
+
+<h2>Next Steps</h2>
+
+<div class="next-steps">
+  <a class="button primary" href="#/docs/quickstart">
+    <i data-lucide="rocket"></i>
+    Quick Start Guide
+  </a>
+  <a class="button" href="#/docs/bp-utility-library">
+    <i data-lucide="book"></i>
+    Blueprint API Reference
+  </a>
+</div>
+
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="#/docs/bp-utility-library"><i data-lucide="book"></i> Blueprint API</a> - All Blueprint functions</li>
+  <li><a href="#/docs/service-api"><i data-lucide="cog"></i> Service API</a> - Creating services</li>
+  <li><a href="#/docs/executor-api"><i data-lucide="play"></i> Executor API</a> - Custom executors</li>
+  <li><a href="#/docs/debug-basics"><i data-lucide="bug"></i> Debug Basics</a> - Debugging tools</li>
+</ul>
+
+<script>lucide.createIcons();</script>

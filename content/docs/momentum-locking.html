@@ -1,0 +1,440 @@
+<h1>Task Momentum & Locking</h1>
+<p>Anti-thrashing mechanisms that prevent AI agents from rapidly switching between actions or repeatedly attempting failed actions.</p>
+
+<h2>The Problem: Action Thrashing</h2>
+
+<p>Without anti-thrashing, Utility AI can exhibit undesirable behavior:</p>
+
+<pre><code>// Thrashing Example
+Frame 1:  Attack scores 100, Reload scores 98  → Execute Attack
+Frame 2:  Reload scores 101, Attack scores 100 → Switch to Reload!
+Frame 3:  Attack scores 102, Reload scores 101 → Switch to Attack!
+Frame 4:  Reload scores 103, Attack scores 102 → Switch to Reload!
+
+Result: Agent rapidly switches, never completes anything</code></pre>
+
+<div class="callout warn">
+  <span class="icon" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"></path>
+      <line x1="12" y1="9" x2="12" y2="13"></line>
+      <line x1="12" y1="17" x2="12.01" y2="17"></line>
+    </svg>
+  </span>
+  <div>
+    <strong>Symptoms of Thrashing:</strong>
+    <ul>
+      <li>Agent starts action but immediately switches</li>
+      <li>Animations constantly interrupted</li>
+      <li>Actions never complete</li>
+      <li>Agent appears indecisive or broken</li>
+      <li>Performance degrades from constant switching</li>
+    </ul>
+  </div>
+</div>
+
+<h2>Solution 1: Task Momentum</h2>
+
+<p>Momentum applies a score penalty to recently-used actions that decays over time.</p>
+
+<h3>How Momentum Works</h3>
+<pre><code>// UUtilityActionAsset properties
+MaxMomentum: 3.0              // Maximum penalty accumulation
+MomentumScoreReduction: 20.0  // Points subtracted per momentum unit
+MomentumDecayTime: 5.0        // Seconds to fully decay
+
+// Momentum tracking (per action, in Brain)
+MomentumValue = starts at 0.0
+
+When action executes:
+  MomentumValue = MaxMomentum  // Instant jump to max
+
+Every tick:
+  DecayRate = MaxMomentum / MomentumDecayTime
+  MomentumValue -= DecayRate * DeltaTime
+  MomentumValue = max(0.0, MomentumValue)
+
+Score penalty:
+  Penalty = MomentumValue * MomentumScoreReduction
+  FinalScore = BaseScore + CurveOutputs - Penalty</code></pre>
+
+<h3>Momentum Example</h3>
+<pre><code>Action: "Attack"
+MaxMomentum: 3.0
+MomentumScoreReduction: 25.0
+MomentumDecayTime: 4.0
+
+Timeline:
+  T=0.0s: Attack executes
+          Momentum = 3.0
+          Penalty = 3.0 * 25.0 = -75 points
+          
+  T=1.0s: Momentum = 2.25 (decayed 25%)
+          Penalty = 2.25 * 25.0 = -56 points
+          
+  T=2.0s: Momentum = 1.5 (decayed 50%)
+          Penalty = 1.5 * 25.0 = -38 points
+          
+  T=3.0s: Momentum = 0.75 (decayed 75%)
+          Penalty = 0.75 * 25.0 = -19 points
+          
+  T=4.0s: Momentum = 0.0 (fully decayed)
+          Penalty = 0 points
+
+Effect: Attack is strongly discouraged for ~4 seconds
+after execution, forcing agent to consider other options.</code></pre>
+
+<h2>Solution 2: Replace Resistance</h2>
+
+<p>New actions must score significantly higher than the current action to interrupt it.</p>
+
+<h3>How Replace Resistance Works</h3>
+<pre><code>// UUtilityActionAsset property
+ReplaceResistance: 1.5x  // Multiplier new action must beat
+
+// Brain evaluation
+CurrentAction.Score = 100
+NewAction.Score = 120
+
+Required to interrupt:
+  ThresholdScore = CurrentAction.Score * ReplaceResistance
+  ThresholdScore = 100 * 1.5 = 150
+
+Check:
+  NewAction.Score (120) < ThresholdScore (150)
+  → Don't interrupt, continue current action
+
+If NewAction.Score = 160:
+  160 > 150
+  → Interrupt! Switch to new action</code></pre>
+
+<h3>Resistance Example</h3>
+<pre><code>Action: "Reload"
+Replace Resistance: 2.0x  // High resistance (committed action)
+
+Scenario:
+  Agent starts reloading (Score: 150)
+  Enemy suddenly appears
+  Attack now scores 180
+  
+  Threshold = 150 * 2.0 = 300
+  Attack score (180) < Threshold (300)
+  
+  Result: Agent continues reloading
+          Attack must wait until reload completes
+
+Why: Reloading is a committed action
+     Interrupting wastes the reload
+     Better to finish, then attack with full ammo</code></pre>
+
+<h2>Solution 3: Task Locking</h2>
+
+<p>Failed or aborted actions lock temporarily, preventing repeated failures.</p>
+
+<h3>How Locking Works</h3>
+<pre><code>// UUtilityActionAsset property
+UnlockTime: 3.0 seconds  // Lock duration after failure
+
+// Lock tracking (per action, in Brain)
+LockedUntilTime = 0.0  // Unlock timestamp
+
+When action fails/aborts:
+  LockedUntilTime = CurrentTime + UnlockTime
+  
+During scoring:
+  if (CurrentTime < LockedUntilTime):
+      Skip action (don't score it)
+  else:
+      Score normally
+
+Manual unlock:
+  Brain->UnlockAction(Action)  // Immediate unlock
+  
+On success:
+  Locks cleared automatically</code></pre>
+
+<h3>Locking Example</h3>
+<pre><code>Action: "Attack"
+Unlock Time: 2.5 seconds
+
+Scenario:
+  T=0.0s: Agent attacks enemy
+  T=0.5s: Enemy dies (target lost)
+  T=0.5s: Attack fails/aborts
+          → Lock "Attack" for 2.5s
+          
+  T=1.0s: Agent considers actions:
+          ✗ Attack (LOCKED)
+          ✓ Reload (150 pts)
+          ✓ TakeCover (120 pts)
+          ✓ Patrol (80 pts)
+          → Executes Reload
+          
+  T=3.0s: Lock expires
+          Attack available again
+          
+  T=3.5s: New enemy appears
+          ✓ Attack (180 pts) ← Now unlocked
+          → Executes Attack
+
+Why: Prevents agent from immediately retrying
+     "Attack" when target is already dead</code></pre>
+
+<h2>Configuration Guidelines</h2>
+
+<h3>Momentum Configuration</h3>
+<table class="comparison">
+  <thead>
+    <tr>
+      <th>Action Type</th>
+      <th>MaxMomentum</th>
+      <th>Reduction</th>
+      <th>Decay Time</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Spam Prevention (Attack)</td>
+      <td>3.0</td>
+      <td>25.0</td>
+      <td>3-5s</td>
+    </tr>
+    <tr>
+      <td>Heavy Commitment (Reload)</td>
+      <td>5.0</td>
+      <td>50.0</td>
+      <td>8-10s</td>
+    </tr>
+    <tr>
+      <td>Flexible (Patrol, Idle)</td>
+      <td>0.0</td>
+      <td>0.0</td>
+      <td>N/A</td>
+    </tr>
+    <tr>
+      <td>Moderate (TakeCover)</td>
+      <td>2.0</td>
+      <td>15.0</td>
+      <td>4-6s</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Replace Resistance Configuration</h3>
+<table class="comparison">
+  <thead>
+    <tr>
+      <th>Action Type</th>
+      <th>Resistance</th>
+      <th>Reasoning</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Committed (Reload, HeavyAttack)</td>
+      <td>1.8-2.5x</td>
+      <td>Should complete once started</td>
+    </tr>
+    <tr>
+      <td>Normal (Attack, TakeCover)</td>
+      <td>1.3-1.5x</td>
+      <td>Some commitment, interruptible</td>
+    </tr>
+    <tr>
+      <td>Flexible (Patrol, Idle, Wander)</td>
+      <td>1.0-1.2x</td>
+      <td>Easy to interrupt</td>
+    </tr>
+    <tr>
+      <td>Emergency (Flee, Retreat)</td>
+      <td>0.8-1.0x</td>
+      <td>Should interrupt easily</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Lock Duration Configuration</h3>
+<table class="comparison">
+  <thead>
+    <tr>
+      <th>Failure Type</th>
+      <th>Lock Duration</th>
+      <th>Example</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Target Lost</td>
+      <td>2-3s</td>
+      <td>Attack (enemy died)</td>
+    </tr>
+    <tr>
+      <td>Precondition Failed</td>
+      <td>3-5s</td>
+      <td>Reload (no ammo in reserve)</td>
+    </tr>
+    <tr>
+      <td>Path Failed</td>
+      <td>5-10s</td>
+      <td>MoveTo (unreachable location)</td>
+    </tr>
+    <tr>
+      <td>Ability Cooldown</td>
+      <td>Ability CD</td>
+      <td>UseAbility (on cooldown)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Combining All Three</h2>
+
+<p>For best results, use all three mechanisms together:</p>
+
+<pre><code>Action: "Attack"
+
+// Momentum: Don't spam attacks
+MaxMomentum: 3.0
+MomentumScoreReduction: 25.0
+MomentumDecayTime: 4.0
+
+// Resistance: Don't interrupt mid-attack
+ReplaceResistance: 1.5x
+bInterruptible: true
+
+// Locking: Don't retry immediately after failure
+UnlockTime: 2.5s
+
+Result:
+  1. Attack executes successfully
+     → Momentum applied (-75 pts for 4s)
+     → Agent considers Reload, Cover, etc.
+     
+  2. If Attack interrupted early
+     → Resistance prevents frivolous interruption
+     → Only truly better actions interrupt
+     
+  3. If Attack fails (target died)
+     → Lock prevents immediate retry
+     → Agent does something productive instead</code></pre>
+
+<h2>Blueprint API</h2>
+
+<h3>Momentum Functions</h3>
+<pre><code>// Query momentum
+GetActionMomentum(Action) → Float (0.0 - MaxMomentum)
+
+// Reset momentum (manual)
+ResetActionMomentum(Action)
+ResetAllMomentum()
+
+// Example: Reset on combat end
+Event On Combat Ended
+  └─ Brain->ResetAllMomentum()
+     // All actions available immediately</code></pre>
+
+<h3>Locking Functions</h3>
+<pre><code>// Query locks
+IsActionLocked(Action) → Bool
+GetLockedActions() → Array
+
+// Manual locking/unlocking
+LockActionForDuration(Action, Duration)
+UnlockAction(Action)
+UnlockAllActions()
+
+// Example: Lock action based on cooldown
+Event On Ability Used
+  ├─ CooldownTime = Ability->GetCooldown()
+  └─ Brain->LockActionForDuration(DA_UseAbility, CooldownTime)</code></pre>
+
+<h3>Dynamic Score Modifiers</h3>
+<pre><code>// Runtime score adjustment (beyond momentum/resistance/locking)
+SetActionScoreModifier(Action, Modifier)
+  Modifier: -100 to +100 (added to final score)
+
+// Boost/Nerf helpers
+BoostAction(Action, Amount)  // Positive modifier
+NerfAction(Action, Amount)   // Negative modifier
+ResetActionScoreModifier(Action)  // Clear modifier
+
+// Example: Boost retreat when low health
+Event On Health Changed(NewHealth)
+  if (NewHealth < 0.3):
+      Brain->BoostAction(DA_Retreat, 50.0)
+  else:
+      Brain->ResetActionScoreModifier(DA_Retreat)</code></pre>
+
+<h2>Best Practices</h2>
+
+<div class="callout tip">
+  <span class="icon" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
+    </svg>
+  </span>
+  <div>
+    <strong>Anti-Thrashing Guidelines:</strong>
+    <ul>
+      <li><strong>Start Conservative:</strong> Higher momentum/resistance, tune down if too sticky</li>
+      <li><strong>Test Edge Cases:</strong> What happens when scores are very close?</li>
+      <li><strong>Watch for Deadlocks:</strong> Don't lock all actions simultaneously</li>
+      <li><strong>Balance Lock Times:</strong> Too short = retry spam, too long = stuck</li>
+      <li><strong>Use Debug Tools:</strong> Visualize momentum/locks in Gameplay Debugger</li>
+      <li><strong>Skip Momentum for Idle:</strong> Flexible actions shouldn't have momentum</li>
+      <li><strong>High Resistance for Committed:</strong> Reload, abilities, long animations</li>
+    </ul>
+  </div>
+</div>
+
+<h2>Debugging</h2>
+
+<h3>Gameplay Debugger</h3>
+<pre><code>Press ' → Utility AI Category
+
+Current Action: Attack (150 pts, Resistance: 1.5x)
+
+Momentum:
+  Attack: 2.1 (Penalty: -52 pts, Decay: 1.2s left)
+  Reload: 0.0
+  TakeCover: 0.5 (Penalty: -12 pts, Decay: 2.8s left)
+
+Locked Actions:
+  Patrol (unlocks in 1.5s)
+  
+Score Modifiers:
+  Retreat: +30 (boosted by low health)</code></pre>
+
+<h3>Common Issues</h3>
+<div class="callout warn">
+  <span class="icon" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"></path>
+      <line x1="12" y1="9" x2="12" y2="13"></line>
+      <line x1="12" y1="17" x2="12.01" y2="17"></line>
+    </svg>
+  </span>
+  <div>
+    <strong>Troubleshooting:</strong>
+    <ul>
+      <li><strong>Agent Stuck:</strong> All actions locked or momentum too high → Reduce values</li>
+      <li><strong>Still Thrashing:</strong> Resistance too low or momentum too weak → Increase values</li>
+      <li><strong>Won't Switch:</strong> Resistance too high → Lower ReplaceResistance</li>
+      <li><strong>Repeats Failures:</strong> Unlock time too short or not locking → Check lock logic</li>
+      <li><strong>Sluggish Response:</strong> Momentum decay too slow → Reduce MomentumDecayTime</li>
+    </ul>
+  </div>
+</div>
+
+<h2>Next Steps</h2>
+<div class="hero-cta">
+  <a class="button primary" href="#/docs/utility-ai">Utility AI System</a>
+  <a class="button" href="#/docs/actions">Actions</a>
+  <a class="button" href="#/docs/brain">Brain Component</a>
+</div>
+
+<h3>Related Documentation</h3>
+<ul>
+  <li><a href="#/docs/core-concepts">Core Concepts</a> - System overview</li>
+  <li><a href="#/docs/debug-tools">Debug Tools</a> - Visualizing momentum/locks</li>
+  <li><a href="#/examples/combat-setup">Combat Example</a> - Real-world configuration</li>
+</ul>

@@ -1,0 +1,378 @@
+<h1>Installation</h1>
+<p class="note">Get CIN Plugin up and running in your Unreal Engine 5.5 or 5.6 project. Simple installation with verification steps to ensure everything works correctly.</p>
+
+<div class="page-meta">
+  <span class="time"><i data-lucide="clock"></i> 5 minutes</span>
+  <span class="difficulty"><i data-lucide="bar-chart-2"></i> Beginner</span>
+</div>
+
+<h2>Requirements</h2>
+
+<div class="callout info">
+  <span class="icon"><i data-lucide="info"></i></span>
+  <div>
+    <strong>Before You Begin:</strong>
+    <ul class="compact">
+      <li><strong>Unreal Engine:</strong> 5.5 or 5.6</li>
+      <li><strong>Platform:</strong> Windows, Mac, or Linux</li>
+      <li><strong>Build Configuration:</strong> Development Editor recommended</li>
+      <li><strong>Project Type:</strong> C++ or Blueprint (C++ recommended for full features)</li>
+    </ul>
+  </div>
+</div>
+
+<h2>Installation Methods</h2>
+
+<h3>Method 1: Plugin in Project (Recommended)</h3>
+
+<ol>
+  <li>
+    <p><strong>Copy Plugin to Project:</strong></p>
+    <pre><code>YourProject/
+└── Plugins/
+    └── CINPlugin/
+        ├── CINPlugin.uplugin
+        ├── Source/
+        │   ├── CINCore/
+        │   ├── CINAI/
+        │   ├── CINPerception/
+        │   ├── CINLOD/
+        │   └── CINEditor/
+        └── Resources/</code></pre>
+  </li>
+  
+  <li>
+    <p><strong>Regenerate Project Files:</strong></p>
+    <ul>
+      <li>Right-click <code>YourProject.uproject</code> → <strong>Generate Visual Studio project files</strong></li>
+      <li>Or use command line: <code>UnrealBuildTool -projectfiles -project="YourProject.uproject"</code></li>
+    </ul>
+  </li>
+  
+  <li>
+    <p><strong>Build the Project:</strong></p>
+    <ul>
+      <li>Open <code>YourProject.sln</code> in Visual Studio / Rider</li>
+      <li>Build configuration: <strong>Development Editor</strong></li>
+      <li>Platform: <strong>Win64</strong> (or your target platform)</li>
+      <li>Build solution</li>
+    </ul>
+  </li>
+  
+  <li>
+    <p><strong>Enable Plugin in Editor:</strong></p>
+    <ul>
+      <li>Open your project in Unreal Editor</li>
+      <li>Edit → Plugins</li>
+      <li>Search for "CIN" or navigate to Project → Other</li>
+      <li>Enable <strong>CINPlugin</strong></li>
+      <li>Restart editor when prompted</li>
+    </ul>
+  </li>
+</ol>
+
+<h3>Method 2: Engine Plugins (Advanced)</h3>
+
+<p>For shared access across multiple projects:</p>
+
+<pre><code>UnrealEngine/
+└── Engine/
+    └── Plugins/
+        └── CINPlugin/</code></pre>
+
+<p>Same steps as Method 1, but plugin will be available to all projects using that engine installation.</p>
+
+<div class="callout warn">
+  <span class="icon"><i data-lucide="alert-triangle"></i></span>
+  <div>
+    <strong>Engine Plugins Note:</strong> Updating the plugin requires restart of all projects using it. Method 1 (project plugins) recommended for active development.
+  </div>
+</div>
+
+<h2>Verification Steps</h2>
+
+<h3>Step 1: Check Plugin Modules</h3>
+
+<ol>
+  <li>Edit → Plugins → Search "CIN"</li>
+  <li>Verify <strong>CINPlugin</strong> shows as <span class="badge-success">Enabled</span></li>
+  <li>Click on plugin to see details</li>
+  <li>Verify modules listed:
+    <ul>
+      <li><code>CINCore</code> - Core types and interfaces</li>
+      <li><code>CINAI</code> - Utility AI and actions</li>
+      <li><code>CINPerception</code> - Perception integration</li>
+      <li><code>CINLOD</code> - Performance management</li>
+      <li><code>CINEditor</code> - Editor tools (Editor only)</li>
+    </ul>
+  </li>
+</ol>
+
+<h3>Step 2: Verify Classes Available</h3>
+
+<p>Test that plugin classes are accessible:</p>
+
+<ol>
+  <li>
+    <p><strong>Create AI Controller Blueprint:</strong></p>
+    <ul>
+      <li>Content Browser → Right-click → Blueprint Class</li>
+      <li>Parent Class: <strong>AIController</strong></li>
+      <li>Name: <code>BP_TestAIController</code></li>
+    </ul>
+  </li>
+  
+  <li>
+    <p><strong>Add CIN Components:</strong></p>
+    <p>Open <code>BP_TestAIController</code>, click Add Component, verify these are available:</p>
+    <ul>
+      <li><i data-lucide="check-circle"></i> <strong>UtilityBrainComponent</strong> (CINAI module)</li>
+      <li><i data-lucide="check-circle"></i> <strong>CINQuickSetupComponent</strong> (CINAI module)</li>
+      <li><i data-lucide="check-circle"></i> <strong>CINDebugComponent</strong> (CINAI module)</li>
+    </ul>
+    <p>If you see these components, installation is successful!</p>
+  </li>
+</ol>
+
+<h3>Step 3: Create Test Data Asset</h3>
+
+<ol>
+  <li>Content Browser → Right-click → Miscellaneous → <strong>Data Asset</strong></li>
+  <li>Search for: <code>CIN_AgentPreset</code></li>
+  <li>If this appears, CIN classes are properly registered ✅</li>
+</ol>
+
+<h3>Step 4: Check Editor Tools</h3>
+
+<ol>
+  <li>Top menu → <strong>Tools</strong></li>
+  <li>Look for <strong>CIN</strong> submenu</li>
+  <li>Verify tools available:
+    <ul>
+      <li>Create Demo AI Trees + Blackboard</li>
+      <li>Build Demo Hub</li>
+    </ul>
+  </li>
+</ol>
+
+<div class="callout success">
+  <span class="icon"><i data-lucide="check-circle"></i></span>
+  <div>
+    <strong>Installation Complete!</strong> If all verification steps passed, CIN Plugin is ready to use.
+  </div>
+</div>
+
+<h2>Troubleshooting</h2>
+
+<h3><i data-lucide="x-circle"></i> "Plugin failed to load"</h3>
+
+<p><strong>Symptoms:</strong> Error on startup, plugin shows as disabled</p>
+
+<p><strong>Solutions:</strong></p>
+<ol>
+  <li>Verify project is C++ project (or convert to C++):
+    <ul>
+      <li>File → New C++ Class → Create any class to convert</li>
+    </ul>
+  </li>
+  <li>Regenerate project files</li>
+  <li>Clean and rebuild:
+    <ul>
+      <li>Delete <code>Binaries/</code>, <code>Intermediate/</code>, <code>Saved/</code></li>
+      <li>Regenerate and rebuild</li>
+    </ul>
+  </li>
+  <li>Check Output Log for specific error messages</li>
+</ol>
+
+<h3><i data-lucide="x-circle"></i> "Missing modules" error</h3>
+
+<p><strong>Symptoms:</strong> CINCore, CINAI modules not found</p>
+
+<p><strong>Solutions:</strong></p>
+<ol>
+  <li>Verify plugin structure matches installation layout</li>
+  <li>Check <code>CINPlugin.uplugin</code> exists and is valid JSON</li>
+  <li>Ensure all module folders exist:
+    <pre><code>Plugins/CINPlugin/Source/
+├── CINCore/
+├── CINAI/
+├── CINPerception/
+├── CINLOD/
+└── CINEditor/</code></pre>
+  </li>
+  <li>Each should have <code>[ModuleName].Build.cs</code> file</li>
+</ol>
+
+<h3><i data-lucide="x-circle"></i> "Classes not appearing in editor"</h3>
+
+<p><strong>Symptoms:</strong> Can't find UtilityBrainComponent, CIN_AgentPreset, etc.</p>
+
+<p><strong>Solutions:</strong></p>
+<ol>
+  <li>Restart editor after enabling plugin</li>
+  <li>Verify plugin is enabled (Edit → Plugins)</li>
+  <li>Check if build succeeded without errors</li>
+  <li>Try closing editor, deleting <code>Saved/</code> folder, reopening</li>
+</ol>
+
+<h3><i data-lucide="x-circle"></i> "Compile errors"</h3>
+
+<p><strong>Common Issues:</strong></p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Error</th>
+      <th>Cause</th>
+      <th>Solution</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Cannot open include file</td>
+      <td>Missing engine modules</td>
+      <td>Verify UE 5.5 or 5.6 installed</td>
+    </tr>
+    <tr>
+      <td>Unresolved external symbol</td>
+      <td>Module dependency issue</td>
+      <td>Regenerate project files</td>
+    </tr>
+    <tr>
+      <td>Incompatible engine version</td>
+      <td>Wrong UE version</td>
+      <td>Update to UE 5.5+ or 5.6</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Module Overview</h2>
+
+<p>Understanding what each module provides:</p>
+
+<table class="module-table">
+  <thead>
+    <tr>
+      <th>Module</th>
+      <th>Purpose</th>
+      <th>Key Classes</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>CINCore</strong></td>
+      <td>Foundation types, interfaces, managers</td>
+      <td><code>ICINContext</code>, Core managers</td>
+    </tr>
+    <tr>
+      <td><strong>CINAI</strong></td>
+      <td>Utility AI, actions, services</td>
+      <td><code>UUtilityBrainComponent</code>, <code>UUtilityActionAsset</code>, <code>UUtilityService</code></td>
+    </tr>
+    <tr>
+      <td><strong>CINPerception</strong></td>
+      <td>Perception integration</td>
+      <td><code>UService_PerceptionMonitor</code>, Advanced perception</td>
+    </tr>
+    <tr>
+      <td><strong>CINLOD</strong></td>
+      <td>Performance & LOD management</td>
+      <td><code>UCINLODManager</code>, Budget systems</td>
+    </tr>
+    <tr>
+      <td><strong>CINEditor</strong></td>
+      <td>Editor tools & automation</td>
+      <td>Demo builders, asset tools</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Build Configurations</h2>
+
+<h3>Development Editor (Recommended)</h3>
+<ul>
+  <li>Full debug information</li>
+  <li>Assertions enabled</li>
+  <li>Editor tools available</li>
+  <li>Best for development</li>
+</ul>
+
+<h3>Shipping</h3>
+<ul>
+  <li>Optimized performance</li>
+  <li>Debug tools compiled out</li>
+  <li>Minimal overhead</li>
+  <li>Use for final builds</li>
+</ul>
+
+<h2>Platform Support</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Platform</th>
+      <th>Status</th>
+      <th>Notes</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Windows</td>
+      <td>✅ Fully Supported</td>
+      <td>Primary development platform</td>
+    </tr>
+    <tr>
+      <td>Mac</td>
+      <td>✅ Fully Supported</td>
+      <td>Tested on macOS Monterey+</td>
+    </tr>
+    <tr>
+      <td>Linux</td>
+      <td>✅ Supported</td>
+      <td>Tested on Ubuntu 22.04+</td>
+    </tr>
+    <tr>
+      <td>Console</td>
+      <td>⚠️ Should work</td>
+      <td>Not tested, no platform-specific code</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Next Steps</h2>
+
+<div class="callout success">
+  <span class="icon"><i data-lucide="check-circle"></i></span>
+  <div>
+    <strong>Installation Complete!</strong> Ready to build your first AI?
+  </div>
+</div>
+
+<div class="next-steps">
+  <a class="button primary" href="#/docs/archetype-guide">
+    <i data-lucide="layers"></i>
+    Choose Your Archetype
+  </a>
+  <a class="button" href="#/docs/setup-workflow">
+    <i data-lucide="zap"></i>
+    15-Minute Setup
+  </a>
+</div>
+
+<h3>Recommended Reading Order</h3>
+<ol>
+  <li><a href="#/docs/archetype-guide"><i data-lucide="layers"></i> Choose Archetype</a> - Decide which AI pattern fits your needs (3 min)</li>
+  <li><a href="#/docs/setup-workflow"><i data-lucide="zap"></i> 15-Minute Setup</a> - Complete step-by-step tutorial (15 min)</li>
+  <li><a href="#/docs/first-combat-ai"><i data-lucide="crosshair"></i> First Combat AI</a> - Hands-on combat AI example (10 min)</li>
+  <li><a href="#/docs/debug-basics"><i data-lucide="search"></i> Debug Tools</a> - Learn to visualize AI decisions (5 min)</li>
+</ol>
+
+<h3>Additional Resources</h3>
+<ul>
+  <li><a href="#/docs/best-practices"><i data-lucide="star"></i> Best Practices</a> - Professional patterns and workflows</li>
+  <li><a href="#/docs/troubleshooting"><i data-lucide="help-circle"></i> Troubleshooting</a> - Common issues and solutions</li>
+  <li><a href="#/docs/module-structure"><i data-lucide="box"></i> Module Architecture</a> - Deep dive into plugin structure</li>
+</ul>
+
+<script>lucide.createIcons();</script>

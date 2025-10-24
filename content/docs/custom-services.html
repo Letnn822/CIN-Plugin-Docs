@@ -1,0 +1,599 @@
+<h1>Creating Custom Services</h1>
+<p class="note">Extend CIN Plugin with your own services in C++. Learn how to create custom services that publish specialized inputs, implement game-specific logic, and integrate seamlessly with the Utility AI brain.</p>
+
+<div class="page-meta">
+  <span class="time"><i data-lucide="clock"></i> 15 minutes</span>
+  <span class="difficulty"><i data-lucide="bar-chart-3"></i> Expert</span>
+</div>
+
+<div class="callout tip">
+  <span class="icon"><i data-lucide="lightbulb"></i></span>
+  <div>
+    <strong>Service Philosophy:</strong> Services are modular input providers that run periodically to gather data and publish it to the brain. Custom services let you extend the system with game-specific intelligence.
+  </div>
+</div>
+
+<h2>Service Architecture</h2>
+
+<pre><code>Service Lifecycle:
+┌────────────────────────────────────────────┐
+│ 1. Construction                            │
+│    └─ Configure properties                 │
+└────────────────┬───────────────────────────┘
+                 ▼
+┌────────────────────────────────────────────┐
+│ 2. Initialization                          │
+│    └─ InitializeService(Brain)             │
+└────────────────┬───────────────────────────┘
+                 ▼
+┌────────────────────────────────────────────┐
+│ 3. Condition Check (if conditions defined) │
+│    └─ Evaluate StartConditions             │
+└────────────────┬───────────────────────────┘
+                 ▼
+┌────────────────────────────────────────────┐
+│ 4. Activation                              │
+│    └─ OnServiceStart()                     │
+└────────────────┬───────────────────────────┘
+                 ▼
+┌────────────────────────────────────────────┐
+│ 5. Execution Loop                          │
+│    └─ TickService(DeltaTime) [every MinInterval]│
+└────────────────┬───────────────────────────┘
+                 ▼
+┌────────────────────────────────────────────┐
+│ 6. Deactivation                            │
+│    └─ OnServiceStop()                      │
+└────────────────────────────────────────────┘</code></pre>
+
+<h2>Minimal Service Example</h2>
+
+<h3>Step 1: Create Header File</h3>
+
+<p><code>Source/YourGame/Public/AI/Services/MyCustomService.h</code></p>
+
+<pre><code>#pragma once
+
+#include "CoreMinimal.h"
+#include "UtilityService.h"
+#include "MyCustomService.generated.h"
+
+/**
+ * Example custom service that monitors player distance
+ */
+UCLASS(BlueprintType, Blueprintable)
+class YOURGAME_API UMyCustomService : public UUtilityService
+{
+    GENERATED_BODY()
+    
+public:
+    UMyCustomService();
+    
+protected:
+    // Service lifecycle overrides
+    virtual void InitializeService(UUtilityBrainComponent* InBrain) override;
+    virtual void TickService(float DeltaTime) override;
+    
+    // Configuration
+    UPROPERTY(EditAnywhere, Category = "Custom Service")
+    float DetectionRadius = 1500.0f;
+    
+    UPROPERTY(EditAnywhere, Category = "Custom Service")
+    bool bPublishDistanceInput = true;
+};</code></pre>
+
+<h3>Step 2: Implement Source File</h3>
+
+<p><code>Source/YourGame/Private/AI/Services/MyCustomService.cpp</code></p>
+
+<pre><code>#include "AI/Services/MyCustomService.h"
+#include "UtilityBrainComponent.h"
+#include "GameFramework/Pawn.h"
+#include "Kismet/GameplayStatics.h"
+
+UMyCustomService::UMyCustomService()
+{
+    // Service configuration
+    ServiceName = TEXT("MyCustomService");
+    MinInterval = 0.5f; // Run twice per second
+    bEnabled = true;
+}
+
+void UMyCustomService::InitializeService(UUtilityBrainComponent* InBrain)
+{
+    Super::InitializeService(InBrain);
+    
+    // One-time setup
+    UE_LOG(LogTemp, Log, TEXT("MyCustomService initialized"));
+}
+
+void UMyCustomService::TickService(float DeltaTime)
+{
+    Super::TickService(DeltaTime);
+    
+    // Get AI pawn
+    APawn* AIPawn = Cast<APawn>(OwningBrain->GetOwner());
+    if (!AIPawn) return;
+    
+    // Find player
+    APawn* PlayerPawn = UGameplayStatics::GetPlayerPawn(GetWorld(), 0);
+    if (!PlayerPawn) return;
+    
+    // Calculate distance
+    float Distance = FVector::Dist(AIPawn->GetActorLocation(), 
+                                   PlayerPawn->GetActorLocation());
+    
+    // Publish normalized distance
+    if (bPublishDistanceInput)
+    {
+        float NormalizedDistance = FMath::Clamp(Distance / DetectionRadius, 0.0f, 1.0f);
+        OwningBrain->SetNamedInputValue(TEXT("DistanceToPlayer"), NormalizedDistance);
+    }
+    
+    // Publish boolean for "in range"
+    bool bInRange = Distance < DetectionRadius;
+    OwningBrain->SetNamedInputValue(TEXT("PlayerInRange"), bInRange ? 1.0f : 0.0f);
+}</code></pre>
+
+<h3>Step 3: Add to Agent Preset</h3>
+
+<p>In your <code>DA_AgentPreset</code> asset:</p>
+
+<pre><code>Extra Services:
+  + MyCustomService
+    Detection Radius: 1500.0
+    Publish Distance Input: true
+    Min Interval: 0.5</code></pre>
+
+<h2>Advanced Service Features</h2>
+
+<h3>Service with Conditions</h3>
+
+<pre><code>// Header
+UCLASS()
+class UMyConditionalService : public UUtilityService
+{
+    GENERATED_BODY()
+    
+public:
+    UPROPERTY(EditAnywhere, Category = "Conditions")
+    TArray<FServiceCondition> StartConditions;
+    
+    UPROPERTY(EditAnywhere, Category = "Conditions")
+    bool bStopWhenConditionsFail = true;
+    
+protected:
+    virtual void OnServiceStart() override;
+    virtual void OnServiceStop() override;
+};
+
+// Implementation
+void UMyConditionalService::OnServiceStart()
+{
+    Super::OnServiceStart();
+    UE_LOG(LogTemp, Log, TEXT("Service activated by conditions!"));
+    
+    // Setup state when service starts
+    InitializeTracking();
+}
+
+void UMyConditionalService::OnServiceStop()
+{
+    Super::OnServiceStop();
+    UE_LOG(LogTemp, Log, TEXT("Service deactivated!"));
+    
+    // Cleanup when service stops
+    CleanupTracking();
+}</code></pre>
+
+<h3>Service with Cached Data</h3>
+
+<pre><code>UCLASS()
+class UMyCachingService : public UUtilityService
+{
+    GENERATED_BODY()
+    
+protected:
+    virtual void TickService(float DeltaTime) override;
+    
+private:
+    // Cached data to avoid recomputation
+    UPROPERTY()
+    TArray<AActor*> CachedEnemies;
+    
+    float TimeSinceLastFullScan = 0.0f;
+    
+    UPROPERTY(EditAnywhere)
+    float FullScanInterval = 2.0f;
+};
+
+void UMyCachingService::TickService(float DeltaTime)
+{
+    Super::TickService(DeltaTime);
+    
+    TimeSinceLastFullScan += DeltaTime;
+    
+    // Full scan periodically
+    if (TimeSinceLastFullScan >= FullScanInterval)
+    {
+        CachedEnemies.Empty();
+        // Expensive operation - find all enemies
+        UGameplayStatics::GetAllActorsOfClass(GetWorld(), AEnemyClass, CachedEnemies);
+        TimeSinceLastFullScan = 0.0f;
+    }
+    
+    // Use cached data every tick
+    int32 EnemyCount = CachedEnemies.Num();
+    OwningBrain->SetNamedInputValue(TEXT("EnemyCount"), (float)EnemyCount);
+}</code></pre>
+
+<h3>Service with Event Handling</h3>
+
+<pre><code>UCLASS()
+class UMyEventDrivenService : public UUtilityService
+{
+    GENERATED_BODY()
+    
+protected:
+    virtual void InitializeService(UUtilityBrainComponent* InBrain) override;
+    virtual void UninitializeService() override;
+    
+    UFUNCTION()
+    void OnDamageTaken(AActor* DamagedActor, float Damage, 
+                       const UDamageType* DamageType, 
+                       AController* InstigatedBy, AActor* DamageCauser);
+private:
+    float LastDamageTime = 0.0f;
+};
+
+void UMyEventDrivenService::InitializeService(UUtilityBrainComponent* InBrain)
+{
+    Super::InitializeService(InBrain);
+    
+    // Subscribe to damage events
+    if (APawn* Pawn = Cast<APawn>(InBrain->GetOwner()))
+    {
+        Pawn->OnTakeAnyDamage.AddDynamic(this, &UMyEventDrivenService::OnDamageTaken);
+    }
+}
+
+void UMyEventDrivenService::UninitializeService()
+{
+    // Unsubscribe from events
+    if (APawn* Pawn = Cast<APawn>(OwningBrain->GetOwner()))
+    {
+        Pawn->OnTakeAnyDamage.RemoveDynamic(this, &UMyEventDrivenService::OnDamageTaken);
+    }
+    
+    Super::UninitializeService();
+}
+
+void UMyEventDrivenService::OnDamageTaken(AActor* DamagedActor, float Damage, 
+                                          const UDamageType* DamageType, 
+                                          AController* InstigatedBy, AActor* DamageCauser)
+{
+    LastDamageTime = GetWorld()->GetTimeSeconds();
+    
+    // Immediately update brain
+    OwningBrain->SetNamedInputValue(TEXT("UnderFire"), 1.0f);
+    OwningBrain->SetNamedInputValue(TEXT("RecentDamage"), Damage / 100.0f);
+}</code></pre>
+
+<h2>Real-World Examples</h2>
+
+<h3>Example 1: Cover Point Evaluator</h3>
+
+<pre><code>UCLASS()
+class UService_CoverEvaluator : public UUtilityService
+{
+    GENERATED_BODY()
+    
+protected:
+    virtual void TickService(float DeltaTime) override;
+    
+    UPROPERTY(EditAnywhere)
+    float SearchRadius = 2000.0f;
+    
+    UPROPERTY(EditAnywhere)
+    float MinCoverScore = 0.5f;
+    
+private:
+    FVector FindBestCoverPoint();
+    float EvaluateCoverPoint(const FVector& Point);
+};
+
+void UService_CoverEvaluator::TickService(float DeltaTime)
+{
+    Super::TickService(DeltaTime);
+    
+    // Find best cover point
+    FVector BestCover = FindBestCoverPoint();
+    
+    // Calculate metrics
+    APawn* AIPawn = Cast<APawn>(OwningBrain->GetOwner());
+    float DistanceToCover = FVector::Dist(AIPawn->GetActorLocation(), BestCover);
+    float CoverScore = EvaluateCoverPoint(BestCover);
+    
+    // Publish to brain
+    OwningBrain->SetNamedInputValue(TEXT("HasCoverNearby"), CoverScore > MinCoverScore ? 1.0f : 0.0f);
+    OwningBrain->SetNamedInputValue(TEXT("DistanceToNearestCover"), 
+                                    FMath::Clamp(DistanceToCover / SearchRadius, 0.0f, 1.0f));
+    OwningBrain->SetNamedInputValue(TEXT("CoverQuality"), CoverScore);
+    
+    // Store cover location for actions to use
+    OwningBrain->GetBlackboardComponent()->SetValueAsVector(TEXT("BestCoverPoint"), BestCover);
+}
+
+FVector UService_CoverEvaluator::FindBestCoverPoint()
+{
+    // Implementation: Use EQS or custom cover system
+    // Return best cover location
+    return FVector::ZeroVector;
+}
+
+float UService_CoverEvaluator::EvaluateCoverPoint(const FVector& Point)
+{
+    // Implementation: Score cover quality (0-1)
+    // Consider: Height, distance to enemy, escape routes
+    return 0.8f;
+}</code></pre>
+
+<h3>Example 2: Resource Tracker</h3>
+
+<pre><code>UCLASS()
+class UService_ResourceTracker : public UUtilityService
+{
+    GENERATED_BODY()
+    
+protected:
+    virtual void TickService(float DeltaTime) override;
+    
+    UPROPERTY(EditAnywhere)
+    float LowHealthThreshold = 0.3f;
+    
+    UPROPERTY(EditAnywhere)
+    float LowAmmoThreshold = 0.2f;
+};
+
+void UService_ResourceTracker::TickService(float DeltaTime)
+{
+    Super::TickService(DeltaTime);
+    
+    APawn* AIPawn = Cast<APawn>(OwningBrain->GetOwner());
+    if (!AIPawn) return;
+    
+    // Get health (example - adjust to your game)
+    float Health = 0.0f;
+    if (UHealthComponent* HealthComp = AIPawn->FindComponentByClass<UHealthComponent>())
+    {
+        Health = HealthComp->GetHealthPercent();
+    }
+    
+    // Get ammo (example - adjust to your game)
+    float Ammo = 0.0f;
+    if (UWeaponComponent* WeaponComp = AIPawn->FindComponentByClass<UWeaponComponent>())
+    {
+        Ammo = WeaponComp->GetAmmoPercent();
+    }
+    
+    // Publish normalized values
+    OwningBrain->SetNamedInputValue(TEXT("Health"), Health);
+    OwningBrain->SetNamedInputValue(TEXT("AmmoCount"), Ammo);
+    
+    // Publish boolean states
+    OwningBrain->SetNamedInputValue(TEXT("IsHealthLow"), Health < LowHealthThreshold ? 1.0f : 0.0f);
+    OwningBrain->SetNamedInputValue(TEXT("IsAmmoLow"), Ammo < LowAmmoThreshold ? 1.0f : 0.0f);
+    
+    // Publish urgency (how critical is the situation)
+    float Urgency = 1.0f - FMath::Min(Health, Ammo);
+    OwningBrain->SetNamedInputValue(TEXT("ResourceUrgency"), Urgency);
+}</code></pre>
+
+<h3>Example 3: Squad Communication</h3>
+
+<pre><code>UCLASS()
+class UService_SquadCommunication : public UUtilityService
+{
+    GENERATED_BODY()
+    
+protected:
+    virtual void TickService(float DeltaTime) override;
+    virtual void InitializeService(UUtilityBrainComponent* InBrain) override;
+    
+private:
+    UPROPERTY()
+    class USquadManagerSubsystem* SquadManager;
+    
+    FName SquadID;
+};
+
+void UService_SquadCommunication::InitializeService(UUtilityBrainComponent* InBrain)
+{
+    Super::InitializeService(InBrain);
+    
+    // Get squad manager
+    SquadManager = GetWorld()->GetSubsystem<USquadManagerSubsystem>();
+    
+    // Register with squad
+    if (SquadManager)
+    {
+        SquadID = SquadManager->RegisterAgent(InBrain);
+    }
+}
+
+void UService_SquadCommunication::TickService(float DeltaTime)
+{
+    Super::TickService(DeltaTime);
+    
+    if (!SquadManager) return;
+    
+    // Get squad intel
+    FSquadIntel Intel = SquadManager->GetSquadIntel(SquadID);
+    
+    // Publish squad data
+    OwningBrain->SetNamedInputValue(TEXT("SquadSize"), (float)Intel.MemberCount);
+    OwningBrain->SetNamedInputValue(TEXT("SquadAverageHealth"), Intel.AverageHealth);
+    OwningBrain->SetNamedInputValue(TEXT("SquadHasContact"), Intel.bInCombat ? 1.0f : 0.0f);
+    OwningBrain->SetNamedInputValue(TEXT("IsSquadLeader"), Intel.bIsLeader ? 1.0f : 0.0f);
+    
+    // Share this agent's intel with squad
+    FAgentIntel MyIntel;
+    MyIntel.Location = Cast<APawn>(OwningBrain->GetOwner())->GetActorLocation();
+    MyIntel.Health = OwningBrain->GetNamedInputValue(TEXT("Health"));
+    SquadManager->ShareIntel(SquadID, MyIntel);
+}</code></pre>
+
+<h2>Performance Best Practices</h2>
+
+<h3>Optimize Tick Frequency</h3>
+
+<pre><code>// DON'T: Tick every frame for expensive operations
+UMyService::UMyService()
+{
+    MinInterval = 0.016f; // Every frame!
+}
+
+// DO: Use appropriate interval
+UMyService::UMyService()
+{
+    MinInterval = 0.5f;  // Twice per second for most services
+    MinInterval = 1.0f;  // Once per second for expensive services
+    MinInterval = 0.2f;  // 5 times per second for reactive services
+}</code></pre>
+
+<h3>Cache Expensive Queries</h3>
+
+<pre><code>// DON'T: Query every tick
+void UMyService::TickService(float DeltaTime)
+{
+    TArray<AActor*> Enemies;
+    UGameplayStatics::GetAllActorsOfClass(GetWorld(), AEnemy::StaticClass(), Enemies);
+    // Expensive!
+}
+
+// DO: Cache and refresh periodically
+UPROPERTY()
+TArray<AActor*> CachedEnemies;
+float LastFullRefresh = 0.0f;
+
+void UMyService::TickService(float DeltaTime)
+{
+    if (GetWorld()->GetTimeSeconds() - LastFullRefresh > 2.0f)
+    {
+        UGameplayStatics::GetAllActorsOfClass(GetWorld(), AEnemy::StaticClass(), CachedEnemies);
+        LastFullRefresh = GetWorld()->GetTimeSeconds();
+    }
+    
+    // Use CachedEnemies
+}</code></pre>
+
+<h3>Use Service Conditions</h3>
+
+<pre><code>// DON'T: Run service always and check internally
+void UMyExpensiveService::TickService(float DeltaTime)
+{
+    if (!ShouldRun())
+        return; // Wastes a tick!
+    
+    DoExpensiveWork();
+}
+
+// DO: Use service conditions
+StartConditions:
+  - InCombat > 0.5
+  - Health < 0.8
+
+bStopWhenConditionsFail: true
+
+// Service only runs when conditions met</code></pre>
+
+<h2>Debugging Custom Services</h2>
+
+<h3>Add Debug Logging</h3>
+
+<pre><code>void UMyService::TickService(float DeltaTime)
+{
+    Super::TickService(DeltaTime);
+    
+    // Debug log (disable in shipping)
+    #if !UE_BUILD_SHIPPING
+    if (CVarShowServiceDebug.GetValueOnGameThread())
+    {
+        UE_LOG(LogAI, Log, TEXT("[%s] TickService: PublishingValue=%.2f"), 
+               *ServiceName.ToString(), SomeValue);
+    }
+    #endif
+    
+    // Visual debug
+    if (bDebugVisualize)
+    {
+        DrawDebugSphere(GetWorld(), SomeLocation, 50.0f, 12, FColor::Green, false, MinInterval);
+    }
+}</code></pre>
+
+<h3>Expose to Gameplay Debugger</h3>
+
+<pre><code>#if WITH_GAMEPLAY_DEBUGGER
+virtual void DescribeSelfToGameplayDebugger(FGameplayDebuggerCategory* DebuggerCategory) const override
+{
+    Super::DescribeSelfToGameplayDebugger(DebuggerCategory);
+    
+    DebuggerCategory->AddTextLine(FString::Printf(TEXT("MyService State: %s"), 
+                                   bIsActive ? TEXT("Active") : TEXT("Inactive")));
+    DebuggerCategory->AddTextLine(FString::Printf(TEXT("Cached Data: %d items"), 
+                                   CachedData.Num()));
+}
+#endif</code></pre>
+
+<h2>Blueprint Exposure</h2>
+
+<pre><code>// Make service Blueprint-friendly
+UCLASS(Blueprintable, BlueprintType)
+class UMyBlueprintService : public UUtilityService
+{
+    GENERATED_BODY()
+    
+protected:
+    // Override in Blueprint
+    UFUNCTION(BlueprintImplementableEvent, Category = "Service")
+    void OnServiceTick(float DeltaTime);
+    
+    virtual void TickService(float DeltaTime) override
+    {
+        Super::TickService(DeltaTime);
+        OnServiceTick(DeltaTime);
+    }
+    
+    // Call from Blueprint
+    UFUNCTION(BlueprintCallable, Category = "Service")
+    void PublishInput(FName InputName, float Value)
+    {
+        if (OwningBrain)
+        {
+            OwningBrain->SetNamedInputValue(InputName, Value);
+        }
+    }
+};</code></pre>
+
+<h2>Next Steps</h2>
+
+<div class="next-steps">
+  <a class="button primary" href="#/docs/service-configuration">
+    <i data-lucide="settings"></i>
+    Service Configuration
+  </a>
+  <a class="button" href="#/docs/bp-utility-library">
+    <i data-lucide="code"></i>
+    Blueprint Library
+  </a>
+</div>
+
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="#/docs/service-configuration"><i data-lucide="settings"></i> Built-in Services</a> - Learn from existing services</li>
+  <li><a href="#/docs/service-conditions"><i data-lucide="git-merge"></i> Service Conditions</a> - Declarative activation</li>
+  <li><a href="#/docs/perception-setup"><i data-lucide="eye"></i> Perception Service</a> - Advanced service example</li>
+  <li><a href="#/docs/named-inputs"><i data-lucide="database"></i> Named Inputs</a> - Publishing data to brain</li>
+</ul>
+
+<script>lucide.createIcons();</script>

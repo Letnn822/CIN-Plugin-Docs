@@ -1,0 +1,31 @@
+<h1>GAS Integration</h1>
+<p>Bind Gameplay Ability System attributes directly to agent parameters. Prefer attribute <em>handles</em> when available.</p>
+
+<h2>Attach ASC (optional but recommended)</h2>
+<p><code>ACINAgentBase</code> exposes:</p>
+<pre><code>// Blueprint
+SetAbilitySystemComponent(ASC)
+GetAbilitySystemComponent()</code></pre>
+
+<h2>Binding by name</h2>
+<pre><code>// Blueprint
+BindToGameplayAttribute("Health", "Attributes.Health", true, (0, 100))
+BindToGameplayAttribute("Stamina", "Attributes.Stamina", true, (0, 100))
+BindToGameplayAttribute("Mana", "Attributes.Mana", true, (0, 100))</code></pre>
+
+<h2>Binding by handle (preferred)</h2>
+<pre><code>// Blueprint (assuming you resolved FGameplayAttribute handle)
+BindToGameplayAttributeByHandle("Health", HealthAttr, true, (0, 100))</code></pre>
+
+<h2>Common patterns</h2>
+<ul>
+  <li>Normalize to [0..1] at bind time using the expected max values.</li>
+  <li>Use <code>RefreshParameterBindings()</code> if the ASC, attribute set, or owning actor changes at runtime.</li>
+  <li>Keep game logic outside the plugin; let normalized parameters drive your higher-level BP decision graphs.</li>
+</ul>
+
+<h2>Troubleshooting</h2>
+<ul>
+  <li><strong>Zero values:</strong> Attribute name or handle not found. Validate the set is present and replicated.</li>
+  <li><strong>Jitter:</strong> Apply simple smoothing in your BP if attributes update very frequently.</li>
+</ul>

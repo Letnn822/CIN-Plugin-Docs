@@ -1,0 +1,16 @@
+<h1>Validation & Troubleshooting</h1>
+
+<h2>Checklist</h2>
+<ul>
+  <li><strong>Bindings validate:</strong> Call <code>ValidateParameterBindings()</code> and inspect the result/logs.</li>
+  <li><strong>Normalization ranges:</strong> Ensure correct min/max so 0..1 maps make sense.</li>
+  <li><strong>Runtime changes:</strong> After swapping components/ASC, call <code>RefreshParameterBindings()</code>.</li>
+  <li><strong>Blueprint function binding:</strong> Does your function return <code>float</code> and exist on the bound object?</li>
+</ul>
+
+<h2>Common issues</h2>
+<ul>
+  <li><strong>Always zero:</strong> Wrong property/attribute name, or not replicated yet. Use handles when possible.</li>
+  <li><strong>Spikes:</strong> Add light smoothing or sample at a lower frequency.</li>
+  <li><strong>High cost:</strong> Lower <code>ContextUpdateFrequency</code>, use LOD gating for heavy features.</li>
+</ul>

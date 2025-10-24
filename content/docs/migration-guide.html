@@ -1,0 +1,602 @@
+<h1>Migration & Integration Guide</h1>
+<p class="note">Complete guide for migrating from other AI systems or integrating CIN Plugin into existing projects. Includes migration paths from Behavior Trees, HTN, GOAP, and third-party plugins.</p>
+
+<div class="page-meta">
+  <span class="time"><i data-lucide="clock"></i> 25 minutes</span>
+  <span class="difficulty"><i data-lucide="bar-chart-3"></i> Guide</span>
+</div>
+
+<h2>Migration Overview</h2>
+
+<pre><code>Common Migration Scenarios:
+├─ Pure Behavior Tree → Utility AI
+├─ HTN Planner → Utility AI
+├─ GOAP System → Utility AI
+├─ Third-party AI → CIN Plugin
+├─ Custom AI → Hybrid Approach
+└─ Legacy Project Integration
+
+Migration Strategy:
+1. Analyze existing AI patterns
+2. Map to Utility AI concepts
+3. Incremental replacement
+4. Hybrid coexistence (optional)
+5. Complete transition</code></pre>
+
+<h2>From Behavior Trees</h2>
+
+<h3>Concept Mapping</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Behavior Tree Concept</th>
+      <th>Utility AI Equivalent</th>
+      <th>Notes</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Behavior Tree Asset</strong></td>
+      <td>Action with BT Executor</td>
+      <td>BTs become action implementations</td>
+    </tr>
+    <tr>
+      <td><strong>Selector Node</strong></td>
+      <td>Action Scoring</td>
+      <td>Scores replace priority selection</td>
+    </tr>
+    <tr>
+      <td><strong>Sequence Node</strong></td>
+      <td>Behavior Tree Executor</td>
+      <td>Keep sequences inside BT executors</td>
+    </tr>
+    <tr>
+      <td><strong>Blackboard</strong></td>
+      <td>Named Inputs + Services</td>
+      <td>Services publish to brain</td>
+    </tr>
+    <tr>
+      <td><strong>Decorators</strong></td>
+      <td>Considerations</td>
+      <td>Conditions become scoring factors</td>
+    </tr>
+    <tr>
+      <td><strong>Services</strong></td>
+      <td>Utility Services</td>
+      <td>Similar concept, different API</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Migration Example: Patrol AI</h3>
+
+<h4>Before (Pure BT)</h4>
+
+<pre><code>BT_PatrolAI:
+Root
+└─ Selector
+   ├─ Sequence (Has Enemy?)
+   │  ├─ Decorator: Blackboard "HasEnemy" == true
+   │  ├─ Move To Enemy
+   │  └─ Attack
+   └─ Sequence (Patrol)
+      ├─ Get Next Patrol Point
+      ├─ Move To Patrol Point
+      └─ Wait
+
+AIController:
+  - Runs BT_PatrolAI
+  - Updates Blackboard values
+  - All logic in BT structure</code></pre>
+
+<h4>After (Utility AI with BT Executors)</h4>
+
+<pre><code>Actions:
+  1. DA_Action_Attack
+     Considerations:
+       - HasKnownEnemy: (0,0) → (1,100)
+       - DistanceToEnemy: Optimal range
+     Executor: BT_Attack (reuse existing BT!)
+     
+  2. DA_Action_Patrol
+     Considerations:
+       - HasKnownEnemy: (0,100) → (1,0) [inverted]
+     Executor: BT_Patrol (reuse existing BT!)
+
+Services:
+  - PerceptionMonitor (publishes HasKnownEnemy)
+  
+Brain:
+  - Evaluates actions every 0.2s
+  - Selects highest scoring action
+  - Runs corresponding BT
+
+Benefits:
+  ✓ Reuse existing BT assets
+  ✓ More responsive to changing conditions
+  ✓ Easier to add new actions
+  ✓ Better scoring than priority</code></pre>
+
+<h3>Step-by-Step BT Migration</h3>
+
+<pre><code>Step 1: Keep Existing BTs
+  → Don't delete BT assets
+  → They become action executors
+  
+Step 2: Break BT into Actions
+  → Each major branch = 1 action
+  → Attack branch → DA_Action_Attack
+  → Patrol branch → DA_Action_Patrol
+  
+Step 3: Convert Decorators to Considerations
+  Decorator: "HasEnemy == true"
+    → Consideration: HasKnownEnemy (0,0)→(1,100)
+  
+  Decorator: "Health < 30%"
+    → Consideration: Health (0,100)→(0.3,100)→(1,0), inverted
+    
+Step 4: Replace Blackboard with Services
+  Blackboard Key: "HasEnemy"
+    → Service: PerceptionMonitor publishes "HasKnownEnemy"
+  
+  Blackboard Key: "PatrolIndex"
+    → Store in pawn, not needed in brain
+    
+Step 5: Add Utility Brain
+  → Add CINQuickSetup to AIController
+  → Assign Brain Preset with actions
+  → Remove old BT assignment
+  
+Step 6: Test Incremental
+  → Test one action at a time
+  → Verify BT executors work
+  → Compare behavior to original</code></pre>
+
+<h2>From HTN Planners</h2>
+
+<h3>Concept Mapping</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>HTN Concept</th>
+      <th>Utility AI Equivalent</th>
+      <th>Notes</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Compound Task</strong></td>
+      <td>Action with BT Executor</td>
+      <td>High-level tasks</td>
+    </tr>
+    <tr>
+      <td><strong>Primitive Task</strong></td>
+      <td>BT Task Node</td>
+      <td>Low-level implementation</td>
+    </tr>
+    <tr>
+      <td><strong>Preconditions</strong></td>
+      <td>Considerations</td>
+      <td>Conditions → Scores</td>
+    </tr>
+    <tr>
+      <td><strong>Effects</strong></td>
+      <td>Action Completion</td>
+      <td>Natural state changes</td>
+    </tr>
+    <tr>
+      <td><strong>World State</strong></td>
+      <td>Named Inputs</td>
+      <td>Published by services</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Migration Strategy</h3>
+
+<pre><code>HTN Task: "GetWeapon"
+  Preconditions: NoWeapon, WeaponNearby
+  Effects: HasWeapon
+  
+Utility AI Equivalent:
+  Action: DA_Action_GetWeapon
+  Considerations:
+    - HasWeapon: (0,100) → (1,0) [don't get if have]
+    - DistanceToWeapon: (0,100) → (0.3,100) → (1,0)
+  Executor: Move to weapon, equip
+  
+Key Difference:
+  HTN: Plans ahead (preconditions → effects chain)
+  Utility: Reactive (score current state)
+  
+When to Use Hybrid:
+  - Complex multi-step goals: Use HTN within action
+  - Immediate reactions: Use Utility AI
+  - Combine: Utility selects goal, HTN plans execution</code></pre>
+
+<h2>From GOAP Systems</h2>
+
+<h3>Concept Mapping</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>GOAP Concept</th>
+      <th>Utility AI Equivalent</th>
+      <th>Notes</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Goal</strong></td>
+      <td>Action</td>
+      <td>What AI wants to achieve</td>
+    </tr>
+    <tr>
+      <td><strong>Action</strong></td>
+      <td>BT Executor / Custom Executor</td>
+      <td>How to achieve goal</td>
+    </tr>
+    <tr>
+      <td><strong>Preconditions</strong></td>
+      <td>Considerations</td>
+      <td>When action is viable</td>
+    </tr>
+    <tr>
+      <td><strong>Cost</strong></td>
+      <td>Inverted Score</td>
+      <td>Low cost = high score</td>
+    </tr>
+    <tr>
+      <td><strong>World State</strong></td>
+      <td>Named Inputs</td>
+      <td>Current situation</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Migration Example</h3>
+
+<h4>Before (GOAP)</h4>
+
+<pre><code>Goal: KillEnemy
+  Actions:
+    1. FindWeapon
+       Preconditions: NoWeapon
+       Effects: HasWeapon
+       Cost: 5
+       
+    2. GetAmmo
+       Preconditions: HasWeapon, NoAmmo
+       Effects: HasAmmo
+       Cost: 3
+       
+    3. AttackEnemy
+       Preconditions: HasWeapon, HasAmmo, CanSeeEnemy
+       Effects: EnemyDead
+       Cost: 1
+       
+  Planner finds: FindWeapon → GetAmmo → AttackEnemy</code></pre>
+
+<h4>After (Utility AI)</h4>
+
+<pre><code>Actions (score-based, reactive):
+  1. DA_Action_FindWeapon
+     BaseScore: 60
+     Considerations:
+       - HasWeapon: (0,100) → (1,0) [inverted]
+       - DistanceToWeapon: (0,100) → (0.5,100) → (1,50)
+     
+  2. DA_Action_GetAmmo
+     BaseScore: 65
+     Considerations:
+       - HasWeapon: (0,0) → (1,100)
+       - AmmoLevel: (0,100) → (0.3,100) → (1,0) [inverted]
+     
+  3. DA_Action_Attack
+     BaseScore: 80
+     Considerations:
+       - HasWeapon: (0,0) → (1,100)
+       - AmmoLevel: (0,0) → (0.2,100) → (1,100)
+       - HasVisibleEnemy: (0,0) → (1,100)
+
+Natural Behavior:
+  NoWeapon → FindWeapon scores 60
+  HasWeapon + NoAmmo → GetAmmo scores 65
+  HasWeapon + HasAmmo + Enemy → Attack scores 80
+  
+No planning needed - reactive scoring handles it!</code></pre>
+
+<h2>From Third-Party AI Plugins</h2>
+
+<h3>Common Third-Party Systems</h3>
+
+<h4>AI Tree / Smart Objects</h4>
+
+<pre><code>Migration Path:
+  1. Smart Objects → Environment queries
+  2. AI Tree nodes → Actions
+  3. Context → Named Inputs
+  4. Priority → Scoring
+
+Example:
+  Smart Object: "Cover Point"
+    → Environment query in service
+    → Publishes "HasCoverNearby", "DistanceToCover"
+    
+  AI Tree Node: "TakeCover"
+    → Action: DA_Action_TakeCover
+    → Uses cover inputs in considerations</code></pre>
+
+<h4>Node Canvas / Behavior Designer</h4>
+
+<pre><code>Migration Path:
+  1. Keep existing behavior graphs as BT executors
+  2. Convert FSM states to actions
+  3. Variables → Named Inputs
+  4. Conditions → Considerations
+
+Example:
+  FSM State: "Combat"
+    → Action: DA_Action_Combat
+    → Executor: Existing behavior graph
+    
+  Transition: CombatState if (HasEnemy && HealthOK)
+    → Considerations: HasKnownEnemy, Health</code></pre>
+
+<h2>Hybrid Approach</h2>
+
+<h3>Utility AI + Behavior Trees</h3>
+
+<pre><code>Best of Both Worlds:
+
+Utility AI (High-Level):
+  - Selects which goal to pursue
+  - Reactive to changing conditions
+  - Easy to add/modify goals
+  
+Behavior Trees (Low-Level):
+  - Implements complex sequences
+  - Reuses existing BT assets
+  - Familiar workflow
+
+Example Structure:
+  Utility Brain:
+    └─ Actions (what to do)
+       ├─ Attack (score: 80)
+       │  └─ Executor: BT_Attack
+       │     └─ Sequence: Move → Aim → Fire
+       ├─ Flank (score: 70)
+       │  └─ Executor: BT_Flank
+       │     └─ Sequence: FindFlankPos → Move → Attack
+       └─ Retreat (score: 85)
+          └─ Executor: BT_Retreat
+             └─ Sequence: FindCover → MoveToCover → Heal</code></pre>
+
+<h3>Utility AI + HTN Planner</h3>
+
+<pre><code>Complex Goal Planning:
+
+Utility AI: Selects current goal
+  → "DefendBase" scores 90 (highest)
+  
+HTN Planner: Plans how to achieve goal
+  → DefendBase requires:
+     1. GetAmmo (if needed)
+     2. MoveToDefensePosition
+     3. SetupTurret
+     4. Engage enemies
+     
+Result: Utility picks goals, HTN executes plans
+
+Implementation:
+  Action: DA_Action_DefendBase
+  Executor: Custom executor that runs HTN planner</code></pre>
+
+<h2>Integration into Existing Project</h2>
+
+<h3>Coexistence Strategy</h3>
+
+<pre><code>Phase 1: Add CIN Plugin
+  → Install plugin
+  → Don't touch existing AI
+  → Both systems coexist
+  
+Phase 2: Test on New AI
+  → Create 1-2 test agents with CIN
+  → Verify functionality
+  → Learn the system
+  
+Phase 3: Incremental Migration
+  → Migrate 1 AI type at a time
+  → Keep old system as fallback
+  → Compare behavior
+  
+Phase 4: Expand Coverage
+  → Migrate more AI types
+  → Standardize on CIN patterns
+  
+Phase 5: Complete Transition (optional)
+  → Remove old AI code
+  → Or keep hybrid approach</code></pre>
+
+<h3>Integration Checklist</h3>
+
+<div class="callout tip">
+  <span class="icon"><i data-lucide="check-square"></i></span>
+  <div>
+    <strong>Integration Steps:</strong>
+    <ul class="compact">
+      <li>✅ Install CIN Plugin</li>
+      <li>✅ Verify compilation</li>
+      <li>✅ Create test AI agent</li>
+      <li>✅ Set up archetype</li>
+      <li>✅ Configure actions</li>
+      <li>✅ Add services</li>
+      <li>✅ Test in isolation</li>
+      <li>✅ Integrate with existing systems</li>
+      <li>✅ Verify team affiliation</li>
+      <li>✅ Test multiplayer (if needed)</li>
+      <li>✅ Profile performance</li>
+      <li>✅ Document patterns</li>
+    </ul>
+  </div>
+</div>
+
+<h2>Common Migration Challenges</h2>
+
+<h3>Challenge 1: Thinking in Scores vs. Conditions</h3>
+
+<pre><code>Old Mindset (Conditions):
+  if (HasEnemy && Health > 50%)
+      Attack();
+  else if (Health < 30%)
+      Retreat();
+  else
+      Patrol();
+
+New Mindset (Scores):
+  Attack:
+    - HasEnemy: contributes to score
+    - Health > 50%: contributes to score
+    - Combined score: Determines selection
+    
+  Retreat:
+    - Health < 30%: high contribution
+    - Combined score: May override attack
+    
+  Patrol:
+    - No enemies: high contribution
+    - Fallback behavior
+
+Key Difference:
+  Conditions: Binary (yes/no)
+  Scores: Continuous (0-100)
+  Result: Smoother, more natural behavior</code></pre>
+
+<h3>Challenge 2: State Management</h3>
+
+<pre><code>Old Approach:
+  Explicit state machine
+  Manual state transitions
+  
+New Approach:
+  Implicit states via actions
+  Automatic transitions via scoring
+  
+Example:
+  Old: currentState = EState::Combat
+  New: Combat action scores highest → selected
+  
+If needed, can still track state:
+  CurrentState = GetCurrentActionName();</code></pre>
+
+<h3>Challenge 3: Long-Term Planning</h3>
+
+<pre><code>Utility AI is reactive, not planning-based.
+
+For complex multi-step goals:
+  Option 1: Break into multiple actions
+    - Each step is an action
+    - Natural progression via scoring
+    
+  Option 2: Use BT executor for sequence
+    - Action selects goal
+    - BT implements multi-step plan
+    
+  Option 3: Hybrid with HTN/GOAP
+    - Utility selects goal
+    - HTN plans execution
+    - Best for complex scenarios</code></pre>
+
+<h2>Performance Comparison</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>System</th>
+      <th>Cost per Agent</th>
+      <th>Max Agents (60 FPS)</th>
+      <th>Notes</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Pure BT</strong></td>
+      <td>0.1-0.3ms</td>
+      <td>200-300</td>
+      <td>Fast but inflexible</td>
+    </tr>
+    <tr>
+      <td><strong>HTN Planner</strong></td>
+      <td>0.5-2.0ms</td>
+      <td>50-100</td>
+      <td>Expensive planning</td>
+    </tr>
+    <tr>
+      <td><strong>GOAP</strong></td>
+      <td>1.0-5.0ms</td>
+      <td>20-50</td>
+      <td>Very expensive planning</td>
+    </tr>
+    <tr>
+      <td><strong>Utility AI (CIN)</strong></td>
+      <td>0.2-0.5ms</td>
+      <td>100-200</td>
+      <td>Good balance</td>
+    </tr>
+    <tr>
+      <td><strong>Hybrid (Utility + BT)</strong></td>
+      <td>0.2-0.6ms</td>
+      <td>100-150</td>
+      <td>Flexible, performant</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Best Practices for Migration</h2>
+
+<div class="callout tip">
+  <span class="icon"><i data-lucide="check-square"></i></span>
+  <div>
+    <strong>Migration Best Practices:</strong>
+    <ul class="compact">
+      <li>✅ Start with simplest AI first</li>
+      <li>✅ Reuse existing BT assets as executors</li>
+      <li>✅ Migrate incrementally, not all at once</li>
+      <li>✅ Keep old system as reference</li>
+      <li>✅ Test thoroughly before replacing</li>
+      <li>✅ Document your patterns</li>
+      <li>✅ Train team on new concepts</li>
+      <li>✅ Use hybrid approach if needed</li>
+      <li>❌ Don't delete old code immediately</li>
+      <li>❌ Don't try to replicate exact behavior</li>
+      <li>❌ Don't fight the system (embrace scores)</li>
+    </ul>
+  </div>
+</div>
+
+<h2>Next Steps</h2>
+
+<div class="next-steps">
+  <a class="button primary" href="#/docs/quickstart">
+    <i data-lucide="rocket"></i>
+    Quick Start Guide
+  </a>
+  <a class="button" href="#/docs/archetype-guide">
+    <i data-lucide="layers"></i>
+    Archetype Guide
+  </a>
+</div>
+
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="#/docs/behavior-tree"><i data-lucide="git-branch"></i> Behavior Tree Integration</a> - Hybrid approach details</li>
+  <li><a href="#/docs/best-practices"><i data-lucide="check-circle"></i> Best Practices</a> - Design patterns</li>
+  <li><a href="#/docs/optimization"><i data-lucide="zap"></i> Optimization</a> - Performance tuning</li>
+  <li><a href="#/docs/troubleshooting"><i data-lucide="alert-circle"></i> Troubleshooting</a> - Common issues</li>
+</ul>
+
+<script>lucide.createIcons();</script>

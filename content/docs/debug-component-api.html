@@ -1,0 +1,445 @@
+<h1>Debug Component API</h1>
+<p class="note">Complete reference for UCINDebugComponent. Learn how to add overhead debug visualization showing real-time AI state, scores, services, and squad information.</p>
+
+<div class="page-meta">
+  <span class="time"><i data-lucide="clock"></i> 12 minutes</span>
+  <span class="difficulty"><i data-lucide="bar-chart-2"></i> Reference</span>
+</div>
+
+<h2>Class Overview</h2>
+
+<pre><code>Class: UCINDebugComponent
+Parent: UActorComponent
+Module: CINAI
+Header: Public/Components/CINDebugComponent.h
+
+Purpose:
+  Provides overhead debug widget showing real-time AI state.
+  Displays current action, scores, active services, and
+  squad information for easy debugging during development.
+
+Dependencies:
+  - UMG (UserWidget)
+  - UtilityBrainComponent
+  - Optional: TacticalMemberComponent (for squad info)</code></pre>
+
+<h2>Core Properties</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Default</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>bEnabled</code></td>
+      <td>bool</td>
+      <td>true</td>
+      <td>Show/hide debug widget</td>
+    </tr>
+    <tr>
+      <td><code>UpdateInterval</code></td>
+      <td>float</td>
+      <td>0.1</td>
+      <td>Seconds between updates</td>
+    </tr>
+    <tr>
+      <td><code>bShowScores</code></td>
+      <td>bool</td>
+      <td>true</td>
+      <td>Display action scores</td>
+    </tr>
+    <tr>
+      <td><code>bShowServices</code></td>
+      <td>bool</td>
+      <td>true</td>
+      <td>Show active services</td>
+    </tr>
+    <tr>
+      <td><code>bShowSquadInfo</code></td>
+      <td>bool</td>
+      <td>true</td>
+      <td>Display squad information</td>
+    </tr>
+    <tr>
+      <td><code>DisplayDistance</code></td>
+      <td>float</td>
+      <td>3000.0</td>
+      <td>Max distance to show widget</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Setup</h2>
+
+<h3>Adding to AI Pawn</h3>
+
+<pre><code>// Blueprint
+Components:
+  + CINDebug (UCINDebugComponent)
+    bEnabled: true
+    UpdateInterval: 0.1
+    bShowScores: true
+    bShowServices: true
+    bShowSquadInfo: true
+
+Result: Overhead widget appears automatically</code></pre>
+
+<h3>C++ Setup</h3>
+
+<pre><code>// AIController or Pawn constructor
+AMyAIPawn::AMyAIPawn()
+{
+    DebugComponent = CreateDefaultSubobject<UCINDebugComponent>(TEXT("CINDebug"));
+    DebugComponent->bEnabled = true;
+    DebugComponent->UpdateInterval = 0.1f;
+}</code></pre>
+
+<h2>Public Functions</h2>
+
+<h3>SetEnabled</h3>
+
+<pre><code>UFUNCTION(BlueprintCallable, Category = "CIN AI|Debug")
+void SetEnabled(bool bInEnabled);
+
+Parameters:
+  bInEnabled - Enable or disable widget
+
+Description:
+  Toggles debug visualization at runtime.
+
+Example:
+  // Toggle with key press
+  if (Input Key F1)
+  {
+      DebugComponent->SetEnabled(!DebugComponent->IsEnabled());
+  }</code></pre>
+
+<h3>IsEnabled</h3>
+
+<pre><code>UFUNCTION(BlueprintPure, Category = "CIN AI|Debug")
+bool IsEnabled() const;
+
+Returns:
+  True if debug widget is active
+
+Example:
+  if (DebugComponent->IsEnabled())
+  {
+      // Already showing
+  }</code></pre>
+
+<h3>SetUpdateInterval</h3>
+
+<pre><code>UFUNCTION(BlueprintCallable, Category = "CIN AI|Debug")
+void SetUpdateInterval(float Interval);
+
+Parameters:
+  Interval - Seconds between widget updates
+
+Description:
+  Adjust update frequency for performance.
+  Lower = more responsive, higher CPU cost
+  Higher = less responsive, lower CPU cost
+
+Example:
+  // Reduce update rate for performance
+  DebugComponent->SetUpdateInterval(0.5f); // 2 Hz</code></pre>
+
+<h3>RefreshDisplay</h3>
+
+<pre><code>UFUNCTION(BlueprintCallable, Category = "CIN AI|Debug")
+void RefreshDisplay();
+
+Description:
+  Immediately updates widget with current data.
+  Normally updates happen automatically based on UpdateInterval.
+
+Example:
+  // Force immediate update
+  DebugComponent->RefreshDisplay();</code></pre>
+
+<h2>Debug Display Format</h2>
+
+<h3>Standard Display</h3>
+
+<pre><code>┌─────────────────────────────────┐
+│ ✓ Attack (75.0)                │
+│                                 │
+│ Services: 3                     │
+│   PerceptionMonitor             │
+│   TacticalSense                 │
+│   TacticalStrategy              │
+│                                 │
+│ Squad: Alpha [2/4]              │
+│ Strategy: Assault               │
+│ Role: Flanker                   │
+└─────────────────────────────────┘
+
+Legend:
+  ✓ = Currently executing action
+  (75.0) = Current action score
+  Services: Count + names
+  Squad: Name [MemberIndex/TotalMembers]
+  Strategy: Current squad strategy
+  Role: Agent's role in squad</code></pre>
+
+<h3>Minimal Display (scores/services/squad disabled)</h3>
+
+<pre><code>┌───────────────┐
+│ ✓ Attack      │
+└───────────────┘
+
+Only shows action name</code></pre>
+
+<h2>Display Configuration</h2>
+
+<h3>Customizing Display Elements</h3>
+
+<pre><code>// Show only action name and score
+DebugComponent->bShowScores = true;
+DebugComponent->bShowServices = false;
+DebugComponent->bShowSquadInfo = false;
+
+Result:
+┌───────────────┐
+│ ✓ Attack (75) │
+└───────────────┘
+
+// Show everything
+DebugComponent->bShowScores = true;
+DebugComponent->bShowServices = true;
+DebugComponent->bShowSquadInfo = true;
+
+Result:
+┌─────────────────────┐
+│ ✓ Attack (75.0)    │
+│ Services: 3         │
+│ Squad: Alpha [2/4]  │
+└─────────────────────┘</code></pre>
+
+<h3>Distance Culling</h3>
+
+<pre><code>// Only show when player is nearby
+DebugComponent->DisplayDistance = 2000.0f; // 20 meters
+
+// Always show (set very high)
+DebugComponent->DisplayDistance = 999999.0f;
+
+// Never show based on distance (use bEnabled instead)
+DebugComponent->DisplayDistance = 0.0f;</code></pre>
+
+<h2>Performance Optimization</h2>
+
+<h3>Update Frequency</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Interval</th>
+      <th>Hz</th>
+      <th>Use Case</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>0.033</td>
+      <td>30 Hz</td>
+      <td>Very responsive (expensive)</td>
+    </tr>
+    <tr>
+      <td>0.1</td>
+      <td>10 Hz</td>
+      <td>Standard (recommended)</td>
+    </tr>
+    <tr>
+      <td>0.25</td>
+      <td>4 Hz</td>
+      <td>Low frequency (performance)</td>
+    </tr>
+    <tr>
+      <td>0.5</td>
+      <td>2 Hz</td>
+      <td>Minimal updates (best performance)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Optimization Checklist</h3>
+
+<div class="callout tip">
+  <span class="icon"><i data-lucide="check-square"></i></span>
+  <div>
+    <strong>Debug Performance:</strong>
+    <ul class="compact">
+      <li>✅ Disable in shipping builds (automatically disabled)</li>
+      <li>✅ Use 0.1-0.25s UpdateInterval (10-4 Hz)</li>
+      <li>✅ Set reasonable DisplayDistance (2000-3000 units)</li>
+      <li>✅ Disable when not actively debugging</li>
+      <li>✅ Use bShowScores/Services/Squad to reduce text updates</li>
+      <li>❌ Don't update every frame (UpdateInterval < 0.033)</li>
+      <li>❌ Don't leave enabled in production builds</li>
+      <li>❌ Don't create widgets for 100+ agents simultaneously</li>
+    </ul>
+  </div>
+</div>
+
+<h2>Integration with Other Tools</h2>
+
+<h3>Quick Setup Component</h3>
+
+<pre><code>// Quick Setup can enable debug automatically
+UCINQuickSetupComponent:
+  bEnableDebugVisualization: true
+
+Result:
+  - CINDebugComponent added automatically
+  - Widget appears on initialization</code></pre>
+
+<h3>Player Debug Tool</h3>
+
+<pre><code>// UCINPlayerDebugTool can toggle all agents
+Key Press (F1):
+  → UCIN_UtilityAILibrary::ToggleDebugForAllAgents()
+
+Result:
+  - All CINDebugComponents toggle simultaneously
+  - Useful for overview of all AI in scene</code></pre>
+
+<h3>Gameplay Debugger</h3>
+
+<pre><code>// Use both together for maximum insight
+Overhead Widget: High-level status
+Gameplay Debugger: Detailed scoring
+
+Press ' (apostrophe) → Category 5 (Utility AI)
+  + Overhead widget shows action/squad
+  + Gameplay debugger shows all scores/considerations</code></pre>
+
+<h2>Common Patterns</h2>
+
+<h3>Pattern 1: Development Only</h3>
+
+<pre><code>// Enable in editor, disable in shipping
+#if WITH_EDITOR
+    DebugComponent->bEnabled = true;
+#else
+    DebugComponent->bEnabled = false;
+#endif
+
+Or in Blueprint:
+  Branch (Is Editor)
+    True: Set Enabled (true)
+    False: Set Enabled (false)</code></pre>
+
+<h3>Pattern 2: Toggle Group</h3>
+
+<pre><code>// Toggle all AI debug displays
+UFUNCTION(BlueprintCallable)
+void ToggleAllAIDebug()
+{
+    TArray<AActor*> AIPawns;
+    UGameplayStatics::GetAllActorsOfClass(GetWorld(), AMyAIPawn::StaticClass(), AIPawns);
+    
+    for (AActor* Actor : AIPawns)
+    {
+        if (UCINDebugComponent* Debug = Actor->FindComponentByClass<UCINDebugComponent>())
+        {
+            Debug->SetEnabled(!Debug->IsEnabled());
+        }
+    }
+}</code></pre>
+
+<h3>Pattern 3: Selective Display</h3>
+
+<pre><code>// Show debug only for selected agent
+void ShowDebugForAgent(APawn* Agent)
+{
+    // Disable all
+    for (AActor* Actor : AllAI)
+    {
+        Actor->FindComponentByClass<UCINDebugComponent>()->SetEnabled(false);
+    }
+    
+    // Enable selected
+    Agent->FindComponentByClass<UCINDebugComponent>()->SetEnabled(true);
+}</code></pre>
+
+<h2>Troubleshooting</h2>
+
+<h3>Common Issues</h3>
+
+<pre><code>Problem: Widget not appearing
+Solution:
+  - Check bEnabled is true
+  - Verify brain component exists
+  - Check player is within DisplayDistance
+  - Ensure UMG module is loaded
+  - Check widget class is valid
+
+Problem: Widget shows "None" for action
+Solution:
+  - Brain hasn't selected action yet
+  - Wait for first evaluation cycle
+  - Check brain is started (brain->IsActive())
+
+Problem: Performance issues
+Solution:
+  - Increase UpdateInterval (0.25-0.5)
+  - Reduce DisplayDistance
+  - Disable bShowServices/Squad if not needed
+  - Limit number of active debug widgets
+
+Problem: Squad info not showing
+Solution:
+  - Check UTacticalMemberComponent exists
+  - Verify agent has joined squad
+  - Enable bShowSquadInfo
+  - Check squad is properly initialized</code></pre>
+
+<h2>Best Practices</h2>
+
+<div class="callout tip">
+  <span class="icon"><i data-lucide="check-square"></i></span>
+  <div>
+    <strong>Debug Component Best Practices:</strong>
+    <ul class="compact">
+      <li>✅ Add during development for all AI</li>
+      <li>✅ Use 0.1-0.25s UpdateInterval for good balance</li>
+      <li>✅ Toggle off when not actively debugging</li>
+      <li>✅ Use distance culling for many agents</li>
+      <li>✅ Combine with Gameplay Debugger for details</li>
+      <li>✅ Disable in shipping builds (automatic)</li>
+      <li>❌ Don't update every frame</li>
+      <li>❌ Don't leave enabled for 100+ agents</li>
+      <li>❌ Don't ship with debug components enabled</li>
+    </ul>
+  </div>
+</div>
+
+<h2>Next Steps</h2>
+
+<div class="next-steps">
+  <a class="button primary" href="#/docs/debug-basics">
+    <i data-lucide="bug"></i>
+    Debugging Guide
+  </a>
+  <a class="button" href="#/docs/quick-setup-api">
+    <i data-lucide="zap"></i>
+    Quick Setup API
+  </a>
+</div>
+
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="#/docs/debug-basics"><i data-lucide="bug"></i> Debugging Basics</a> - Complete debugging guide</li>
+  <li><a href="#/docs/quick-setup-api"><i data-lucide="zap"></i> Quick Setup API</a> - Auto-enable debug</li>
+  <li><a href="#/docs/player-debug-tool-api"><i data-lucide="crosshair"></i> Player Debug Tool</a> - Player-side debugging</li>
+  <li><a href="#/docs/brain-api"><i data-lucide="cpu"></i> Brain API</a> - Access brain data</li>
+</ul>
+
+<script>lucide.createIcons();</script>

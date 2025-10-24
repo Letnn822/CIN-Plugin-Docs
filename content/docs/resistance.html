@@ -1,0 +1,448 @@
+<h1>Replace Resistance</h1>
+<p class="note">Eliminate action thrashing with replace resistance. Learn how to make AI commit to decisions by requiring new actions to score significantly higher before interrupting the current action.</p>
+
+<div class="page-meta">
+  <span class="time"><i data-lucide="clock"></i> 8 minutes</span>
+  <span class="difficulty"><i data-lucide="bar-chart-2"></i> Advanced</span>
+</div>
+
+<div class="callout tip">
+  <span class="icon"><i data-lucide="lightbulb"></i></span>
+  <div>
+    <strong>Resistance Principle:</strong> A new action must score higher than current action × resistance multiplier to interrupt. This creates commitment and eliminates rapid switching when scores are close.
+  </div>
+</div>
+
+<h2>The Thrashing Problem</h2>
+
+<h3>Without Resistance</h3>
+
+<pre><code>Frame 100: Attack (50.3) vs TakeCover (50.1)
+  Winner: Attack ✓
+
+Frame 102: Attack (50.1) vs TakeCover (50.4)
+  Winner: TakeCover ✓ (switched!)
+
+Frame 104: Attack (50.6) vs TakeCover (50.2)
+  Winner: Attack ✓ (switched again!)
+
+Frame 106: Attack (50.0) vs TakeCover (50.3)
+  Winner: TakeCover ✓ (switched again!)
+
+Result: Jittery, unrealistic, never completes actions</code></pre>
+
+<h3>With Resistance</h3>
+
+<pre><code>ReplaceResistance: 1.3
+
+Frame 100: Attack (50.3) EXECUTING
+  Threshold to interrupt: 50.3 × 1.3 = 65.4
+  TakeCover (50.1) < 65.4 → Stay with Attack
+
+Frame 102: Attack (50.1) EXECUTING
+  Threshold: 50.1 × 1.3 = 65.1
+  TakeCover (50.4) < 65.1 → Stay with Attack
+
+Frame 104: Attack (50.6) EXECUTING
+  Threshold: 50.6 × 1.3 = 65.8
+  TakeCover (50.2) < 65.8 → Stay with Attack
+
+Attack completes successfully!
+
+Result: Smooth, committed, realistic behavior</code></pre>
+
+<h2>How Replace Resistance Works</h2>
+
+<h3>The Algorithm</h3>
+
+<pre><code>// In brain evaluation
+float CurrentScore = CurrentAction->LastScore;
+float Threshold = CurrentScore × CurrentAction->ReplaceResistance;
+
+for (Action in AvailableActions)
+{
+    float Score = EvaluateAction(Action);
+    
+    if (Action == CurrentAction)
+        continue; // Skip current action
+    
+    if (Score > Threshold)
+    {
+        // New action scores high enough to interrupt
+        SwitchToAction(Action);
+        break;
+    }
+}
+
+// If no action beats threshold, continue current action</code></pre>
+
+<h3>Resistance Values</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Value</th>
+      <th>Effect</th>
+      <th>Use Case</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>1.0</strong></td>
+      <td>No resistance</td>
+      <td>Actions that should switch freely (Patrol, Idle)</td>
+    </tr>
+    <tr>
+      <td><strong>1.1-1.2</strong></td>
+      <td>Slight bias</td>
+      <td>Actions with minimal commitment (Look, Turn)</td>
+    </tr>
+    <tr>
+      <td><strong>1.3-1.5</strong></td>
+      <td>Moderate commitment</td>
+      <td>Most actions (Attack, Move, Search)</td>
+    </tr>
+    <tr>
+      <td><strong>1.6-2.0</strong></td>
+      <td>Strong commitment</td>
+      <td>Important actions (Reload, Heal, TakeCover)</td>
+    </tr>
+    <tr>
+      <td><strong>2.5-5.0</strong></td>
+      <td>Very strong commitment</td>
+      <td>Critical actions (Revive, Defuse, Channel)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Configuration Examples</h2>
+
+<h3>Low Resistance (Freely Interruptible)</h3>
+
+<pre><code>Action: Patrol
+  BaseScore: 15.0
+  ReplaceResistance: 1.0
+
+Effect:
+  Any action scoring > 15 interrupts immediately
+  No commitment required
+  Good for fallback/idle behaviors</code></pre>
+
+<h3>Moderate Resistance (Balanced)</h3>
+
+<pre><code>Action: Attack
+  BaseScore: 60.0
+  ReplaceResistance: 1.3
+
+Effect:
+  Current: 60, Threshold: 78
+  TakeCover must score 78+ to interrupt
+  Commits to attacks but allows emergency interrupts
+  Most common configuration</code></pre>
+
+<h3>High Resistance (Strong Commitment)</h3>
+
+<pre><code>Action: Reload
+  BaseScore: 80.0
+  ReplaceResistance: 2.0
+  bInterruptible: true
+
+Effect:
+  Current: 80, Threshold: 160
+  Only extremely high-scoring actions interrupt
+  Almost always completes
+  Pairs with bInterruptible: false for guaranteed completion</code></pre>
+
+<h3>Very High Resistance (Near-Uninterruptible)</h3>
+
+<pre><code>Action: ReviveAlly
+  BaseScore: 70.0
+  ReplaceResistance: 5.0
+  bInterruptible: false
+
+Effect:
+  Current: 70, Threshold: 350
+  Virtually impossible to interrupt
+  Must complete once started
+  Use for critical multi-stage actions</code></pre>
+
+<h2>Tuning Replace Resistance</h2>
+
+<h3>Problem: Actions Too Sticky</h3>
+
+<p><strong>Symptoms:</strong></p>
+<ul>
+  <li>AI doesn't react to emergencies</li>
+  <li>Stuck in one action too long</li>
+  <li>Can't respond to threats</li>
+</ul>
+
+<p><strong>Diagnosis:</strong></p>
+<pre><code>Attack: ReplaceResistance = 3.0
+  Score: 50, Threshold: 150
+  
+TakeCover when health critical: 90
+  90 < 150 → Can't interrupt! Dies while attacking
+
+Fix: Lower resistance
+  Attack: ReplaceResistance = 1.3
+  Score: 50, Threshold: 65
+  TakeCover: 90 > 65 → Interrupts successfully</code></pre>
+
+<h3>Problem: Actions Too Fluid</h3>
+
+<p><strong>Symptoms:</strong></p>
+<ul>
+  <li>Rapid action switching</li>
+  <li>Actions never complete</li>
+  <li>Jittery behavior</li>
+</ul>
+
+<p><strong>Diagnosis:</strong></p>
+<pre><code>Attack: ReplaceResistance = 1.0 (no resistance!)
+  Score: 50, Threshold: 50
+  
+TakeCover: 50.1 → Interrupts immediately
+Attack again: 50.2 → Interrupts immediately
+Thrashing!
+
+Fix: Add resistance
+  Attack: ReplaceResistance = 1.3
+  TakeCover: ReplaceResistance = 1.3
+  Both commit to decisions</code></pre>
+
+<h2>Combining with Other Systems</h2>
+
+<h3>Resistance + Momentum</h3>
+
+<pre><code>Action: Attack
+  BaseScore: 60.0
+  ReplaceResistance: 1.3
+  MaxMomentum: 3.0
+  MomentumScoreReduction: 15.0
+
+Behavior:
+  1st Attack: Score 60, Threshold 78
+     → Commits to completion
+  
+  2nd Attack (if wins): Score 45, Threshold 58.5
+     → Lower commitment due to momentum
+  
+  3rd Attack: Score 30, Threshold 39
+     → Even lower commitment
+  
+Result: Later attacks easier to interrupt
+        Natural flow from committed → flexible</code></pre>
+
+<h3>Resistance + Priority</h3>
+
+<pre><code>Action: Reload
+  BaseScore: 80.0
+  ReplaceResistance: 2.0
+  Priority: 15
+
+Action: TakeCover
+  BaseScore: 70.0
+  ReplaceResistance: 1.5
+  Priority: 10
+
+Scenario:
+  Reloading: Score 80, Threshold 160
+  TakeCover scores: 75
+  
+  75 < 160 → Can't interrupt by score
+  But: TakeCover has lower priority in general
+  
+Result: Reload protected by both resistance and priority</code></pre>
+
+<h3>Resistance + Locking</h3>
+
+<pre><code>Action: ThrowGrenade
+  BaseScore: 55.0
+  ReplaceResistance: 1.5
+  UnlockTime: 5.0s
+
+Scenario:
+  Throws grenade → Completes (resistance helped)
+  If fails → Locked for 5s
+  
+Result: Resistance ensures completion
+        Locking prevents immediate retry if fails</code></pre>
+
+<h2>Advanced Patterns</h2>
+
+<h3>Pattern 1: Graduated Resistance</h3>
+
+<p>Increase resistance as action progresses:</p>
+
+<pre><code>// Custom action executor
+void UMyActionExecutor::OnActionProgress(float Progress)
+{
+    // Increase resistance as we get closer to completion
+    float DynamicResistance = 1.3f + (Progress * 1.7f);
+    // 0% complete: 1.3
+    // 50% complete: 2.15
+    // 100% complete: 3.0
+    
+    OwningAction->ReplaceResistance = DynamicResistance;
+}
+
+Result: Harder to interrupt near completion</code></pre>
+
+<h3>Pattern 2: Context-Dependent Resistance</h3>
+
+<p>Adjust resistance based on situation:</p>
+
+<pre><code>// In custom service
+void UService_CombatMonitor::TickService()
+{
+    UUtilityActionAsset* AttackAction = GetAction(TEXT("Attack"));
+    
+    if (IsUnderHeavyFire())
+    {
+        // Lower resistance when under fire
+        AttackAction->ReplaceResistance = 1.1f; // Easy to interrupt
+    }
+    else
+    {
+        // Higher resistance when safe
+        AttackAction->ReplaceResistance = 1.5f; // Commit to attacks
+    }
+}
+
+Result: Adapts to danger level</code></pre>
+
+<h3>Pattern 3: Role-Based Resistance</h3>
+
+<p>Different resistance for different roles:</p>
+
+<pre><code>// Tank role: High resistance (commits to tanking)
+DA_TankAI_Preset
+  TakeCover: ReplaceResistance = 2.0
+  HoldPosition: ReplaceResistance = 2.5
+
+// DPS role: Low resistance (responds quickly)
+DA_DPS_AI_Preset
+  Attack: ReplaceResistance = 1.2
+  Reposition: ReplaceResistance = 1.1
+
+Result: Roles feel different</code></pre>
+
+<h2>Debugging Resistance</h2>
+
+<h3>Gameplay Debugger</h3>
+
+<pre><code>Press ' → 5 → Select Agent
+
+CURRENT ACTION section:
+  Action: Attack
+  Score: 50.3
+  Resistance: 1.3
+  Threshold: 65.4 ← Must beat this to interrupt
+  
+ALTERNATIVE ACTIONS:
+  TakeCover: 55.2 (< 65.4) ✗ Can't interrupt
+  Reload: 45.0 (< 65.4) ✗ Can't interrupt
+  Retreat: 70.0 (> 65.4) ✓ Can interrupt!
+
+Shows exactly why switches happen/don't happen</code></pre>
+
+<h3>Console Commands</h3>
+
+<pre><code>// Show all resistance values
+CIN.Debug.ShowResistance 1
+
+Output:
+  Attack: 1.3 (threshold: 78.0)
+  TakeCover: 1.5 (threshold: N/A - not executing)
+  Reload: 2.0 (threshold: N/A)
+
+// Test different resistance values
+CIN.Debug.SetResistance Attack 1.5
+
+// Disable resistance temporarily (testing)
+CIN.Debug.DisableResistance 1</code></pre>
+
+<h2>Common Configurations by Action Type</h2>
+
+<h3>Combat Actions</h3>
+
+<pre><code>Attack: 1.3 (moderate commitment)
+TakeCover: 1.5 (strong commitment to reach cover)
+Reload: 2.0 (strong commitment to complete)
+Retreat: 1.2 (can interrupt if situation changes)</code></pre>
+
+<h3>Investigation Actions</h3>
+
+<pre><code>Patrol: 1.0 (freely interruptible)
+Investigate: 1.4 (moderate commitment to search)
+Search: 1.6 (stronger commitment)
+Alert: 1.2 (can interrupt to respond)</code></pre>
+
+<h3>Ability Actions</h3>
+
+<pre><code>QuickAbility: 1.3 (normal)
+ChanneledAbility: 3.0 (very high - multi-stage)
+UltimateAbility: 5.0 (nearly uninterruptible)
+BuffSelf: 2.0 (should complete)</code></pre>
+
+<h3>Support Actions</h3>
+
+<pre><code>HealAlly: 2.5 (critical to complete)
+ReviveAlly: 5.0 (must complete)
+SupplyAmmo: 2.0 (important to finish)
+DefuseObjective: 4.0 (critical objective)</code></pre>
+
+<h2>Performance Impact</h2>
+
+<pre><code>Cost per evaluation:
+  - 1 multiplication (CurrentScore × Resistance)
+  - 1 comparison per action
+  
+Typical agent (20 actions):
+  - 20 multiplications
+  - 20 comparisons
+  - Cost: < 0.01ms
+  
+Negligible performance impact</code></pre>
+
+<h2>Best Practices</h2>
+
+<div class="callout tip">
+  <span class="icon"><i data-lucide="check-square"></i></span>
+  <div>
+    <strong>Resistance Guidelines:</strong>
+    <ul class="compact">
+      <li>✅ Default to 1.3-1.5 for most actions</li>
+      <li>✅ Use 1.0 only for idle/fallback actions</li>
+      <li>✅ Use 2.0+ for actions that must complete</li>
+      <li>✅ Pair with bInterruptible:false for critical actions</li>
+      <li>✅ Test with Gameplay Debugger to verify thresholds</li>
+      <li>❌ Don't use values < 1.0 (makes no sense)</li>
+      <li>❌ Don't use extremely high values (>5.0) unless necessary</li>
+      <li>❌ Don't rely on resistance alone - combine with momentum</li>
+    </ul>
+  </div>
+</div>
+
+<h2>Next Steps</h2>
+
+<div class="next-steps">
+  <a class="button primary" href="#/docs/locking">
+    <i data-lucide="lock"></i>
+    Task Locking
+  </a>
+  <a class="button" href="#/docs/momentum">
+    <i data-lucide="trending-up"></i>
+    Task Momentum
+  </a>
+</div>
+
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="#/docs/action-patterns"><i data-lucide="target"></i> Action Design</a> - Designing with resistance in mind</li>
+  <li><a href="#/docs/tuning"><i data-lucide="sliders"></i> Tuning Guide</a> - Balancing resistance values</li>
+  <li><a href="#/docs/intelligence-layers"><i data-lucide="cpu"></i> Intelligence Layers</a> - Resistance in tactical layer</li>
+</ul>
+
+<script>lucide.createIcons();</script>

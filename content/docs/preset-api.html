@@ -1,0 +1,568 @@
+<h1>Agent Preset API</h1>
+<p class="note">Complete reference for UCIN_AgentPreset. Learn how to create centralized AI configurations that bundle archetypes, actions, services, and squad settings in a single designer-friendly asset.</p>
+
+<div class="page-meta">
+  <span class="time"><i data-lucide="clock"></i> 18 minutes</span>
+  <span class="difficulty"><i data-lucide="bar-chart-2"></i> Reference</span>
+</div>
+
+<h2>Class Overview</h2>
+
+<pre><code>Class: UCIN_AgentPreset
+Parent: UDataAsset
+Module: CINAI
+Header: Public/Config/CINAgentPreset.h
+
+Purpose:
+  Centralized AI configuration asset that bundles:
+  - Archetype selection
+  - Brain/action configuration
+  - Service setup
+  - Input overrides
+  - Squad/team settings
+  
+  One asset contains everything needed to configure an AI agent.</code></pre>
+
+<h2>Core Properties</h2>
+
+<h3>Archetype Configuration</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>AgentType</code></td>
+      <td>ECINAgentType</td>
+      <td>Archetype (BaseCombat, BaseStealth, etc.)</td>
+    </tr>
+    <tr>
+      <td><code>BrainOverride</code></td>
+      <td>UUtilityBrainPreset*</td>
+      <td>Custom brain preset (overrides archetype)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Actions & Services</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>ExtraActions</code></td>
+      <td>TArray&lt;UUtilityActionAsset*&gt;</td>
+      <td>Additional actions beyond archetype</td>
+    </tr>
+    <tr>
+      <td><code>ExtraServices</code></td>
+      <td>TArray&lt;TSubclassOf&lt;UUtilityService&gt;&gt;</td>
+      <td>Additional services beyond archetype</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Input Configuration</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>NamedInputOverrides</code></td>
+      <td>TMap&lt;FName, float&gt;</td>
+      <td>Initial values for named inputs</td>
+    </tr>
+    <tr>
+      <td><code>GameplayTagToInputMappings</code></td>
+      <td>TMap&lt;FGameplayTag, FName&gt;</td>
+      <td>Tag → Input name mappings</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Squad & Team</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>SquadName</code></td>
+      <td>FName</td>
+      <td>Squad to join (if any)</td>
+    </tr>
+    <tr>
+      <td><code>TeamID</code></td>
+      <td>uint8</td>
+      <td>Team affiliation (for perception)</td>
+    </tr>
+    <tr>
+      <td><code>bIsSquadLeader</code></td>
+      <td>bool</td>
+      <td>Is this agent a squad leader?</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Usage: Applying Presets</h2>
+
+<h3>Blueprint Function</h3>
+
+<pre><code>UFUNCTION(BlueprintCallable, Category = "CIN AI")
+static bool ApplyAgentPresetToPawn(
+    APawn* Pawn,
+    UCIN_AgentPreset* Preset
+);
+
+Parameters:
+  Pawn - Target AI pawn
+  Preset - Configuration to apply
+
+Returns:
+  True if successfully applied
+
+Description:
+  Applies complete preset configuration to a pawn.
+  Sets up brain, actions, services, squad, and team.</code></pre>
+
+<h3>Example Usage</h3>
+
+<pre><code>// Blueprint
+Event BeginPlay
+  → Get Controlled Pawn
+  → Apply Agent Preset To Pawn
+    Pawn: Self
+    Preset: DA_Soldier_Preset
+  → Branch (Success?)
+    True: AI Ready
+    False: Log Error</code></pre>
+
+<h3>C++ Usage</h3>
+
+<pre><code>#include "Blueprint/CIN_AIBlueprintLibrary.h"
+
+void AMyAIController::OnPossess(APawn* InPawn)
+{
+    Super::OnPossess(InPawn);
+    
+    // Load preset
+    UCIN_AgentPreset* Preset = LoadObject<UCIN_AgentPreset>(
+        nullptr, 
+        TEXT("/Game/AI/Presets/DA_Soldier.DA_Soldier")
+    );
+    
+    // Apply to pawn
+    if (Preset)
+    {
+        bool Success = UCIN_AIBlueprintLibrary::ApplyAgentPresetToPawn(InPawn, Preset);
+        if (Success)
+        {
+            UE_LOG(LogAI, Log, TEXT("Preset applied successfully"));
+        }
+    }
+}</code></pre>
+
+<h2>Creating Presets</h2>
+
+<h3>In Editor</h3>
+
+<pre><code>1. Content Browser → Right-Click
+2. CIN Plugin → Agent Preset
+3. Name: DA_Soldier_Preset
+4. Open asset
+5. Configure properties:
+   - AgentType: BaseCombat
+   - ExtraActions: [ThrowGrenade, CallForBackup]
+   - ExtraServices: [Service_PerceptionMonitor]
+   - SquadName: "Alpha"
+   - TeamID: 1
+6. Save</code></pre>
+
+<h3>Configuration Example: Soldier</h3>
+
+<pre><code>Asset: DA_Soldier_Preset
+
+Archetype Configuration:
+  AgentType: BaseCombat
+  BrainOverride: None (use BaseCombat defaults)
+
+Actions:
+  ExtraActions:
+    - DA_Action_ThrowGrenade
+    - DA_Action_CallForBackup
+    - DA_Action_SuppressiveFire
+
+Services:
+  ExtraServices:
+    - Service_PerceptionMonitor
+    - Service_TacticalSense
+    - Service_TacticalStrategy
+
+Input Overrides:
+  NamedInputOverrides:
+    "AimAccuracy": 0.8
+    "ReactionTime": 0.7
+    "Aggression": 0.6
+
+Squad Settings:
+  SquadName: "Alpha"
+  TeamID: 1
+  bIsSquadLeader: false</code></pre>
+
+<h3>Configuration Example: Squad Leader</h3>
+
+<pre><code>Asset: DA_SquadLeader_Preset
+
+Archetype Configuration:
+  AgentType: BaseSquadCombat
+  
+Actions:
+  ExtraActions:
+    - DA_Action_DirectSquad
+    - DA_Action_CallRetreat
+
+Services:
+  ExtraServices:
+    - Service_PerceptionMonitor
+    - Service_TacticalSense
+    - Service_TacticalStrategy
+    - Service_LeadershipBoost
+
+Input Overrides:
+  NamedInputOverrides:
+    "Leadership": 1.0
+    "Aggression": 0.8
+
+Squad Settings:
+  SquadName: "Alpha"
+  TeamID: 1
+  bIsSquadLeader: true  ← Leader</code></pre>
+
+<h3>Configuration Example: Stealth Guard</h3>
+
+<pre><code>Asset: DA_StealthGuard_Preset
+
+Archetype Configuration:
+  AgentType: BaseStealth
+
+Actions:
+  ExtraActions:
+    - DA_Action_RadioAlert
+    - DA_Action_InvestigateNoise
+
+Services:
+  ExtraServices:
+    - Service_PerceptionMonitor (long memory)
+    - Service_EnvironmentalMemory
+
+Input Overrides:
+  NamedInputOverrides:
+    "Alertness": 0.9
+    "Suspicion": 0.5
+
+Gameplay Tag Mappings:
+  GameplayTagToInputMappings:
+    "Status.Alert" → "AlertLevel"
+    "Status.Suspicious" → "Suspicion"
+
+Squad Settings:
+  SquadName: "Guards"
+  TeamID: 2
+  bIsSquadLeader: false</code></pre>
+
+<h2>Preset Inheritance Pattern</h2>
+
+<h3>Base → Specialized Pattern</h3>
+
+<pre><code>Base Preset: DA_Soldier_Base
+  AgentType: BaseCombat
+  ExtraServices: [PerceptionMonitor]
+  TeamID: 1
+
+Specialized Presets:
+
+DA_Soldier_Assault (extends Base)
+  ExtraActions: [Charge, Shotgun]
+  NamedInputOverrides:
+    "Aggression": 0.9
+    "RangePreference": 0.3  // Close range
+
+DA_Soldier_Sniper (extends Base)  
+  ExtraActions: [Snipe, Reposition]
+  NamedInputOverrides:
+    "Aggression": 0.4
+    "RangePreference": 0.9  // Long range
+
+DA_Soldier_Medic (extends Base)
+  ExtraActions: [HealAlly, ProvideAmmo]
+  NamedInputOverrides:
+    "Aggression": 0.3
+    "SupportPriority": 0.9
+
+Note: Inheritance not automatic - copy and customize</code></pre>
+
+<h2>Advanced Features</h2>
+
+<h3>Gameplay Tag Mappings</h3>
+
+<pre><code>Purpose: Map actor tags to named inputs automatically
+
+Configuration:
+  GameplayTagToInputMappings:
+    "Enemy.Infantry" → "IsInfantry"
+    "Enemy.Vehicle" → "IsVehicle"
+    "Status.Injured" → "IsInjured"
+
+Usage:
+  When pawn has tag "Status.Injured":
+  → Brain automatically sets NamedInput "IsInjured" = 1.0
+  
+  When tag removed:
+  → NamedInput "IsInjured" = 0.0
+
+Benefits:
+  - Designer-friendly tag-based configuration
+  - No code needed for simple state tracking
+  - Integrates with Gameplay Tags system</code></pre>
+
+<h3>Input Overrides</h3>
+
+<pre><code>Purpose: Set initial values for specific agents
+
+Example: Difficulty Variants
+  DA_Enemy_Easy:
+    NamedInputOverrides:
+      "AimAccuracy": 0.5
+      "ReactionTime": 0.4
+      "Health": 0.8
+      
+  DA_Enemy_Hard:
+    NamedInputOverrides:
+      "AimAccuracy": 0.95
+      "ReactionTime": 0.9
+      "Health": 1.2
+
+These affect action scoring:
+  Easy AI: Lower accuracy → less threatening
+  Hard AI: Higher accuracy → more deadly</code></pre>
+
+<h2>Blueprint Preset System</h2>
+
+<h3>Creating Preset Variants at Runtime</h3>
+
+<pre><code>// Custom Blueprint Function Library
+UFUNCTION(BlueprintCallable)
+static UCIN_AgentPreset* CreatePresetVariant(
+    UCIN_AgentPreset* BasePreset,
+    TMap<FName, float> InputOverrides
+)
+{
+    // Duplicate preset
+    UCIN_AgentPreset* Variant = DuplicateObject(BasePreset, GetTransientPackage());
+    
+    // Apply overrides
+    for (auto& Pair : InputOverrides)
+    {
+        Variant->NamedInputOverrides.Add(Pair.Key, Pair.Value);
+    }
+    
+    return Variant;
+}
+
+// Usage in Blueprint
+Event BeginPlay
+  → Create Preset Variant
+    Base Preset: DA_Soldier
+    Input Overrides: 
+      "Aggression": 0.9
+      "Health": 1.5
+  → Apply to Pawn</code></pre>
+
+<h2>Preset Management</h2>
+
+<h3>Organization Strategy</h3>
+
+<pre><code>Content Structure:
+/Game/AI/
+  ├─ Presets/
+  │  ├─ Archetypes/       (Base archetype configs)
+  │  │  ├─ DA_BaseCombat_Preset
+  │  │  ├─ DA_BaseStealth_Preset
+  │  │  └─ DA_BaseSquad_Preset
+  │  │
+  │  ├─ Roles/            (Role-specific configs)
+  │  │  ├─ DA_Soldier_Preset
+  │  │  ├─ DA_Sniper_Preset
+  │  │  ├─ DA_Medic_Preset
+  │  │  └─ DA_Guard_Preset
+  │  │
+  │  └─ Difficulty/       (Difficulty variants)
+  │     ├─ DA_Enemy_Easy
+  │     ├─ DA_Enemy_Normal
+  │     └─ DA_Enemy_Hard
+  │
+  ├─ Actions/
+  └─ Services/</code></pre>
+
+<h3>Naming Convention</h3>
+
+<pre><code>Preset Naming:
+  DA_[Role]_[Variant]_Preset
+
+Examples:
+  DA_Soldier_Standard_Preset
+  DA_Soldier_Elite_Preset
+  DA_Guard_Patrol_Preset
+  DA_Guard_Alert_Preset
+  DA_Boss_PhaseOne_Preset
+  DA_Boss_PhaseTwo_Preset</code></pre>
+
+<h2>Integration with Other Systems</h2>
+
+<h3>Quick Setup Component</h3>
+
+<pre><code>// UCINQuickSetupComponent can use presets
+UPROPERTY(EditAnywhere, Category = "Quick Setup")
+UCIN_AgentPreset* AgentPreset;
+
+void UCINQuickSetupComponent::BeginPlay()
+{
+    if (AgentPreset)
+    {
+        UCIN_AIBlueprintLibrary::ApplyAgentPresetToPawn(GetOwner(), AgentPreset);
+    }
+}</code></pre>
+
+<h3>Spawning with Presets</h3>
+
+<pre><code>// AI spawner system
+UFUNCTION(BlueprintCallable)
+APawn* SpawnAIWithPreset(
+    TSubclassOf<APawn> PawnClass,
+    FVector Location,
+    UCIN_AgentPreset* Preset
+)
+{
+    // Spawn pawn
+    APawn* NewPawn = GetWorld()->SpawnActor<APawn>(PawnClass, Location, FRotator::ZeroRotator);
+    
+    // Apply preset
+    if (NewPawn && Preset)
+    {
+        UCIN_AIBlueprintLibrary::ApplyAgentPresetToPawn(NewPawn, Preset);
+    }
+    
+    return NewPawn;
+}</code></pre>
+
+<h2>Best Practices</h2>
+
+<div class="callout tip">
+  <span class="icon"><i data-lucide="check-square"></i></span>
+  <div>
+    <strong>Preset Design Guidelines:</strong>
+    <ul class="compact">
+      <li>✅ Use presets for complete agent configurations</li>
+      <li>✅ Create base presets for common patterns</li>
+      <li>✅ Use variants for difficulty/role specialization</li>
+      <li>✅ Keep preset names descriptive and organized</li>
+      <li>✅ Document what makes each preset unique</li>
+      <li>✅ Test presets in isolation before production</li>
+      <li>✅ Version control preset assets carefully</li>
+      <li>❌ Don't create too many similar presets (consolidate)</li>
+      <li>❌ Don't hardcode values that should be data-driven</li>
+      <li>❌ Don't forget to set squad/team settings</li>
+    </ul>
+  </div>
+</div>
+
+<h2>Troubleshooting</h2>
+
+<h3>Common Issues</h3>
+
+<pre><code>Problem: Preset not applying
+Solution:
+  - Check preset is valid (not null)
+  - Verify pawn has UtilityBrainComponent
+  - Check logs for error messages
+  - Ensure ApplyAgentPresetToPawn returns true
+
+Problem: Actions not working
+Solution:
+  - Verify actions are in ExtraActions array
+  - Check action executors are configured
+  - Ensure actions have valid scoring
+
+Problem: Squad not forming
+Solution:
+  - Check SquadName matches across agents
+  - Verify TeamID is set correctly
+  - Ensure UTacticalMemberComponent exists
+  - Check one agent has bIsSquadLeader = true
+
+Problem: Services not running
+Solution:
+  - Verify service classes are valid
+  - Check service MinInterval is reasonable
+  - Ensure services are enabled (bEnabled = true)
+  - Check HasAuthority() for multiplayer</code></pre>
+
+<h2>Performance Considerations</h2>
+
+<pre><code>Preset Application Cost:
+  - Happens once at spawn/possession
+  - Creates instances of services
+  - Copies action references
+  - Sets up input providers
+
+Optimization:
+  ✅ Apply preset once per agent
+  ✅ Reuse preset assets (don't duplicate)
+  ✅ Cache commonly used presets
+  ❌ Don't apply presets every frame
+  ❌ Don't create preset variants unnecessarily</code></pre>
+
+<h2>Next Steps</h2>
+
+<div class="next-steps">
+  <a class="button primary" href="#/docs/archetype-guide">
+    <i data-lucide="layers"></i>
+    Archetype Guide
+  </a>
+  <a class="button" href="#/docs/bp-utility-library">
+    <i data-lucide="code"></i>
+    Blueprint Library
+  </a>
+</div>
+
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="#/docs/archetype-guide"><i data-lucide="layers"></i> Archetype Guide</a> - Choose archetype for preset</li>
+  <li><a href="#/docs/presets"><i data-lucide="package"></i> Using Presets</a> - Practical guide</li>
+  <li><a href="#/docs/squad-setup"><i data-lucide="users"></i> Squad Setup</a> - Squad configuration</li>
+  <li><a href="#/docs/quick-setup-api"><i data-lucide="zap"></i> Quick Setup API</a> - Quick setup component</li>
+</ul>
+
+<script>lucide.createIcons();</script>

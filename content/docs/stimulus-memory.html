@@ -1,0 +1,547 @@
+<h1>Stimulus Memory System</h1>
+<p class="note">Track and recall sensory information over time. Learn how the stimulus memory system remembers enemy positions, sound sources, and environmental changes for investigation and tactical behaviors.</p>
+
+<div class="page-meta">
+  <span class="time"><i data-lucide="clock"></i> 10 minutes</span>
+  <span class="difficulty"><i data-lucide="bar-chart-2"></i> Advanced</span>
+</div>
+
+<div class="callout tip">
+  <span class="icon"><i data-lucide="lightbulb"></i></span>
+  <div>
+    <strong>Memory Philosophy:</strong> AI should remember what it sensed even after losing direct perception. This enables investigation, prediction, and intelligent search behaviors.
+  </div>
+</div>
+
+<h2>What is Stimulus Memory?</h2>
+
+<h3>Without Memory</h3>
+
+<pre><code>t=0.0s: Enemy visible at (1000, 500, 0)
+  AI: "I see enemy at (1000, 500, 0)"
+  
+t=2.0s: Enemy moves behind wall
+  AI: "No enemy detected"
+  AI: "What do I do now?"
+  → Returns to patrol, forgot enemy exists
+
+Player hides → AI forgets instantly → Poor gameplay</code></pre>
+
+<h3>With Memory</h3>
+
+<pre><code>t=0.0s: Enemy visible at (1000, 500, 0)
+  AI: "I see enemy at (1000, 500, 0)"
+  Memory: Store stimulus
+  
+t=2.0s: Enemy moves behind wall
+  AI: "No longer visible"
+  Memory: "Last seen at (1000, 500, 0) 0 seconds ago"
+  AI: "Search last known position"
+  
+t=10.0s: Still not found
+  Memory: "Last seen 8 seconds ago, confidence fading"
+  
+t=15.0s: Memory expires
+  AI: "Lost target, resume patrol"
+
+Player hides → AI investigates → Believable behavior</code></pre>
+
+<h2>Memory System Architecture</h2>
+
+<pre><code>Stimulus Memory Flow:
+┌────────────────────────────────────────────┐
+│ UAIPerceptionComponent                     │
+│ └─ Detects stimulus (sight, sound, damage) │
+└────────────────┬───────────────────────────┘
+                 ▼
+┌────────────────────────────────────────────┐
+│ UService_PerceptionMonitor                 │
+│ └─ Creates FStimulusMemoryEntry            │
+│    ├─ Location                             │
+│    ├─ Timestamp                            │
+│    ├─ Stimulus type                        │
+│    └─ Confidence (0-1)                     │
+└────────────────┬───────────────────────────┘
+                 ▼
+┌────────────────────────────────────────────┐
+│ Memory Storage (per target)                │
+│ └─ Track per-enemy/sound/object            │
+│    └─ Update on new stimuli                │
+└────────────────┬───────────────────────────┘
+                 ▼
+┌────────────────────────────────────────────┐
+│ Published as NamedInputs                   │
+│ ├─ LastKnownEnemyLocationX/Y/Z            │
+│ ├─ TimeSinceLastSawEnemy                   │
+│ ├─ DistanceToLastKnownEnemy                │
+│ └─ SuspiciousLocationDistance              │
+└────────────────────────────────────────────┘</code></pre>
+
+<h2>Memory Entry Structure</h2>
+
+<pre><code>FStimulusMemoryEntry:
+  ├─ Location: FVector (world position)
+  ├─ LastSeenTime: float (game time)
+  ├─ bCurrentlyVisible: bool
+  ├─ StimulusType: enum (Sight, Sound, Damage)
+  ├─ Confidence: float (0-1, decays over time)
+  └─ Target: AActor* (what was sensed)
+
+Example:
+  Enemy at (1000, 500, 50)
+  Last seen 5.2 seconds ago
+  Not currently visible
+  Type: Sight
+  Confidence: 0.6 (fading)
+  Target: EnemyPawn_12</code></pre>
+
+<h2>Memory Configuration</h2>
+
+<h3>UService_PerceptionMonitor Settings</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Default</th>
+      <th>Purpose</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>StimulusMemoryDuration</strong></td>
+      <td>10.0s</td>
+      <td>How long to remember unseen targets</td>
+    </tr>
+    <tr>
+      <td><strong>bPublishMemoryInputs</strong></td>
+      <td>true</td>
+      <td>Auto-publish memory as NamedInputs</td>
+    </tr>
+    <tr>
+      <td><strong>MemoryConfidenceDecayRate</strong></td>
+      <td>0.1/s</td>
+      <td>How fast confidence fades</td>
+    </tr>
+    <tr>
+      <td><strong>bClearMemoryOnDeath</strong></td>
+      <td>true</td>
+      <td>Forget targets when they die</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Archetype-Specific Configurations</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Archetype</th>
+      <th>Memory Duration</th>
+      <th>Use Case</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>BaseCombat</strong></td>
+      <td>10s</td>
+      <td>Standard combat memory</td>
+    </tr>
+    <tr>
+      <td><strong>BaseStealth</strong></td>
+      <td>30s</td>
+      <td>Long investigation memory</td>
+    </tr>
+    <tr>
+      <td><strong>BaseCreature</strong></td>
+      <td>5s</td>
+      <td>Short-term reactive memory</td>
+    </tr>
+    <tr>
+      <td><strong>BaseSquadCombat</strong></td>
+      <td>15s</td>
+      <td>Extended tactical memory</td>
+    </tr>
+    <tr>
+      <td><strong>BaseBoss</strong></td>
+      <td>60s</td>
+      <td>Remembers for entire encounter</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Auto-Published Memory Inputs</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Input Name</th>
+      <th>Type</th>
+      <th>Range</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>TimeSinceLastSawEnemy</code></td>
+      <td>Normalized</td>
+      <td>0-1</td>
+      <td>Seconds since last sight / MemoryDuration</td>
+    </tr>
+    <tr>
+      <td><code>LastKnownEnemyLocationX</code></td>
+      <td>World</td>
+      <td>Float</td>
+      <td>X coordinate of last known position</td>
+    </tr>
+    <tr>
+      <td><code>LastKnownEnemyLocationY</code></td>
+      <td>World</td>
+      <td>Float</td>
+      <td>Y coordinate of last known position</td>
+    </tr>
+    <tr>
+      <td><code>LastKnownEnemyLocationZ</code></td>
+      <td>World</td>
+      <td>Float</td>
+      <td>Z coordinate of last known position</td>
+    </tr>
+    <tr>
+      <td><code>DistanceToLastKnownEnemy</code></td>
+      <td>Normalized</td>
+      <td>0-1</td>
+      <td>Distance to memory / MaxSightRadius</td>
+    </tr>
+    <tr>
+      <td><code>HasSuspiciousLocation</code></td>
+      <td>Bool</td>
+      <td>0 or 1</td>
+      <td>Has any memory to investigate</td>
+    </tr>
+    <tr>
+      <td><code>SuspiciousLocationDistance</code></td>
+      <td>Normalized</td>
+      <td>0-1</td>
+      <td>Distance to nearest memory</td>
+    </tr>
+    <tr>
+      <td><code>MemoryConfidence</code></td>
+      <td>Float</td>
+      <td>0-1</td>
+      <td>Confidence in memory accuracy</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Action Patterns Using Memory</h2>
+
+<h3>Pattern 1: Search Last Known Position</h3>
+
+<pre><code>Action: SearchLastKnownPosition
+  BaseScore: 55.0
+  
+  Considerations:
+    - HasKnownEnemy: 0→0, 1→100
+      (Knows enemy exists)
+    
+    - HasVisibleEnemy: 0→100, 1→0 (inverted!)
+      (Lost sight of enemy)
+    
+    - TimeSinceLastSawEnemy: 0→100, 0.5→50, 1→0
+      (More urgent when recent)
+    
+    - DistanceToLastKnownEnemy: 0→100, 1→20
+      (Prefer close memories)
+
+Executor:
+  Behavior Tree: BT_SearchLocation
+    ├─ Move to LastKnownEnemyLocation
+    ├─ Look around (360° scan)
+    ├─ Wait 2 seconds
+    └─ If still not found, expand search
+
+Effect:
+  Enemy hides → AI searches last position
+  Realistic investigation behavior</code></pre>
+
+<h3>Pattern 2: Predict Movement</h3>
+
+<pre><code>Action: PredictAndIntercept
+  BaseScore: 60.0
+  
+  Considerations:
+    - HasKnownEnemy: 0→0, 1→100
+    - TimeSinceLastSawEnemy: 0→100, 0.3→0
+      (Only when recently seen)
+    - MemoryConfidence: 0→0, 0.7→100
+      (Need confident memory)
+
+Custom Logic:
+  // Predict based on last known direction
+  FVector LastPos = GetLastKnownPosition();
+  FVector LastVelocity = GetLastKnownVelocity();
+  FVector PredictedPos = LastPos + (LastVelocity * TimeSinceSeen);
+  
+  MoveTo(PredictedPos);
+
+Effect:
+  Predicts where enemy is going
+  Intercepts instead of chasing behind</code></pre>
+
+<h3>Pattern 3: Investigate Sound</h3>
+
+<pre><code>Action: InvestigateSound
+  BaseScore: 50.0
+  
+  Considerations:
+    - HeardSuspiciousSound: 0→0, 1→100
+      (Heard something)
+    
+    - HasVisibleEnemy: 0→100, 1→0
+      (Don't investigate if see enemy)
+    
+    - SuspiciousLocationDistance: 0→100, 1→30
+      (Prefer close sounds)
+
+Executor:
+  Move to sound memory location
+  Alert level increases
+  Search area
+  If find enemy: transition to combat
+  If nothing: reduce alert, return
+
+Effect:
+  Responds to gunfire/footsteps
+  Investigates noise sources</code></pre>
+
+<h3>Pattern 4: Return to Combat</h3>
+
+<pre><code>Action: ReturnToLastContact
+  BaseScore: 65.0
+  
+  Considerations:
+    - HasKnownEnemy: 0→0, 1→100
+    - HasVisibleEnemy: 0→100, 1→0
+    - TimeSinceLastSawEnemy: 0.3→0, 0.5→100
+      (Middle range - not too fresh, not too old)
+
+Effect:
+  Lost enemy briefly → Return to last position
+  Resume combat from known location
+  Don't give up too easily</code></pre>
+
+<h2>Blueprint API</h2>
+
+<h3>Memory Access Functions</h3>
+
+<pre><code>// Get last known enemy location
+Get Last Known Enemy Location
+  Service: Perception Monitor
+  Return: Vector (world position)
+
+// Get time since last saw enemy  
+Get Time Since Last Saw Enemy
+  Service: Perception Monitor
+  Return: Float (seconds)
+
+// Get all stimulus memories
+Get Stimulus Memory
+  Service: Perception Monitor
+  Return: Array<FStimulusMemoryEntry>
+
+// Check if has any memory
+Has Stimulus Memory
+  Service: Perception Monitor
+  Return: Bool
+
+// Clear specific memory
+Clear Stimulus Memory
+  Service: Perception Monitor
+  Target: Actor
+
+// Clear all memories
+Clear All Memories
+  Service: Perception Monitor</code></pre>
+
+<h2>C++ API</h2>
+
+<pre><code>// UService_PerceptionMonitor public API
+
+// Get memory for specific actor
+UFUNCTION(BlueprintPure)
+FStimulusMemoryEntry* GetStimulusMemory(AActor* Target) const;
+
+// Get all memories
+UFUNCTION(BlueprintPure)
+TArray<FStimulusMemoryEntry> GetAllStimulusMemories() const;
+
+// Get nearest memory location
+UFUNCTION(BlueprintPure)
+FVector GetNearestStimulusLocation() const;
+
+// Clear memories
+UFUNCTION(BlueprintCallable)
+void ClearStimulusMemory(AActor* Target);
+
+UFUNCTION(BlueprintCallable)
+void ClearAllStimulusMemories();
+
+// Example usage
+void AMyAIController::OnLoseTarget()
+{
+    if (UService_PerceptionMonitor* Perception = GetPerceptionService())
+    {
+        FVector LastPos = Perception->GetLastKnownEnemyLocation();
+        MoveToLocation(LastPos); // Investigate
+    }
+}</code></pre>
+
+<h2>Advanced Memory Techniques</h2>
+
+<h3>Technique 1: Memory Fusion</h3>
+
+<p>Combine multiple memories for better accuracy:</p>
+
+<pre><code>// Multiple squad members see same enemy
+Member 1 sees enemy at (1000, 500, 0) at t=0
+Member 2 sees enemy at (1050, 520, 0) at t=1
+Member 3 hears sound at (1030, 510, 0) at t=1.5
+
+Fused Memory:
+  Position: Average (1027, 510, 0)
+  Confidence: 0.9 (multiple sources)
+  
+Result: More accurate shared intelligence</code></pre>
+
+<h3>Technique 2: Memory Aging</h3>
+
+<p>Confidence decays over time:</p>
+
+<pre><code>t=0.0s: See enemy, Confidence = 1.0
+t=2.0s: Lost sight, Confidence = 0.8
+t=5.0s: Still searching, Confidence = 0.5
+t=10.0s: Memory expires, Confidence = 0.0
+
+Actions adjust based on confidence:
+  High (>0.7): Aggressive pursuit
+  Medium (0.4-0.7): Cautious search
+  Low (<0.4): Expand search area</code></pre>
+
+<h3>Technique 3: Memory Zones</h3>
+
+<p>Track general areas instead of exact positions:</p>
+
+<pre><code>// Instead of exact (1000, 500, 0)
+Memory: "Enemy in East Building, Second Floor"
+
+Zones:
+  EastBuilding_Floor2: Confidence 0.8
+  EastBuilding_Floor1: Confidence 0.3
+  Courtyard: Confidence 0.1
+
+AI searches high-confidence zones first</code></pre>
+
+<h2>Memory Debugging</h2>
+
+<h3>Visual Debug</h3>
+
+<pre><code>UService_PerceptionMonitor:
+  bDebugVisualize: true
+
+Draws:
+  🟠 Orange spheres: Memory locations
+  📍 Lines: AI to memory
+  ⏱️ Text: Time since seen
+  📊 Size: Confidence (larger = more confident)</code></pre>
+
+<h3>Gameplay Debugger</h3>
+
+<pre><code>Press ' → 4 (Perception) → Select Agent
+
+STIMULUS MEMORY:
+  Enemy_12: (1000, 500, 0)
+    Last Seen: 3.2s ago
+    Confidence: 0.75
+    Type: Sight
+  
+  Sound_Source: (850, 300, 0)
+    Last Heard: 1.5s ago
+    Confidence: 0.9
+    Type: Sound</code></pre>
+
+<h2>Common Configurations</h2>
+
+<h3>Stealth Game (Long Memory)</h3>
+
+<pre><code>StimulusMemoryDuration: 30.0s
+ConfidenceDecayRate: 0.03/s
+bPublishMemoryInputs: true
+
+Effect:
+  Guards remember for 30 seconds
+  Thorough investigation
+  Suspicious for extended period</code></pre>
+
+<h3>Action Game (Short Memory)</h3>
+
+<pre><code>StimulusMemoryDuration: 5.0s
+ConfidenceDecayRate: 0.2/s
+bPublishMemoryInputs: true
+
+Effect:
+  Quick-paced combat
+  Less investigation
+  Move on quickly</code></pre>
+
+<h3>Tactical Game (Medium Memory + Sharing)</h3>
+
+<pre><code>StimulusMemoryDuration: 15.0s
+ConfidenceDecayRate: 0.05/s
+bPublishMemoryInputs: true
++ Squad memory sharing
+
+Effect:
+  Squad shares intelligence
+  Coordinated search
+  Tactical positioning based on memories</code></pre>
+
+<h2>Best Practices</h2>
+
+<div class="callout tip">
+  <span class="icon"><i data-lucide="check-square"></i></span>
+  <div>
+    <strong>Memory Guidelines:</strong>
+    <ul class="compact">
+      <li>✅ Match memory duration to game pace (5-30s)</li>
+      <li>✅ Use memories for investigation behaviors</li>
+      <li>✅ Clear memories on significant events (target death, teleport)</li>
+      <li>✅ Decay confidence for old memories</li>
+      <li>✅ Share memories in squad scenarios</li>
+      <li>❌ Don't make memory duration too long (> 60s usually excessive)</li>
+      <li>❌ Don't forget to clear memories on level transitions</li>
+      <li>❌ Don't use memories for real-time reactions (that's perception)</li>
+    </ul>
+  </div>
+</div>
+
+<h2>Next Steps</h2>
+
+<div class="next-steps">
+  <a class="button primary" href="#/docs/threat-assessment">
+    <i data-lucide="alert-triangle"></i>
+    Threat Assessment
+  </a>
+  <a class="button" href="#/docs/perception-setup">
+    <i data-lucide="eye"></i>
+    Perception Setup
+  </a>
+</div>
+
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="#/docs/perception-setup"><i data-lucide="eye"></i> Perception Setup</a> - Configure memory system</li>
+  <li><a href="#/docs/environmental-memory"><i data-lucide="map"></i> Environmental Memory</a> - Object state tracking</li>
+  <li><a href="#/docs/intelligence-layers"><i data-lucide="cpu"></i> Intelligence Layers</a> - Memory in architecture</li>
+</ul>
+
+<script>lucide.createIcons();</script>

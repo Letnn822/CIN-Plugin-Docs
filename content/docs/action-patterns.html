@@ -1,0 +1,578 @@
+<h1>Action Design Patterns</h1>
+<p class="note">Master the art of designing effective Utility AI actions. Learn proven patterns for scoring, considerations, and anti-thrashing mechanisms that create intelligent, believable AI behavior.</p>
+
+<div class="page-meta">
+  <span class="time"><i data-lucide="clock"></i> 12 minutes</span>
+  <span class="difficulty"><i data-lucide="bar-chart-2"></i> Intermediate</span>
+</div>
+
+<div class="callout tip">
+  <span class="icon"><i data-lucide="lightbulb"></i></span>
+  <div>
+    <strong>Golden Rule:</strong> Design actions to be <em>single-purpose</em>, <em>independently scorable</em>, and <em>composable</em>. The brain orchestrates complexity from simple actions.
+  </div>
+</div>
+
+<h2>Action Anatomy</h2>
+
+<h3>The Complete Action</h3>
+
+<pre><code>UUtilityActionAsset: DA_Action_Example
+├─ Identification
+│  ├─ Action Name: "Attack"
+│  └─ Description: "Engage visible enemy with weapon"
+│
+├─ Scoring
+│  ├─ Base Score: 60.0
+│  ├─ Considerations: [HasEnemy, Distance, Ammo]
+│  └─ Priority: 0 (tie-breaker)
+│
+├─ Anti-Thrashing
+│  ├─ Momentum: MaxMomentum=3.0, Reduction=15.0, Decay=2.5s
+│  ├─ Replace Resistance: 1.3
+│  ├─ Locking: UnlockTime=2.0s
+│  └─ bInterruptible: true
+│
+├─ Execution
+│  └─ Executor: BehaviorTree (BT_Attack)
+│
+└─ Runtime Modifiers
+   └─ Score Modifier: 1.0 (runtime tuning)</code></pre>
+
+<h2>Core Design Patterns</h2>
+
+<h3>Pattern 1: Primary Action (Always Available)</h3>
+
+<p><strong>Use Case:</strong> Actions that should always be considered, main behaviors</p>
+
+<p><strong>Example: Attack</strong></p>
+
+<pre><code>Base Score: 60.0 (medium-high)
+Considerations:
+  - HasKnownEnemy: 0→0, 1→100 (mandatory)
+  - Distance: Optimal at medium range
+  - Ammo: 0→0, 1→80 (needs ammo)
+
+Momentum: Medium (3.0) - prevents spam
+Resistance: Low (1.0) - can be interrupted
+Priority: 0 (normal)</code></pre>
+
+<p><strong>Pattern:</strong></p>
+<ul>
+  <li>Medium-high base score</li>
+  <li>At least one mandatory consideration (0 when invalid)</li>
+  <li>Moderate momentum to prevent spam</li>
+  <li>Low resistance to allow interruption</li>
+</ul>
+
+<h3>Pattern 2: Critical Action (High Priority)</h3>
+
+<p><strong>Use Case:</strong> Life-saving, must-execute behaviors</p>
+
+<p><strong>Example: Reload</strong></p>
+
+<pre><code>Base Score: 80.0 (high)
+Considerations:
+  - AmmoCount: 0→100, 1→0 (inverted - reload when empty)
+  - ThreatLevel: 0→100, 1→20 (prefer safe moments)
+
+Momentum: None (0) - always responsive
+Resistance: High (2.0) - hard to interrupt once started
+Priority: 15 (wins ties)
+bInterruptible: false (must complete)</code></pre>
+
+<p><strong>Pattern:</strong></p>
+<ul>
+  <li>High base score</li>
+  <li>No momentum (always responsive)</li>
+  <li>High resistance (commits fully)</li>
+  <li>High priority (wins ties)</li>
+  <li>Non-interruptible (critical to complete)</li>
+</ul>
+
+<h3>Pattern 3: Defensive/Reactive Action</h3>
+
+<p><strong>Use Case:</strong> Triggered by danger, overrides offense</p>
+
+<p><strong>Example: TakeCover</strong></p>
+
+<pre><code>Base Score: 70.0 (high)
+Considerations:
+  - ThreatLevel: 0→0, 1→100 (reacts to danger)
+  - Health: 0→100, 1→0 (more urgent when injured)
+  - HasCoverNearby: 0→0, 1→100 (needs cover available)
+
+Momentum: Low (1.0) - quick to respond
+Resistance: High (2.5) - commits to reaching cover
+Priority: 10</code></pre>
+
+<p><strong>Pattern:</strong></p>
+<ul>
+  <li>High base score (overrides attack)</li>
+  <li>Triggered by danger signals</li>
+  <li>Low momentum (reactive)</li>
+  <li>High resistance (fully commits)</li>
+  <li>Priority to break ties with offense</li>
+</ul>
+
+<h3>Pattern 4: Opportunistic Action</h3>
+
+<p><strong>Use Case:</strong> Situational, only when conditions perfect</p>
+
+<p><strong>Example: ThrowGrenade</strong></p>
+
+<pre><code>Base Score: 55.0 (medium)
+Considerations:
+  - GrenadeCount: 0→0, 1→100 (needs grenades)
+  - EnemyClusterSize: 1→20, 3→100 (prefer groups)
+  - SafeToThrow: Based on cover and threat
+
+Momentum: High (4.0) - don't spam grenades
+Locking: 5.0s - if fails, wait
+Resistance: Medium (1.2)
+Priority: 5</code></pre>
+
+<p><strong>Pattern:</strong></p>
+<ul>
+  <li>Medium base score (doesn't dominate)</li>
+  <li>Multiple enabling conditions</li>
+  <li>High momentum (infrequent use)</li>
+  <li>Locking on failure (avoids repetition)</li>
+</ul>
+
+<h3>Pattern 5: Fallback/Idle Action</h3>
+
+<p><strong>Use Case:</strong> Default when nothing else applies</p>
+
+<p><strong>Example: Patrol</strong></p>
+
+<pre><code>Base Score: 15.0 (low)
+Considerations:
+  - HasKnownEnemy: 0→100, 1→0 (only when safe)
+  - Optional: Boredom timer increases score over time
+
+Momentum: None (0) - easily interrupted
+Resistance: Very Low (1.0) - freely interrupted
+Priority: -10 (loses ties)</code></pre>
+
+<p><strong>Pattern:</strong></p>
+<ul>
+  <li>Low base score (fallback)</li>
+  <li>Inverted considerations (active when nothing else)</li>
+  <li>No momentum (instantly switchable)</li>
+  <li>Negative priority (always yields)</li>
+</ul>
+
+<h2>Scoring Curve Patterns</h2>
+
+<h3>Binary (On/Off)</h3>
+
+<pre><code>// Can't do action without this
+Consideration: HasKnownEnemy
+Curve: 
+  0.0 → 0.0   (no enemy = can't attack)
+  1.0 → 100.0 (has enemy = full contribution)
+
+Use: Mandatory prerequisites</code></pre>
+
+<h3>Linear</h3>
+
+<pre><code>// Direct proportional
+Consideration: Health
+Curve:
+  0.0 → 0.0   (dead)
+  0.5 → 50.0  (half health)
+  1.0 → 100.0 (full health)
+
+Use: Direct correlations</code></pre>
+
+<h3>Inverted</h3>
+
+<pre><code>// Opposite relationship
+Consideration: AmmoCount (for Reload action)
+Curve:
+  0.0 → 100.0 (empty = urgent reload)
+  0.5 → 50.0  (half = moderate)
+  1.0 → 0.0   (full = don't reload)
+
+Use: "Do when low" behaviors</code></pre>
+
+<h3>Threshold</h3>
+
+<pre><code>// Sharp cutoff
+Consideration: Health (for Retreat action)
+Curve:
+  0.0 → 100.0 (critical)
+  0.3 → 100.0 (still critical)
+  0.3 → 0.0   (sharp drop)
+  1.0 → 0.0   (healthy = don't retreat)
+
+Use: Emergency behaviors</code></pre>
+
+<h3>Sweet Spot</h3>
+
+<pre><code>// Optimal range
+Consideration: DistanceToTarget (for Ranged Attack)
+Curve:
+  0.0 → 20.0  (too close)
+  0.3 → 100.0 (optimal range)
+  0.7 → 100.0 (still good)
+  1.0 → 40.0  (too far)
+
+Use: Range-dependent actions</code></pre>
+
+<h3>Exponential</h3>
+
+<pre><code>// Accelerating importance
+Consideration: TimeSinceLastAttack
+Curve:
+  0.0 → 0.0
+  0.3 → 10.0
+  0.6 → 40.0
+  0.9 → 80.0
+  1.0 → 100.0
+
+Use: Urgency that builds over time</code></pre>
+
+<h2>Consideration Combination Patterns</h2>
+
+<h3>Pattern: AND Logic (Multiplication)</h3>
+
+<pre><code>// All conditions must be met
+Action: Snipe
+  Base: 70
+  × HasKnownEnemy (0 or 1)
+  × InOptimalRange (0-1)
+  × HasClearSight (0 or 1)
+  × AmmoCount (0-1)
+
+// If ANY is 0, final score = 0
+// All must be high for high score
+
+Example:
+70 × 1.0 × 0.8 × 1.0 × 0.9 = 50.4</code></pre>
+
+<h3>Pattern: OR Logic (Maximum)</h3>
+
+<pre><code>// Use multiple actions instead
+Action: FleeFromThreat_HighHealth (separate action)
+Action: FleeFromThreat_LowAmmo (separate action)
+Action: FleeFromThreat_Outnumbered (separate action)
+
+// Brain picks highest scoring flee reason
+// More explicit than single action with OR logic</code></pre>
+
+<h3>Pattern: Weighted Sum</h3>
+
+<pre><code>// Multiple factors contribute
+Action: TakeCover
+  Base: 70
+  × ThreatLevel (0-1, weight: high)
+  × (1 - Health) (0-1, weight: medium)
+  × HasCoverNearby (0-1, weight: binary)
+
+// Each factor multiplies, but some weighted higher via curve shapes</code></pre>
+
+<h2>Anti-Thrashing Techniques</h2>
+
+<h3>Technique 1: Momentum (Prevent Repetition)</h3>
+
+<pre><code>Problem: AI attacks, attacks, attacks continuously
+
+Solution:
+  MaxMomentum: 3.0
+  MomentumScoreReduction: 15.0
+  MomentumDecayTime: 2.5s
+
+Effect:
+  1st Attack: Score 60
+  2nd Attack: Score 45 (60 - 15)
+  3rd Attack: Score 30 (60 - 30)
+  4th Attack: Score 15 (60 - 45)
+  After 2.5s: Momentum decays, score recovers</code></pre>
+
+<p><strong>Use When:</strong> Action can be spammed but shouldn't be</p>
+
+<h3>Technique 2: Replace Resistance (Prevent Switching)</h3>
+
+<pre><code>Problem: AI rapidly switches between Attack (52) and TakeCover (51)
+
+Solution:
+  Attack: ReplaceResistance = 1.3
+  TakeCover: ReplaceResistance = 1.3
+
+Effect:
+  Currently: Attack (52)
+  TakeCover scores 51
+  Needs: 52 × 1.3 = 67.6 to interrupt
+  TakeCover (51) < 67.6, so stays attacking
+  
+  Only switches when TakeCover clearly better</code></pre>
+
+<p><strong>Use When:</strong> Action scores are close and cause jitter</p>
+
+<h3>Technique 3: Task Locking (Prevent Failed Retries)</h3>
+
+<pre><code>Problem: AI tries to throw grenade, fails, immediately retries, fails again
+
+Solution:
+  ThrowGrenade: UnlockTime = 5.0s
+
+Effect:
+  Try throw → Fails
+  Action locked for 5s
+  AI considers other actions
+  After 5s, can try again</code></pre>
+
+<p><strong>Use When:</strong> Action can fail and shouldn't immediately retry</p>
+
+<h3>Technique 4: Priority (Resolve Ties)</h3>
+
+<pre><code>Problem: Reload (45.3) vs Attack (45.3) - which wins?
+
+Solution:
+  Reload: Priority = 15
+  Attack: Priority = 0
+
+Effect:
+  When scores tied, Reload always wins
+  Deterministic behavior (no randomness)</code></pre>
+
+<p><strong>Use When:</strong> Some actions fundamentally more important</p>
+
+<h3>Technique 5: Non-Interruptible</h3>
+
+<pre><code>Problem: AI starts reloading, sees enemy, cancels reload, out of ammo
+
+Solution:
+  Reload: bInterruptible = false
+
+Effect:
+  Once reload starts, must complete
+  No cancellation mid-reload
+  Prevents abort-loop</code></pre>
+
+<p><strong>Use When:</strong> Action must complete once started</p>
+
+<h2>Common Anti-Patterns</h2>
+
+<h3>❌ God Action (Does Everything)</h3>
+
+<pre><code>// WRONG
+Action: CombatBehavior
+  Handles: Attack, cover, reload, retreat, heal, grenade
+  Scoring: Complex branching logic
+  Problem: Hard to tune, debug, maintain
+
+// RIGHT
+Action: Attack (does ONE thing)
+Action: TakeCover (does ONE thing)
+Action: Reload (does ONE thing)
+Each scores independently, brain orchestrates</code></pre>
+
+<h3>❌ No Momentum (Spam)</h3>
+
+<pre><code>// WRONG
+Action: Attack
+  Base: 70
+  Momentum: None
+  Result: Attack-attack-attack-attack (spam)
+
+// RIGHT
+Action: Attack
+  Base: 70
+  MaxMomentum: 3.0
+  Reduction: 15.0
+  Result: Attack → pause → Attack → pause (natural rhythm)</code></pre>
+
+<h3>❌ Too Many Considerations</h3>
+
+<pre><code>// WRONG
+Action: Attack
+  10+ considerations all multiplied
+  Problem: Score almost always near zero, action never wins
+
+// RIGHT
+Action: Attack
+  2-4 key considerations
+  Each meaningful contributor
+  Scores in useful range</code></pre>
+
+<h3>❌ Flat Scoring (No Differentiation)</h3>
+
+<pre><code>// WRONG
+All actions: Base Score = 50.0
+  Problem: Everything ties, random behavior
+
+// RIGHT
+Critical actions: 80-90
+Primary actions: 60-70
+Secondary actions: 40-50
+Fallback actions: 10-20</code></pre>
+
+<h3>❌ Ignoring Resistance (Thrashing)</h3>
+
+<pre><code>// WRONG
+No ReplaceResistance configured
+  Result: Attack (50.1) → Cover (50.2) → Attack (50.3)
+  Jittery, unrealistic
+
+// RIGHT
+ReplaceResistance: 1.2-1.5
+  Result: Commits to action, smooth transitions</code></pre>
+
+<h2>Real-World Examples</h2>
+
+<h3>Example 1: Stealth Guard (Investigation Behavior)</h3>
+
+<pre><code>Action: Patrol (Fallback)
+  Base: 15.0
+  Considerations:
+    - AlertLevel: 0→100, 1→0 (only when calm)
+  Momentum: None
+  Resistance: 1.0
+
+Action: Investigate (Opportunistic)
+  Base: 60.0
+  Considerations:
+    - HasSuspiciousObject: 0→0, 1→100
+    - AlertLevel: 0→100, 0.5→80, 1→20
+  Momentum: 2.0 (don't spam)
+  Resistance: 1.5 (commit to investigation)
+
+Action: Search (Reactive)
+  Base: 75.0
+  Considerations:
+    - AlertLevel: 0.5→0, 0.8→80, 1→100
+    - TimeSinceLastSaw: 0→100, 1→20
+  Momentum: None
+  Resistance: 2.0 (thorough search)
+
+Action: Alert (Critical)
+  Base: 90.0
+  Considerations:
+    - HasVisibleEnemy: 0→0, 1→100
+  Momentum: None
+  Resistance: High
+  Priority: 20
+  bInterruptible: false</code></pre>
+
+<h3>Example 2: Boss AI (Multi-Phase)</h3>
+
+<pre><code>Action: PhaseTransition (Critical)
+  Base: 100.0
+  Considerations:
+    - HealthThreshold: Crosses 0.75, 0.50, 0.25
+  Priority: 30
+  bInterruptible: false
+  Locking: Until phase complete
+
+Action: SummonMinions (Opportunistic)
+  Base: 70.0
+  Considerations:
+    - MinionCount: 0→100, 3→0 (summon when few)
+    - Phase: 2 or 3 only
+  Momentum: 5.0 (don't spam summons)
+  Locking: 15.0s
+
+Action: AreaAttack (Primary - Phase 2+)
+  Base: 65.0
+  Considerations:
+    - PlayerNearby: 0→0, 1→100
+    - Phase: 0→0, 2→100
+  Momentum: 3.0
+
+Action: Enrage (Reactive)
+  Base: 80.0
+  Considerations:
+    - Health: 0.3→100, 1→0
+    - IsEnraged: 0→100, 1→0 (once only)
+  Locking: Permanent (can't enrage twice)</code></pre>
+
+<h2>Debugging Actions</h2>
+
+<h3>Use Gameplay Debugger</h3>
+
+<pre><code>Press ' → 5 → Select Agent
+
+Check:
+1. Is action appearing in list?
+   NO → Not added to preset
+   YES → Continue
+
+2. Is action scoring > 0?
+   NO → Check considerations (one might be 0)
+   YES → Continue
+
+3. Why isn't it winning?
+   - Compare scores with other actions
+   - Check momentum (reducing score?)
+   - Check locking (is it locked?)
+   - Check current action's resistance
+
+4. Is it winning but not executing?
+   - Check executor configuration
+   - Check behavior tree errors
+   - Check action prerequisites</code></pre>
+
+<h3>Common Issues</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Symptom</th>
+      <th>Diagnosis</th>
+      <th>Fix</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Action always scores 0</td>
+      <td>One consideration is 0 (AND logic)</td>
+      <td>Check all inputs, verify values</td>
+    </tr>
+    <tr>
+      <td>Action spamming</td>
+      <td>No momentum configured</td>
+      <td>Add momentum with reduction</td>
+    </tr>
+    <tr>
+      <td>Rapid switching</td>
+      <td>Scores too close, no resistance</td>
+      <td>Add replace resistance 1.2-1.5</td>
+    </tr>
+    <tr>
+      <td>Never executes</td>
+      <td>Base score too low</td>
+      <td>Increase base or reduce others</td>
+    </tr>
+    <tr>
+      <td>Ties randomly</td>
+      <td>No priority set</td>
+      <td>Set priority on important actions</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Next Steps</h2>
+
+<div class="next-steps">
+  <a class="button primary" href="#/docs/tuning">
+    <i data-lucide="sliders"></i>
+    Tuning & Balancing
+  </a>
+  <a class="button" href="#/docs/service-configuration">
+    <i data-lucide="settings"></i>
+    Service Configuration
+  </a>
+</div>
+
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="#/docs/momentum"><i data-lucide="trending-up"></i> Task Momentum</a> - Deep dive into momentum system</li>
+  <li><a href="#/docs/resistance"><i data-lucide="shield"></i> Replace Resistance</a> - Prevent thrashing</li>
+  <li><a href="#/docs/locking"><i data-lucide="lock"></i> Task Locking</a> - Prevent failed retries</li>
+  <li><a href="#/docs/first-combat-ai"><i data-lucide="crosshair"></i> Combat AI Tutorial</a> - See patterns in action</li>
+</ul>
+
+<script>lucide.createIcons();</script>

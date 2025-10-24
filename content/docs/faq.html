@@ -1,0 +1,236 @@
+<h1>Frequently Asked Questions (FAQ)</h1>
+<p class="note">Quick answers to common questions about CIN Plugin. Find solutions to typical issues and learn best practices.</p>
+
+<div class="page-meta">
+  <span class="time"><i data-lucide="clock"></i> 15 minutes</span>
+  <span class="difficulty"><i data-lucide="help-circle"></i> Reference</span>
+</div>
+
+<h2>Getting Started</h2>
+
+<h3>Q: Do I need C++ knowledge to use CIN Plugin?</h3>
+<p><strong>A:</strong> No! CIN Plugin is designed to be fully usable in Blueprints. You can create complete AI systems without writing any C++ code. C++ is only needed for advanced custom components.</p>
+
+<h3>Q: Which Unreal Engine versions are supported?</h3>
+<p><strong>A:</strong> CIN Plugin supports Unreal Engine 5.5 and 5.6. Earlier versions may work but are not officially supported.</p>
+
+<h3>Q: How long does it take to set up a basic AI?</h3>
+<p><strong>A:</strong> Using the Quick Setup component and an archetype, you can have a working AI in 10-15 minutes. Custom AI may take longer depending on complexity.</p>
+
+<h3>Q: What's the difference between CIN Plugin and Behavior Trees?</h3>
+<p><strong>A:</strong> CIN uses Utility AI (score-based decision making) instead of priority-based selection. It's more flexible, easier to tune, and can use Behavior Trees as action executors (hybrid approach).</p>
+
+<h2>Setup & Configuration</h2>
+
+<h3>Q: My AI isn't doing anything. What's wrong?</h3>
+<p><strong>A:</strong> Check:</p>
+<ul>
+  <li>✓ CINQuickSetup component added to AIController or Pawn</li>
+  <li>✓ AgentType selected (not Custom unless configured)</li>
+  <li>✓ bAutoInitialize is enabled</li>
+  <li>✓ Brain Preset assigned (if using Custom)</li>
+  <li>✓ Actions have considerations that can score > 0</li>
+  <li>✓ Services are publishing required inputs</li>
+</ul>
+
+<h3>Q: How do I add perception to my AI?</h3>
+<p><strong>A:</strong> Add UAIPerceptionComponent to your AIController, configure senses (sight/hearing/damage), then add PerceptionMonitor service to your brain. It auto-publishes perception inputs.</p>
+
+<h3>Q: What's an archetype and should I use one?</h3>
+<p><strong>A:</strong> Archetypes are preset AI configurations (BaseCombat, BaseStealth, etc.). Yes, use them as starting points - they provide tested foundations you can extend via Blueprint inheritance.</p>
+
+<h3>Q: Can I use multiple archetypes on one AI?</h3>
+<p><strong>A:</strong> No, select one archetype per AI. However, you can create a custom Brain Preset that combines actions from multiple archetypes.</p>
+
+<h2>Actions & Scoring</h2>
+
+<h3>Q: Why does my AI keep switching between actions?</h3>
+<p><strong>A:</strong> This is "thrashing." Solutions:</p>
+<ul>
+  <li>Increase ReplaceResistance on actions (requires higher score to interrupt)</li>
+  <li>Add Momentum to penalize repetitive actions</li>
+  <li>Smooth your consideration curves (avoid sharp edges)</li>
+  <li>Increase Priority on important actions</li>
+</ul>
+
+<h3>Q: How do I make an action only execute once?</h3>
+<p><strong>A:</strong> Set UnlockTime to -1.0 (never unlocks) or a large value. The action will lock after execution until manually unlocked or time expires.</p>
+
+<h3>Q: My action never gets selected. Why?</h3>
+<p><strong>A:</strong> Check:</p>
+<ul>
+  <li>BaseScore isn't too low (try 60-80 for important actions)</li>
+  <li>Considerations are configured correctly (inputs exist and have values)</li>
+  <li>Response curves actually output > 0 for current input values</li>
+  <li>Action isn't locked from previous execution</li>
+  <li>Use Gameplay Debugger (') to see scores</li>
+</ul>
+
+<h3>Q: How many considerations should each action have?</h3>
+<p><strong>A:</strong> 2-5 is optimal. More than 7 becomes hard to tune and may impact performance. Keep it simple.</p>
+
+<h3>Q: What's the difference between Priority and BaseScore?</h3>
+<p><strong>A:</strong> BaseScore is multiplied by considerations to get final score. Priority only breaks ties when scores are equal. Use BaseScore for normal tuning, Priority for deterministic tie-breaking.</p>
+
+<h2>Services & Inputs</h2>
+
+<h3>Q: What are Named Inputs?</h3>
+<p><strong>A:</strong> Named Inputs are key-value pairs (FName → float) that services publish to the brain. Actions read these in considerations for scoring. Think of them as the brain's "memory" of the world state.</p>
+
+<h3>Q: How do I create a custom service?</h3>
+<p><strong>A:</strong> In Blueprint: Create child of UUtilityService, override TickService event, gather data, normalize (0-1), call SetNamedInputValue on OwningBrain. In C++: Inherit from UUtilityService and override TickService.</p>
+
+<h3>Q: Why aren't my inputs being published?</h3>
+<p><strong>A:</strong> Verify:</p>
+<ul>
+  <li>Service is added to Brain's Services array</li>
+  <li>Service's TickService is being called (add log)</li>
+  <li>GetOwningBrain() returns valid brain</li>
+  <li>Input names match exactly (case-sensitive)</li>
+  <li>Values are normalized (0-1 range recommended)</li>
+</ul>
+
+<h3>Q: Should I update services every frame?</h3>
+<p><strong>A:</strong> No! Use MinInterval (0.1-0.5s typical). Updating every frame is wasteful and hurts performance.</p>
+
+<h2>Performance</h2>
+
+<h3>Q: How many AI agents can I have?</h3>
+<p><strong>A:</strong> With proper optimization: 100-200 at 10Hz evaluation is typical. Use LOD (distance-based update rates) for 200+. Up to 500+ with aggressive LOD and optimization.</p>
+
+<h3>Q: My game stutters when AI evaluates. Help?</h3>
+<p><strong>A:</strong> Solutions:</p>
+<ul>
+  <li>Increase TickInterval (0.2s instead of every frame)</li>
+  <li>Reduce action count (5-8 max)</li>
+  <li>Reduce consideration count (2-5 per action)</li>
+  <li>Implement LOD system (farther = slower updates)</li>
+  <li>Stagger updates across frames</li>
+  <li>Profile with Unreal Insights to find bottlenecks</li>
+</ul>
+
+<h3>Q: What's a good TickInterval for the brain?</h3>
+<p><strong>A:</strong> 0.1-0.2s (5-10Hz) for most AI. Combat AI can use 0.1s, background AI can use 0.5s or higher. Adjust based on responsiveness needs.</p>
+
+<h3>Q: Should I use Behavior Trees with Utility AI?</h3>
+<p><strong>A:</strong> Yes! This is recommended. Use Utility AI for high-level decision making (what to do) and BTs for implementation (how to do it). Best of both worlds.</p>
+
+<h2>Debugging</h2>
+
+<h3>Q: How do I see what my AI is doing?</h3>
+<p><strong>A:</strong> Three methods:</p>
+<ul>
+  <li>Gameplay Debugger: Press ' then 5, select agent, see scores</li>
+  <li>Debug Component: Enable in Quick Setup for overhead widget</li>
+  <li>Visual Logger: Use vislog command for timeline view</li>
+</ul>
+
+<h3>Q: My considerations show 0 output. Why?</h3>
+<p><strong>A:</strong> Check:</p>
+<ul>
+  <li>Input actually exists (service is publishing it)</li>
+  <li>Input name matches exactly</li>
+  <li>Input value is in expected range</li>
+  <li>Response curve has keys that cover input range</li>
+  <li>Curve isn't accidentally flat at 0</li>
+</ul>
+
+<h3>Q: How do I log action selections?</h3>
+<p><strong>A:</strong> Enable logging: `log LogUtilityAI Verbose` in console. Or bind to OnActionStarted delegate on brain component.</p>
+
+<h2>Multiplayer</h2>
+
+<h3>Q: Does CIN Plugin work in multiplayer?</h3>
+<p><strong>A:</strong> Yes! AI runs on server, CurrentActionName replicates to clients. See Replication API for details.</p>
+
+<h3>Q: Do I need to replicate Named Inputs?</h3>
+<p><strong>A:</strong> No. Named Inputs are server-only. Only replicate what clients need to see (CurrentActionName, animation states, etc.).</p>
+
+<h3>Q: Can clients see AI debug info?</h3>
+<p><strong>A:</strong> Yes, if using replicated debug component. CurrentActionName replicates automatically.</p>
+
+<h2>Advanced</h2>
+
+<h3>Q: Can I change actions at runtime?</h3>
+<p><strong>A:</strong> Not dynamically add/remove, but you can:</p>
+<ul>
+  <li>Boost/Nerf actions (ScoreModifier)</li>
+  <li>Lock/Unlock actions</li>
+  <li>Change Named Inputs to affect scoring</li>
+  <li>Swap Brain Presets (replaces all actions)</li>
+</ul>
+
+<h3>Q: How do I implement squad AI?</h3>
+<p><strong>A:</strong> Use BaseSquadCombat archetype or add:</p>
+<ul>
+  <li>TacticalMemberComponent (squad membership)</li>
+  <li>TacticalSquadInputProviderComponent (publishes squad data)</li>
+  <li>TacticalSense service (reports enemies to squad)</li>
+  <li>TacticalStrategy service (leader synthesizes strategy)</li>
+</ul>
+
+<h3>Q: Can I use GOAP/HTN with Utility AI?</h3>
+<p><strong>A:</strong> Yes! Hybrid approach: Utility AI selects goal, GOAP/HTN plans execution. See Migration Guide.</p>
+
+<h3>Q: How do I create custom executors?</h3>
+<p><strong>A:</strong> Inherit from UUtilityActionExecutor (C++) or UUtilityActionExecutor_Blueprint (BP). Implement Execute, TickExecute, StopExecution, IsExecutionComplete. See Executor API.</p>
+
+<h2>Common Errors</h2>
+
+<h3>Q: "No valid actions to execute"</h3>
+<p><strong>A:</strong> No action scored > 0. Check:</p>
+<ul>
+  <li>Actions are added to Brain/Preset</li>
+  <li>Services are publishing required inputs</li>
+  <li>Consideration curves can output > 0</li>
+  <li>No actions are locked</li>
+</ul>
+
+<h3>Q: "Failed to find component"</h3>
+<p><strong>A:</strong> Component reference is null. Verify component exists on actor and is initialized before use.</p>
+
+<h3>Q: "Division by zero in consideration"</h3>
+<p><strong>A:</strong> Normalizing with zero max value. Add safety check: `FMath::Max(1, MaxValue)` before dividing.</p>
+
+<h2>Best Practices</h2>
+
+<h3>Q: What's the recommended workflow?</h3>
+<p><strong>A:</strong></p>
+<ol>
+  <li>Choose archetype as starting point</li>
+  <li>Create Blueprint child to extend</li>
+  <li>Add custom actions for specific behaviors</li>
+  <li>Configure perception if needed</li>
+  <li>Add custom services for game-specific data</li>
+  <li>Test and tune scores</li>
+  <li>Optimize when needed</li>
+</ol>
+
+<h3>Q: Should I normalize all inputs?</h3>
+<p><strong>A:</strong> Yes! Keep inputs in 0-1 range. Makes curves easier to design and reuse. Normalize: `Value / MaxExpected`.</p>
+
+<h3>Q: How do I balance multiple AI types?</h3>
+<p><strong>A:</strong> Create preset for each type, test in isolation, then together. Use consistent scoring ranges (60-80 for important actions). Tune incrementally.</p>
+
+<h2>Still Have Questions?</h2>
+
+<div class="next-steps">
+  <a class="button primary" href="#/docs/troubleshooting">
+    <i data-lucide="alert-circle"></i>
+    Troubleshooting Guide
+  </a>
+  <a class="button" href="#/docs/best-practices">
+    <i data-lucide="check-circle"></i>
+    Best Practices
+  </a>
+</div>
+
+<h3>Additional Resources</h3>
+<ul>
+  <li><a href="#/docs/quickstart"><i data-lucide="rocket"></i> Quick Start Guide</a> - Get started fast</li>
+  <li><a href="#/docs/debugging"><i data-lucide="bug"></i> Debugging Guide</a> - Debug tools</li>
+  <li><a href="#/docs/optimization"><i data-lucide="zap"></i> Optimization Guide</a> - Performance tips</li>
+  <li><a href="#/docs/bp-utility-library"><i data-lucide="book"></i> Blueprint API</a> - All functions</li>
+</ul>
+
+<script>lucide.createIcons();</script>

@@ -1,0 +1,701 @@
+<h1>Blueprint Utility Library</h1>
+<p class="note">Complete Blueprint API reference for CIN Plugin. Every function, every parameter, organized by category with practical examples.</p>
+
+<div class="page-meta">
+  <span class="time"><i data-lucide="clock"></i> 20 minutes</span>
+  <span class="difficulty"><i data-lucide="bar-chart-2"></i> Reference</span>
+</div>
+
+<div class="callout tip">
+  <span class="icon"><i data-lucide="lightbulb"></i></span>
+  <div>
+    <strong>Library Organization:</strong> UCIN_UtilityAILibrary provides comprehensive Blueprint access to all CIN features. Functions are categorized by purpose for easy discovery.
+  </div>
+</div>
+
+<h2>Library Overview</h2>
+
+<pre><code>UCIN_UtilityAILibrary Categories:
+├─ Brain Access (Get brain from pawn, check state)
+├─ Action Queries (Get current action, scores, names)
+├─ Momentum Control (Get, set, reset momentum)
+├─ Locking Control (Lock, unlock, check locked)
+├─ Score Modifiers (Boost, nerf, reset scores)
+├─ Input Management (Get, set named inputs)
+├─ Debug Functions (Enable debug, visualize)
+└─ Batch Operations (Multi-action operations)</code></pre>
+
+<h2>Brain Access Functions</h2>
+
+<h3>Get Utility Brain From Pawn</h3>
+
+<table>
+  <tr>
+    <th>Function</th>
+    <td><code>Get Utility Brain From Pawn</code></td>
+  </tr>
+  <tr>
+    <th>Category</th>
+    <td>Brain Access</td>
+  </tr>
+  <tr>
+    <th>Inputs</th>
+    <td><strong>Pawn</strong> (Pawn) - Target AI pawn</td>
+  </tr>
+  <tr>
+    <th>Outputs</th>
+    <td><strong>Return</strong> (Utility Brain Component) - Brain component or None</td>
+  </tr>
+  <tr>
+    <th>Description</th>
+    <td>Gets the Utility Brain Component from a pawn. Returns None if not found.</td>
+  </tr>
+</table>
+
+<pre><code>Example:
+  Event BeginPlay
+  → Get Controlled Pawn
+  → Get Utility Brain From Pawn
+  → Branch (Is Valid?)
+    → True: Store brain reference
+    → False: Log warning</code></pre>
+
+<h3>Is Brain Active</h3>
+
+<table>
+  <tr>
+    <th>Function</th>
+    <td><code>Is Brain Active</code></td>
+  </tr>
+  <tr>
+    <th>Inputs</th>
+    <td><strong>Brain</strong> (Utility Brain Component) - Brain to check</td>
+  </tr>
+  <tr>
+    <th>Outputs</th>
+    <td><strong>Return</strong> (Boolean) - True if brain is running</td>
+  </tr>
+  <tr>
+    <th>Description</th>
+    <td>Checks if the brain is actively evaluating and running actions.</td>
+  </tr>
+</table>
+
+<pre><code>Example:
+  Event Tick
+  → Is Brain Active
+    → True: Update UI
+    → False: Show "AI Disabled"</code></pre>
+
+<h3>Get All Utility AI Pawns</h3>
+
+<table>
+  <tr>
+    <th>Function</th>
+    <td><code>Get All Utility AI Pawns</code></td>
+  </tr>
+  <tr>
+    <th>Inputs</th>
+    <td><strong>World Context</strong> (Object) - World context (usually self)</td>
+  </tr>
+  <tr>
+    <th>Outputs</th>
+    <td><strong>Return</strong> (Array of Pawns) - All pawns with Utility Brain</td>
+  </tr>
+  <tr>
+    <th>Description</th>
+    <td>Finds all pawns in the world that have a Utility Brain Component.</td>
+  </tr>
+</table>
+
+<pre><code>Example:
+  Event BeginPlay
+  → Get All Utility AI Pawns
+  → ForEach Loop
+    → Set Difficulty Level</code></pre>
+
+<h2>Action Query Functions</h2>
+
+<h3>Get Current Action Name</h3>
+
+<table>
+  <tr>
+    <th>Function</th>
+    <td><code>Get Current Action Name</code></td>
+  </tr>
+  <tr>
+    <th>Inputs</th>
+    <td><strong>Brain</strong> (Utility Brain Component)</td>
+  </tr>
+  <tr>
+    <th>Outputs</th>
+    <td><strong>Return</strong> (Name) - Currently executing action name</td>
+  </tr>
+  <tr>
+    <th>Description</th>
+    <td>Returns the name of the currently executing action.</td>
+  </tr>
+</table>
+
+<pre><code>Example:
+  Event Tick
+  → Get Current Action Name
+  → Set Text (DebugWidget): {ActionName}</code></pre>
+
+<h3>Get Current Action Score</h3>
+
+<table>
+  <tr>
+    <th>Function</th>
+    <td><code>Get Current Action Score</code></td>
+  </tr>
+  <tr>
+    <th>Inputs</th>
+    <td><strong>Brain</strong> (Utility Brain Component)</td>
+  </tr>
+  <tr>
+    <th>Outputs</th>
+    <td><strong>Return</strong> (Float) - Score of current action</td>
+  </tr>
+  <tr>
+    <th>Description</th>
+    <td>Returns the final score of the currently executing action.</td>
+  </tr>
+</table>
+
+<pre><code>Example:
+  Event Tick
+  → Get Current Action Score
+  → Print String: "Score: {Score}"</code></pre>
+
+<h3>Get All Action Names</h3>
+
+<table>
+  <tr>
+    <th>Function</th>
+    <td><code>Get All Action Names</code></td>
+  </tr>
+  <tr>
+    <th>Inputs</th>
+    <td><strong>Brain</strong> (Utility Brain Component)</td>
+  </tr>
+  <tr>
+    <th>Outputs</th>
+    <td><strong>Return</strong> (Array of Names) - All available action names</td>
+  </tr>
+  <tr>
+    <th>Description</th>
+    <td>Returns array of all action names registered with the brain.</td>
+  </tr>
+</table>
+
+<pre><code>Example:
+  Event BeginPlay
+  → Get All Action Names
+  → ForEach Loop
+    → Add to dropdown menu</code></pre>
+
+<h2>Momentum Functions</h2>
+
+<h3>Get Action Momentum</h3>
+
+<table>
+  <tr>
+    <th>Function</th>
+    <td><code>Get Action Momentum</code></td>
+  </tr>
+  <tr>
+    <th>Inputs</th>
+    <td><strong>Brain</strong> (Utility Brain Component)<br>
+        <strong>Action Name</strong> (Name) - Action to query</td>
+  </tr>
+  <tr>
+    <th>Outputs</th>
+    <td><strong>Return</strong> (Float) - Current momentum (0 to MaxMomentum)</td>
+  </tr>
+  <tr>
+    <th>Description</th>
+    <td>Returns the current momentum value for the specified action.</td>
+  </tr>
+</table>
+
+<pre><code>Example:
+  Event Tick
+  → Get Action Momentum ("Attack")
+  → Branch (> 2.0?)
+    → True: Show "Exhausted" indicator</code></pre>
+
+<h3>Reset Action Momentum</h3>
+
+<table>
+  <tr>
+    <th>Function</th>
+    <td><code>Reset Action Momentum</code></td>
+  </tr>
+  <tr>
+    <th>Inputs</th>
+    <td><strong>Brain</strong> (Utility Brain Component)<br>
+        <strong>Action Name</strong> (Name) - Action to reset</td>
+  </tr>
+  <tr>
+    <th>Description</th>
+    <td>Resets momentum for the specified action to zero.</td>
+  </tr>
+</table>
+
+<pre><code>Example:
+  Event OnPowerupCollected
+  → Reset Action Momentum ("SpecialAbility")
+  → Play Sound (Ready)</code></pre>
+
+<h3>Reset All Momentum</h3>
+
+<table>
+  <tr>
+    <th>Function</th>
+    <td><code>Reset All Momentum</code></td>
+  </tr>
+  <tr>
+    <th>Inputs</th>
+    <td><strong>Brain</strong> (Utility Brain Component)</td>
+  </tr>
+  <tr>
+    <th>Description</th>
+    <td>Resets momentum for all actions to zero.</td>
+  </tr>
+</table>
+
+<pre><code>Example:
+  Event OnRespawn
+  → Reset All Momentum
+  → Fresh start for new life</code></pre>
+
+<h2>Locking Functions</h2>
+
+<h3>Lock Action For Duration</h3>
+
+<table>
+  <tr>
+    <th>Function</th>
+    <td><code>Lock Action For Duration</code></td>
+  </tr>
+  <tr>
+    <th>Inputs</th>
+    <td><strong>Brain</strong> (Utility Brain Component)<br>
+        <strong>Action Name</strong> (Name) - Action to lock<br>
+        <strong>Duration</strong> (Float) - Lock duration in seconds</td>
+  </tr>
+  <tr>
+    <th>Description</th>
+    <td>Locks an action for the specified duration. Use -1 for permanent lock.</td>
+  </tr>
+</table>
+
+<pre><code>Example:
+  Event OnAbilityFailed
+  → Lock Action For Duration ("ThrowGrenade", 5.0)
+  → Wait 5 seconds before retry</code></pre>
+
+<h3>Unlock Action</h3>
+
+<table>
+  <tr>
+    <th>Function</th>
+    <td><code>Unlock Action</code></td>
+  </tr>
+  <tr>
+    <th>Inputs</th>
+    <td><strong>Brain</strong> (Utility Brain Component)<br>
+        <strong>Action Name</strong> (Name) - Action to unlock</td>
+  </tr>
+  <tr>
+    <th>Description</th>
+    <td>Immediately unlocks the specified action.</td>
+  </tr>
+</table>
+
+<pre><code>Example:
+  Event OnObjectiveComplete
+  → Unlock Action ("PhaseTransition")
+  → Allow boss transition</code></pre>
+
+<h3>Unlock All Actions</h3>
+
+<table>
+  <tr>
+    <th>Function</th>
+    <td><code>Unlock All Actions</code></td>
+  </tr>
+  <tr>
+    <th>Inputs</th>
+    <td><strong>Brain</strong> (Utility Brain Component)</td>
+  </tr>
+  <tr>
+    <th>Description</th>
+    <td>Unlocks all locked actions immediately.</td>
+  </tr>
+</table>
+
+<pre><code>Example:
+  Event OnNewPhase
+  → Unlock All Actions
+  → Fresh options for new phase</code></pre>
+
+<h3>Is Action Locked</h3>
+
+<table>
+  <tr>
+    <th>Function</th>
+    <td><code>Is Action Locked</code></td>
+  </tr>
+  <tr>
+    <th>Inputs</th>
+    <td><strong>Brain</strong> (Utility Brain Component)<br>
+        <strong>Action Name</strong> (Name) - Action to check</td>
+  </tr>
+  <tr>
+    <th>Outputs</th>
+    <td><strong>Return</strong> (Boolean) - True if locked</td>
+  </tr>
+  <tr>
+    <th>Description</th>
+    <td>Checks if the specified action is currently locked.</td>
+  </tr>
+</table>
+
+<pre><code>Example:
+  Event OnUIUpdate
+  → Is Action Locked ("ThrowGrenade")
+    → True: Gray out ability icon
+    → False: Enable ability icon</code></pre>
+
+<h2>Score Modifier Functions</h2>
+
+<h3>Set Action Score Modifier</h3>
+
+<table>
+  <tr>
+    <th>Function</th>
+    <td><code>Set Action Score Modifier</code></td>
+  </tr>
+  <tr>
+    <th>Inputs</th>
+    <td><strong>Brain</strong> (Utility Brain Component)<br>
+        <strong>Action Name</strong> (Name) - Action to modify<br>
+        <strong>Modifier</strong> (Float) - Score multiplier (0.1-10.0)</td>
+  </tr>
+  <tr>
+    <th>Description</th>
+    <td>Sets a multiplier for the action's final score.</td>
+  </tr>
+</table>
+
+<pre><code>Example:
+  Event OnDifficultyChanged
+  → Set Action Score Modifier ("Attack", 1.5)
+  → More aggressive on hard mode</code></pre>
+
+<h3>Boost Action</h3>
+
+<table>
+  <tr>
+    <th>Function</th>
+    <td><code>Boost Action</code></td>
+  </tr>
+  <tr>
+    <th>Inputs</th>
+    <td><strong>Brain</strong> (Utility Brain Component)<br>
+        <strong>Action Name</strong> (Name) - Action to boost<br>
+        <strong>Boost Amount</strong> (Float) - Multiplier (default 1.5)</td>
+  </tr>
+  <tr>
+    <th>Description</th>
+    <td>Convenience function to increase action priority by multiplier.</td>
+  </tr>
+</table>
+
+<pre><code>Example:
+  Event OnEnrage
+  → Boost Action ("Attack", 2.0)
+  → Boost Action ("Charge", 1.8)
+  → More aggressive behavior</code></pre>
+
+<h3>Nerf Action</h3>
+
+<table>
+  <tr>
+    <th>Function</th>
+    <td><code>Nerf Action</code></td>
+  </tr>
+  <tr>
+    <th>Inputs</th>
+    <td><strong>Brain</strong> (Utility Brain Component)<br>
+        <strong>Action Name</strong> (Name) - Action to nerf<br>
+        <strong>Nerf Amount</strong> (Float) - Multiplier (default 0.5)</td>
+  </tr>
+  <tr>
+    <th>Description</th>
+    <td>Convenience function to decrease action priority by multiplier.</td>
+  </tr>
+</table>
+
+<pre><code>Example:
+  Event OnStunned
+  → Nerf Action ("Attack", 0.3)
+  → Nerf Action ("Ability", 0.2)
+  → Limited options while stunned</code></pre>
+
+<h3>Reset Action Score Modifier</h3>
+
+<table>
+  <tr>
+    <th>Function</th>
+    <td><code>Reset Action Score Modifier</code></td>
+  </tr>
+  <tr>
+    <th>Inputs</th>
+    <td><strong>Brain</strong> (Utility Brain Component)<br>
+        <strong>Action Name</strong> (Name) - Action to reset</td>
+  </tr>
+  <tr>
+    <th>Description</th>
+    <td>Resets score modifier for action to 1.0 (no modification).</td>
+  </tr>
+</table>
+
+<pre><code>Example:
+  Event OnStunExpired
+  → Reset Action Score Modifier ("Attack")
+  → Back to normal</code></pre>
+
+<h2>Input Management Functions</h2>
+
+<h3>Get Named Input</h3>
+
+<table>
+  <tr>
+    <th>Function</th>
+    <td><code>Get Named Input</code></td>
+  </tr>
+  <tr>
+    <th>Inputs</th>
+    <td><strong>Brain</strong> (Utility Brain Component)<br>
+        <strong>Input Name</strong> (Name) - Input to query</td>
+  </tr>
+  <tr>
+    <th>Outputs</th>
+    <td><strong>Return</strong> (Float) - Current input value</td>
+  </tr>
+  <tr>
+    <th>Description</th>
+    <td>Returns the current value of a named input.</td>
+  </tr>
+</table>
+
+<pre><code>Example:
+  Event Tick
+  → Get Named Input ("Health")
+  → Update health bar</code></pre>
+
+<h3>Set Named Input</h3>
+
+<table>
+  <tr>
+    <th>Function</th>
+    <td><code>Set Named Input Value</code></td>
+  </tr>
+  <tr>
+    <th>Inputs</th>
+    <td><strong>Brain</strong> (Utility Brain Component)<br>
+        <strong>Input Name</strong> (Name) - Input to set<br>
+        <strong>Value</strong> (Float) - New value</td>
+  </tr>
+  <tr>
+    <th>Description</th>
+    <td>Sets the value of a named input.</td>
+  </tr>
+</table>
+
+<pre><code>Example:
+  Event OnHealthChanged
+  → Set Named Input Value ("Health", NewHealth / MaxHealth)</code></pre>
+
+<h2>Debug Functions</h2>
+
+<h3>Enable Debug Visualization On All Agents</h3>
+
+<table>
+  <tr>
+    <th>Function</th>
+    <td><code>Enable Debug Visualization On All Agents</code></td>
+  </tr>
+  <tr>
+    <th>Inputs</th>
+    <td><strong>World Context</strong> (Object)<br>
+        <strong>Enable</strong> (Boolean) - True to enable</td>
+  </tr>
+  <tr>
+    <th>Description</th>
+    <td>Enables or disables overhead debug widgets for all AI agents.</td>
+  </tr>
+</table>
+
+<pre><code>Example:
+  Event OnKeyPress (F2)
+  → Enable Debug Visualization On All Agents (Toggle)</code></pre>
+
+<h3>Toggle Debug For Pawn</h3>
+
+<table>
+  <tr>
+    <th>Function</th>
+    <td><code>Toggle Debug For Pawn</code></td>
+  </tr>
+  <tr>
+    <th>Inputs</th>
+    <td><strong>Pawn</strong> (Pawn) - Target pawn</td>
+  </tr>
+  <tr>
+    <th>Description</th>
+    <td>Toggles debug visualization for a specific pawn.</td>
+  </tr>
+</table>
+
+<pre><code>Example:
+  Event OnMouseClick
+  → Get Hit Actor
+  → Toggle Debug For Pawn</code></pre>
+
+<h3>Add Debug Component To Pawn</h3>
+
+<table>
+  <tr>
+    <th>Function</th>
+    <td><code>Add Debug Component To Pawn</code></td>
+  </tr>
+  <tr>
+    <th>Inputs</th>
+    <td><strong>Pawn</strong> (Pawn) - Target pawn</td>
+  </tr>
+  <tr>
+    <th>Outputs</th>
+    <td><strong>Return</strong> (CIN Debug Component) - Created component</td>
+  </tr>
+  <tr>
+    <th>Description</th>
+    <td>Adds a debug component to a pawn at runtime.</td>
+  </tr>
+</table>
+
+<h2>Batch Operation Functions</h2>
+
+<h3>Boost Actions</h3>
+
+<table>
+  <tr>
+    <th>Function</th>
+    <td><code>Boost Actions</code></td>
+  </tr>
+  <tr>
+    <th>Inputs</th>
+    <td><strong>Brain</strong> (Utility Brain Component)<br>
+        <strong>Action Names</strong> (Array of Names)<br>
+        <strong>Boost Amount</strong> (Float)</td>
+  </tr>
+  <tr>
+    <th>Description</th>
+    <td>Boosts multiple actions at once.</td>
+  </tr>
+</table>
+
+<pre><code>Example:
+  Event OnBerserk
+  → Make Array: ["Attack", "Charge", "Smash"]
+  → Boost Actions (Array, 2.0)</code></pre>
+
+<h3>Reset Actions</h3>
+
+<table>
+  <tr>
+    <th>Function</th>
+    <td><code>Reset Actions</code></td>
+  </tr>
+  <tr>
+    <th>Inputs</th>
+    <td><strong>Brain</strong> (Utility Brain Component)<br>
+        <strong>Action Names</strong> (Array of Names)</td>
+  </tr>
+  <tr>
+    <th>Description</th>
+    <td>Resets score modifiers and momentum for multiple actions.</td>
+  </tr>
+</table>
+
+<pre><code>Example:
+  Event OnStateReset
+  → Make Array: ["Action1", "Action2"]
+  → Reset Actions</code></pre>
+
+<h2>Common Patterns</h2>
+
+<h3>Pattern 1: Dynamic Difficulty</h3>
+
+<pre><code>Function: Adjust AI Difficulty
+  Input: Difficulty (Float 0-1)
+  
+  Get All Utility AI Pawns
+  → ForEach:
+    Get Utility Brain From Pawn
+    → If Difficulty > 0.7 (Hard):
+      Boost Action ("Attack", 1.5)
+      Nerf Action ("Retreat", 0.5)
+      Reset All Momentum (more spam)
+    
+    → Else If Difficulty < 0.3 (Easy):
+      Nerf Action ("Attack", 0.7)
+      Boost Action ("Retreat", 1.3)
+      // Keep momentum (less spam)</code></pre>
+
+<h3>Pattern 2: Boss Phase Transitions</h3>
+
+<pre><code>Event: On Health Threshold (50%)
+  Get Utility Brain From Pawn (Self)
+  
+  → Lock Action ("PhaseOne Abilities", -1.0)
+  → Unlock Action ("PhaseTwoAbilities")
+  → Boost Actions (["Ultimate", "Summon"], 2.0)
+  → Reset All Momentum
+  → Set Named Input Value ("CurrentPhase", 2.0)</code></pre>
+
+<h3>Pattern 3: Contextual Behavior</h3>
+
+<pre><code>Event: On Player In Cover
+  Get All Utility AI Pawns (EnemyType)
+  → ForEach:
+    Get Utility Brain From Pawn
+    → Boost Action ("Flank", 2.0)
+    → Boost Action ("ThrowGrenade", 1.8)
+    → Nerf Action ("DirectAssault", 0.5)</code></pre>
+
+<h2>Next Steps</h2>
+
+<div class="next-steps">
+  <a class="button primary" href="#/docs/brain-api">
+    <i data-lucide="cpu"></i>
+    Brain Component API
+  </a>
+  <a class="button" href="#/docs/action-api">
+    <i data-lucide="target"></i>
+    Action Asset API
+  </a>
+</div>
+
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="#/docs/momentum"><i data-lucide="trending-up"></i> Task Momentum</a> - Momentum functions explained</li>
+  <li><a href="#/docs/locking"><i data-lucide="lock"></i> Task Locking</a> - Locking functions explained</li>
+  <li><a href="#/docs/tuning"><i data-lucide="sliders"></i> Tuning</a> - Using modifiers for balance</li>
+  <li><a href="#/docs/debug-basics"><i data-lucide="bug"></i> Debugging</a> - Debug functions in action</li>
+</ul>
+
+<script>lucide.createIcons();</script>

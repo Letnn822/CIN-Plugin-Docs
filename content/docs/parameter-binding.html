@@ -1,0 +1,145 @@
+<h1>Parameter Binding</h1>
+<p>Parameters are normalized signals (recommended 0.0–1.0) that drive behavior in a data-first way. Bind once, then read anywhere.</p>
+
+<h2>Blueprint API on ACINAgentBase</h2>
+<ul>
+  <li><code>SetDirectParameter(Name, Value)</code></li>
+  <li><code>BindToObjectProperty(Name, TargetObject, PropertyName, bNormalize, NormalizationRange)</code></li>
+  <li><code>BindToGameplayAttribute(Name, AttributeName, bNormalize, NormalizationRange)</code></li>
+  <li><code>BindToGameplayAttributeByHandle(Name, Attribute, bNormalize, NormalizationRange)</code></li>
+  <li><code>BindToBlueprintFunction(Name, FunctionName)</code></li>
+  <li><code>BindToCurve(Name, CurveAsset, TimeParam)</code></li>
+  <li><code>GetAgentParameter(Name, DefaultValue)</code></li>
+  <li><code>ValidateParameterBindings()</code>, <code>RefreshParameterBindings()</code>, <code>GetAllParameterNames()</code></li>
+</ul>
+
+<h2>Binding types (<code>ECINParameterBindingType</code>)</h2>
+<ul>
+  <li><strong>DirectValue</strong> — Use static values for baseline behavior.</li>
+  <li><strong>ObjectProperty</strong> — Reflect a <code>UObject</code> property (e.g., HealthComponent.CurrentHealth).</li>
+  <li><strong>GameplayAttribute</strong> — Read attributes via GAS by name, or <em>prefer</em> handle with <code>BindToGameplayAttributeByHandle</code>.</li>
+  <li><strong>BlueprintFunction</strong> — Call a BP function that returns <code>float</code>.</li>
+  <li><strong>CurveValue</strong> — Evaluate a <code>UCurveFloat</code> at a time parameter.</li>
+</ul>
+
+<h2>Examples</h2>
+<h3>Direct value</h3>
+<pre><code>// Blueprint
+SetDirectParameter("Curiosity", 0.75)</code></pre>
+
+<h3>UObject property</h3>
+<pre><code>// Blueprint
+BindToObjectProperty("Health", HealthComponent, "CurrentHealth", true, (0, 100))
+BindToObjectProperty("Stamina", StaminaComponent, "CurrentStamina", true, (0, 100))</code></pre>
+
+<h3>GAS attribute</h3>
+<pre><code>// Blueprint
+BindToGameplayAttribute("Health", "Attributes.Health", true, (0, 100))
+// or with a handle you already resolved
+BindToGameplayAttributeByHandle("Health", HealthAttributeHandle, true, (0, 100))</code></pre>
+
+<h3>Blueprint function</h3>
+<pre><code>// Your actor implements a function that returns float [0..1]
+BindToBlueprintFunction("Alertness", "GetAlertnessNormalized")</code></pre>
+
+<h3>Curve value</h3>
+<pre><code>// Drive aggression from a timeline
+BindToCurve("Aggression", AggressionCurve, TimeSeconds)</code></pre>
+
+<h2>Create and Bind New Parameters (Quick Start)</h2>
+<ol>
+  <li><strong>Name your parameter</strong>: choose a stable key (e.g., <code>WeaponType</code>, <code>AmmoCurrent</code>, <code>DistanceToTarget</code>).</li>
+  <li><strong>Pick a binding type</strong>: ObjectProperty, GameplayAttribute, BlueprintFunction, etc.</li>
+  <li><strong>Normalize</strong>: map to 0..1 where possible. Provide <code>NormalizationRange</code> if needed.</li>
+  <li><strong>Bind via ACINAgentBase</strong> or project helpers (see below).</li>
+</ol>
+
+<h3>Binding recipes</h3>
+<pre><code>// Object property → normalized
+BindToObjectProperty("AmmoCurrent", WeaponComponent, "CurrentAmmo", true, (0, MaxClip))
+
+// GAS attribute by name or handle
+BindToGameplayAttribute("Stamina", "Attributes.Stamina", true, (0, 100))
+BindToGameplayAttributeByHandle("Stamina", StaminaHandle, true, (0, 100))
+
+// Blueprint function returning float
+BindToBlueprintFunction("WeaponType", "GetWeaponTypeCategory") // 0=Melee,1=Pistol,2=Rifle...
+
+// Direct value
+SetDirectParameter("Courage", 0.8)</code></pre>
+
+<div class="note"><strong>Note:</strong> For <em>categorical</em> parameters like <code>WeaponType</code>, use integer-like floats (0,1,2,...) and keep mapping stable to avoid jitter.</div>
+
+<h2>Reading parameters</h2>
+<pre><code>// Blueprint
+GetAgentParameter("Health") // 0..1
+GetAgentParameter("DistanceToPlayer")
+// Project helper: UCINCombatComponent adds dedicated getters for common signals
+// e.g., GetWeaponType(), GetAmmoPercentage()
+</code></pre>
+
+<h2>Validation & refresh</h2>
+<ul>
+  <li><code>ValidateParameterBindings()</code> — checks that targets exist and types are compatible.</li>
+  <li><code>RefreshParameterBindings()</code> — re-resolves references after runtime changes or level streaming.</li>
+</ul>
+
+<div class="tip"><strong>Tip:</strong> Normalize at the binding call whenever possible. Keep downstream logic simple (expect 0..1).</div>
+
+<h2>Configure Agent Reactions (Thresholds & Events)</h2>
+<p>Use the project-side <code>UCINCombatComponent</code> to express reactions to parameter changes. Add it to your AI actor and bind the same parameter names used on the agent.</p>
+<h3>Thresholds</h3>
+<pre><code>// Set once at init (Blueprint/C++)
+SetLowHealthThreshold(0.35)
+SetCriticalHealthThreshold(0.15)
+SetLowStaminaThreshold(0.25)
+SetLowManaThreshold(0.25)
+SetLowAmmoThreshold(0.30)
+</code></pre>
+<h3>Events</h3>
+<pre><code>// Implement these in your AI Blueprint (BlueprintImplementableEvent)
+OnHealthBecameLow(CurrentHealth)
+OnHealthBecameCritical(CurrentHealth)
+OnStaminaBecameLow(CurrentStamina)
+OnManaBecameLow(CurrentMana)
+OnAmmoBecameLow(CurrentAmmo)
+OnWeaponTypeChanged(OldType, NewType)
+OnCombatParameterChanged(ParameterName, OldValue, NewValue)
+</code></pre>
+<ul>
+  <li><strong>Change detection</strong>: ~1% threshold for continuous signals (health/stamina/mana/ammo). <code>WeaponType</code> uses exact change (via small epsilon) for categorical swaps.</li>
+  <li><strong>Tick rate</strong>: default 0.1s (10 Hz) in the combat component.</li>
+  <li><strong>Debounce</strong>: low/critical events fire once when crossing and reset when recovering.</li>
+  <li><strong>Usage</strong>: swap goals, adjust action packs, or gate actions on events.</li>
+  <li><strong>Getter</strong>: use <code>GetWeaponType()</code> to read the current category in logic.</li>
+  <li><strong>Validation</strong>: call <code>ValidateIntegrationSetup</code> for a detailed setup report.</li>
+  <li><strong>One-click</strong>: <code>QuickSetThresholds</code>, <code>CompleteGASSetup</code> in <code>UCINCombatBlueprintLibrary</code>.</li>
+  <li><strong>Custom params</strong>: <code>BindCustomCombatParameter</code>, <code>BindCustomParameterToGASAttribute</code>, <code>BindCustomParameterToBlueprintFunction</code>.</li>
+</ul>
+
+<h2>Project Helpers (UCINCombatBlueprintLibrary)</h2>
+<pre><code>// Health/Stamina/Mana quick binds
+QuickBindHealth(MyActor, HealthComponent, "CurrentHealth", 100.0)
+QuickBindStamina(MyActor, StaminaComponent, "CurrentStamina", 100.0)
+QuickBindMana(MyActor, ManaComponent, "CurrentMana", 100.0)
+
+// GAS one-click
+CompleteGASSetup(MyActor, "Attributes.Health", "Attributes.Stamina", "Attributes.Mana")
+
+// Custom parameters
+BindCustomCombatParameter(MyActor, "AmmoCurrent", ObjectProperty, WeaponComponent, "CurrentAmmo", true, (0, MaxClip))
+BindCustomParameterToGASAttribute(MyActor, "AmmoReserve", "Attributes.AmmoReserve", true, (0, MaxReserve))
+BindCustomParameterToBlueprintFunction(MyActor, "WeaponType", "GetWeaponTypeCategory")
+
+// Thresholds + validation
+QuickSetThresholds(MyActor, /*LowHealth=*/0.35, /*CriticalHealth=*/0.15, /*LowStamina=*/0.25, /*LowMana=*/0.25, /*LowAmmo=*/0.30)
+ValidateIntegrationSetup(MyActor)
+</code></pre>
+
+<div class="warn"><strong>Best Practices</strong>
+  <ul>
+    <li><strong>Normalize</strong> to [0..1] for most signals; keep categories as integers for <code>WeaponType</code>.</li>
+    <li><strong>Coherent ranges</strong>: use consistent ranges across actors for comparable utilities.</li>
+    <li><strong>Gates vs Utility</strong>: use parameter thresholds as gates; use utilities to bias action selection.</li>
+  </ul>
+</div>

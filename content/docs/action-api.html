@@ -1,0 +1,580 @@
+<h1>Action Asset API</h1>
+<p class="note">Complete reference for UUtilityActionAsset. Learn every property, every configuration option, and how to design actions that score and execute perfectly.</p>
+
+<div class="page-meta">
+  <span class="time"><i data-lucide="clock"></i> 20 minutes</span>
+  <span class="difficulty"><i data-lucide="bar-chart-3"></i> Reference</span>
+</div>
+
+<h2>Class Overview</h2>
+
+<pre><code>Class: UUtilityActionAsset
+Parent: UDataAsset
+Module: CINAI
+Header: Public/UtilityActionAsset.h
+
+Purpose:
+  Defines a single AI action with scoring logic and execution.
+  Actions are evaluated by the brain and the highest-scoring
+  action is selected for execution.
+
+Key Responsibilities:
+  - Define action scoring via considerations
+  - Configure execution behavior (Behavior Tree, C++, Blueprint)
+  - Set momentum, resistance, and locking parameters
+  - Provide metadata (name, description, tags)</code></pre>
+
+<h2>Core Properties</h2>
+
+<h3>Identification</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>ActionName</code></td>
+      <td>FName</td>
+      <td>Unique identifier for this action</td>
+    </tr>
+    <tr>
+      <td><code>DisplayName</code></td>
+      <td>FText</td>
+      <td>Human-readable name for UI</td>
+    </tr>
+    <tr>
+      <td><code>Description</code></td>
+      <td>FText</td>
+      <td>What this action does</td>
+    </tr>
+    <tr>
+      <td><code>ActionTags</code></td>
+      <td>FGameplayTagContainer</td>
+      <td>Tags for categorization/filtering</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Scoring Properties</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Default</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>BaseScore</code></td>
+      <td>float</td>
+      <td>50.0</td>
+      <td>Starting score before considerations</td>
+    </tr>
+    <tr>
+      <td><code>Considerations</code></td>
+      <td>TArray&lt;FConsideration&gt;</td>
+      <td>Empty</td>
+      <td>Array of scoring curves</td>
+    </tr>
+    <tr>
+      <td><code>Priority</code></td>
+      <td>int32</td>
+      <td>0</td>
+      <td>Tie-breaker (higher wins)</td>
+    </tr>
+    <tr>
+      <td><code>ScoreModifier</code></td>
+      <td>float</td>
+      <td>1.0</td>
+      <td>Runtime score multiplier</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Momentum Properties</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Default</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>MaxMomentum</code></td>
+      <td>float</td>
+      <td>0.0</td>
+      <td>Max momentum (0 = disabled)</td>
+    </tr>
+    <tr>
+      <td><code>MomentumScoreReduction</code></td>
+      <td>float</td>
+      <td>10.0</td>
+      <td>Score penalty per momentum point</td>
+    </tr>
+    <tr>
+      <td><code>MomentumDecayTime</code></td>
+      <td>float</td>
+      <td>5.0</td>
+      <td>Seconds to decay 1 momentum</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Replace Resistance</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Default</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>ReplaceResistance</code></td>
+      <td>float</td>
+      <td>1.0</td>
+      <td>Multiplier new action must beat</td>
+    </tr>
+    <tr>
+      <td><code>bInterruptible</code></td>
+      <td>bool</td>
+      <td>true</td>
+      <td>Can this action be interrupted?</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Locking Properties</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Property</th>
+      <th>Type</th>
+      <th>Default</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>UnlockTime</code></td>
+      <td>float</td>
+      <td>-1.0</td>
+      <td>Lock duration on abort (-1 = no lock, 0 = unlock on success)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Consideration Structure</h2>
+
+<pre><code>USTRUCT(BlueprintType)
+struct FConsideration
+{
+    GENERATED_BODY()
+    
+    // Input to evaluate
+    UPROPERTY(EditAnywhere)
+    FName InputName;
+    
+    // Response curve
+    UPROPERTY(EditAnywhere)
+    FRuntimeFloatCurve ResponseCurve;
+    
+    // Weight in final score
+    UPROPERTY(EditAnywhere)
+    float Weight = 1.0f;
+    
+    // Invert curve output
+    UPROPERTY(EditAnywhere)
+    bool bInvertCurve = false;
+};</code></pre>
+
+<h3>Response Curve Types</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Curve Type</th>
+      <th>Best For</th>
+      <th>Key Points</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Linear</strong></td>
+      <td>Proportional scoring</td>
+      <td>(0,0) → (1,100)</td>
+    </tr>
+    <tr>
+      <td><strong>Binary</strong></td>
+      <td>Yes/No conditions</td>
+      <td>(0,0) → (1,100)</td>
+    </tr>
+    <tr>
+      <td><strong>Threshold</strong></td>
+      <td>Trigger at value</td>
+      <td>(0,0) → (0.5,0) → (0.5,100) → (1,100)</td>
+    </tr>
+    <tr>
+      <td><strong>Exponential</strong></td>
+      <td>Urgency scaling</td>
+      <td>Curved: slow start, fast end</td>
+    </tr>
+    <tr>
+      <td><strong>Inverse</strong></td>
+      <td>Penalty for high values</td>
+      <td>(0,100) → (1,0)</td>
+    </tr>
+    <tr>
+      <td><strong>Bell Curve</strong></td>
+      <td>Optimal range</td>
+      <td>(0,0) → (0.5,100) → (1,0)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Executor Configuration</h2>
+
+<h3>Executor Property</h3>
+
+<pre><code>UPROPERTY(EditAnywhere, Instanced)
+UUtilityActionExecutor* Executor;</code></pre>
+
+<h3>Available Executors</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Executor Type</th>
+      <th>Use Case</th>
+      <th>Key Properties</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Behavior Tree</strong></td>
+      <td>Visual execution logic</td>
+      <td>BehaviorTree, bRestartOnReselect, bStopOnAbort</td>
+    </tr>
+    <tr>
+      <td><strong>C++ Class</strong></td>
+      <td>Custom C++ logic</td>
+      <td>ExecutorClass (subclass of UUtilityActionExecutor)</td>
+    </tr>
+    <tr>
+      <td><strong>Blueprint</strong></td>
+      <td>Blueprint logic</td>
+      <td>ExecutorClass (Blueprint class)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Scoring Calculation</h2>
+
+<h3>Final Score Formula</h3>
+
+<pre><code>1. Start with BaseScore (e.g., 60.0)
+
+2. For each Consideration:
+   Input = GetNamedInput(InputName)
+   Output = ResponseCurve.Evaluate(Input)
+   if (bInvertCurve)
+       Output = 100.0 - Output
+   WeightedOutput = Output * Weight
+
+3. Combine all considerations:
+   FinalScore = BaseScore * (Product of all WeightedOutputs / 100)
+
+4. Apply momentum penalty:
+   if (HasMomentum)
+       FinalScore -= (Momentum * MomentumScoreReduction)
+
+5. Apply runtime modifier:
+   FinalScore *= ScoreModifier
+
+Example:
+  BaseScore = 60.0
+  Consideration 1: Health (0.8) → Curve: 80 → Weight: 1.0 → 80
+  Consideration 2: Distance (0.5) → Curve: 60 → Weight: 1.0 → 60
+  
+  FinalScore = 60.0 * (80/100) * (60/100) = 28.8
+  
+  With Momentum = 2.0, MomentumScoreReduction = 10.0:
+  FinalScore = 28.8 - (2.0 * 10.0) = 8.8</code></pre>
+
+<h2>Public Functions</h2>
+
+<h3>GetFinalScore</h3>
+
+<pre><code>UFUNCTION(BlueprintPure, Category = "Utility AI")
+float GetFinalScore(UUtilityBrainComponent* Brain) const;
+
+Parameters:
+  Brain - Brain component for input access
+
+Returns:
+  Calculated final score
+
+Description:
+  Calculates and returns the final score for this action
+  based on current inputs and momentum.
+
+Example:
+  float Score = Action->GetFinalScore(Brain);</code></pre>
+
+<h3>Execute</h3>
+
+<pre><code>UFUNCTION(BlueprintCallable, Category = "Utility AI")
+void Execute(UUtilityBrainComponent* Brain);
+
+Parameters:
+  Brain - Brain component executing the action
+
+Description:
+  Starts execution of this action via its executor.
+
+Example:
+  Action->Execute(Brain);</code></pre>
+
+<h3>Stop</h3>
+
+<pre><code>UFUNCTION(BlueprintCallable, Category = "Utility AI")
+void Stop(UUtilityBrainComponent* Brain);
+
+Parameters:
+  Brain - Brain component stopping the action
+
+Description:
+  Stops execution of this action.
+
+Example:
+  Action->Stop(Brain);</code></pre>
+
+<h2>Configuration Examples</h2>
+
+<h3>Example 1: Simple Attack Action</h3>
+
+<pre><code>Action Asset: DA_Action_Attack
+  ActionName: "Attack"
+  BaseScore: 60.0
+  Priority: 0
+  
+  Considerations:
+    1. HasKnownEnemy
+       InputName: "HasKnownEnemy"
+       ResponseCurve: (0,0) → (1,100)
+       Weight: 1.0
+       
+    2. DistanceToEnemy
+       InputName: "DistanceToEnemy"
+       ResponseCurve: (0,100) → (0.3,80) → (0.7,30) → (1,0)
+       Weight: 1.0
+       
+    3. Health
+       InputName: "Health"
+       ResponseCurve: (0,20) → (0.5,80) → (1,100)
+       Weight: 1.0
+  
+  Executor: Behavior Tree
+    BehaviorTree: BT_Attack
+    bRestartOnReselect: false
+  
+  Momentum:
+    MaxMomentum: 3.0
+    MomentumScoreReduction: 5.0
+    MomentumDecayTime: 3.0
+  
+  Replace Resistance: 1.2
+  bInterruptible: true
+  UnlockTime: -1.0 (no locking)</code></pre>
+
+<h3>Example 2: Defensive Action</h3>
+
+<pre><code>Action Asset: DA_Action_TakeCover
+  ActionName: "TakeCover"
+  BaseScore: 70.0
+  Priority: 5 (higher than attack)
+  
+  Considerations:
+    1. ThreatLevel
+       InputName: "ThreatLevel"
+       ResponseCurve: (0,0) → (0.5,50) → (1,100)
+       Weight: 1.0
+       
+    2. Health
+       InputName: "Health"
+       ResponseCurve: (0,100) → (0.3,80) → (1,20) (inverted)
+       Weight: 1.0
+       bInvertCurve: true
+       
+    3. HasCoverNearby
+       InputName: "HasCoverNearby"
+       ResponseCurve: (0,0) → (1,100)
+       Weight: 1.0
+  
+  Executor: Behavior Tree
+    BehaviorTree: BT_TakeCover
+  
+  Momentum: None (MaxMomentum = 0)
+  Replace Resistance: 2.0 (hard to interrupt)
+  bInterruptible: false
+  UnlockTime: 0.0 (unlock on success)</code></pre>
+
+<h3>Example 3: Cooldown-Based Ability</h3>
+
+<pre><code>Action Asset: DA_Action_ThrowGrenade
+  ActionName: "ThrowGrenade"
+  BaseScore: 55.0
+  
+  Considerations:
+    1. EnemyCount
+       InputName: "EnemyCount"
+       ResponseCurve: (0,0) → (0.3,30) → (0.7,100)
+       Weight: 1.0
+       
+    2. DistanceToEnemy
+       InputName: "DistanceToEnemy"
+       ResponseCurve: (0,0) → (0.3,50) → (0.7,100) → (1,20)
+       Weight: 1.0
+  
+  Executor: Behavior Tree
+    BehaviorTree: BT_ThrowGrenade
+  
+  Momentum: None
+  Replace Resistance: 1.0
+  bInterruptible: true
+  UnlockTime: 10.0 (10 second cooldown on use/abort)</code></pre>
+
+<h2>Advanced Techniques</h2>
+
+<h3>Technique 1: Weighted Considerations</h3>
+
+<pre><code>// Make some inputs more important
+Consideration 1: Health
+  Weight: 2.0 (doubled importance)
+
+Consideration 2: Distance
+  Weight: 0.5 (half importance)
+
+Effect:
+  Health changes affect score more than distance</code></pre>
+
+<h3>Technique 2: Curve Inversion</h3>
+
+<pre><code>// Prefer LOW values instead of high
+Consideration: Distance
+  ResponseCurve: (0,100) → (1,0)
+  bInvertCurve: false
+
+// OR use built-in invert:
+Consideration: Distance
+  ResponseCurve: (0,0) → (1,100)
+  bInvertCurve: true
+
+Both produce same result: closer = higher score</code></pre>
+
+<h3>Technique 3: Multi-Stage Curves</h3>
+
+<pre><code>// Different urgency at different health levels
+Health Consideration:
+  (0.0, 0)   → Dead = no score
+  (0.2, 100) → Critical = maximum urgency
+  (0.5, 50)  → Moderate = medium urgency  
+  (1.0, 10)  → Full = low urgency
+
+Creates nuanced behavior based on health zones</code></pre>
+
+<h2>Best Practices</h2>
+
+<div class="callout tip">
+  <span class="icon"><i data-lucide="check-square"></i></span>
+  <div>
+    <strong>Action Design Guidelines:</strong>
+    <ul class="compact">
+      <li>✅ Use descriptive ActionNames (not "Action1", use "AttackMelee")</li>
+      <li>✅ Set BaseScore 40-80 for most actions</li>
+      <li>✅ Limit considerations to 3-5 per action</li>
+      <li>✅ Use momentum for spammable actions (attack, ability)</li>
+      <li>✅ Use resistance for important actions (cover, heal)</li>
+      <li>✅ Use locking for cooldown-based abilities</li>
+      <li>✅ Set Priority only for tie-breaking</li>
+      <li>❌ Don't use too many considerations (>7 = performance hit)</li>
+      <li>❌ Don't set extreme BaseScores (<20 or >100)</li>
+      <li>❌ Don't forget to assign an Executor</li>
+    </ul>
+  </div>
+</div>
+
+<h2>Debugging Actions</h2>
+
+<h3>Gameplay Debugger</h3>
+
+<pre><code>Press ' → 5 → Select Agent
+
+ACTION SCORES:
+  ✓ Attack: 75.0
+    - HasKnownEnemy: 1.0 → 100
+    - DistanceToEnemy: 0.5 → 60
+    - Health: 0.8 → 90
+    Momentum: 0.0
+    
+  TakeCover: 55.0
+    - ThreatLevel: 0.6 → 70
+    - Health: 0.8 → 40 (inverted)
+    - HasCoverNearby: 1.0 → 100
+    
+  Retreat: 30.0
+    - Health: 0.8 → 30
+    - EnemyCount: 0.3 → 40</code></pre>
+
+<h3>Logging</h3>
+
+<pre><code>// Enable action scoring logs
+LogUtilityAI Verbose
+
+Output:
+  [UtilityAI] Evaluating Action: Attack
+  [UtilityAI]   BaseScore: 60.0
+  [UtilityAI]   Consideration[0] HasKnownEnemy: 1.0 → 100
+  [UtilityAI]   Consideration[1] DistanceToEnemy: 0.5 → 60
+  [UtilityAI]   FinalScore: 36.0
+  [UtilityAI]   Momentum Penalty: -10.0
+  [UtilityAI]   Final: 26.0</code></pre>
+
+<h2>Next Steps</h2>
+
+<div class="next-steps">
+  <a class="button primary" href="#/docs/action-patterns">
+    <i data-lucide="target"></i>
+    Action Design Patterns
+  </a>
+  <a class="button" href="#/docs/brain-api">
+    <i data-lucide="cpu"></i>
+    Brain Component API
+  </a>
+</div>
+
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="#/docs/action-patterns"><i data-lucide="target"></i> Action Patterns</a> - Design patterns and examples</li>
+  <li><a href="#/docs/momentum"><i data-lucide="trending-up"></i> Task Momentum</a> - Momentum system details</li>
+  <li><a href="#/docs/resistance"><i data-lucide="shield"></i> Replace Resistance</a> - Anti-thrashing system</li>
+  <li><a href="#/docs/locking"><i data-lucide="lock"></i> Task Locking</a> - Cooldown system</li>
+</ul>
+
+<script>lucide.createIcons();</script>

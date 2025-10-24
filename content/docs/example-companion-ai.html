@@ -1,0 +1,671 @@
+<h1>Example: Companion/Follower AI</h1>
+<p class="note">Complete working example of a companion AI using BaseCompanion archetype. Includes following behavior, assistance actions, wait commands, and contextual interaction.</p>
+
+<div class="page-meta">
+  <span class="time"><i data-lucide="clock"></i> 30 minutes</span>
+  <span class="difficulty"><i data-lucide="code"></i> Example</span>
+</div>
+
+<div class="callout tip">
+  <span class="icon"><i data-lucide="lightbulb"></i></span>
+  <div>
+    <strong>What You'll Build:</strong> An AI companion that follows the player, assists in combat, responds to commands, maintains appropriate distance, and provides contextual help. Perfect for sidekicks, pets, or ally NPCs.
+  </div>
+</div>
+
+<h2>Final Result</h2>
+
+<pre><code>Companion AI Behaviors:
+├─ Follow: Stay near player at appropriate distance
+├─ Assist: Help in combat when player engages
+├─ Wait: Stay at position when commanded
+├─ Interact: Respond to player interaction
+├─ Guard: Protect player when threatened
+└─ Idle: Ambient animations when inactive
+
+Features:
+✓ Dynamic follow distance
+✓ Combat assistance
+✓ Player commands
+✓ Contextual actions
+✓ Formation positioning
+✓ Dialogue/interaction
+✓ Threat response</code></pre>
+
+<h2>Step 1: Create Companion Pawn</h2>
+
+<h3>Blueprint: BP_Companion</h3>
+
+<pre><code>Parent Class: Character
+
+Components:
+  + Skeletal Mesh (companion model)
+  + AIPerception
+    Senses:
+      - AISight (3000 radius, 120° FOV)
+      - AIHearing (2000 radius)
+      - AIDamage
+  + CINQuickSetup
+    AgentType: BaseCompanion
+    bAutoInitialize: true
+
+Variables:
+  + PlayerActor (AActor*): nullptr
+  + FollowDistance (float): 300.0
+  + CurrentCommand (ECompanionCommand): Follow
+  + WaitLocation (FVector): Zero
+  + bIsInteracting (bool): false
+  + LastInteractionTime (float): 0.0
+  
+Enums:
+  ECompanionCommand:
+    - Follow (default)
+    - Wait
+    - Stay
+    - Defend</code></pre>
+
+<h3>Finding the Player</h3>
+
+<pre><code>// On BeginPlay or possession
+void ACompanionPawn::BeginPlay()
+{
+    Super::BeginPlay();
+    
+    // Find player
+    PlayerActor = UGameplayStatics::GetPlayerPawn(GetWorld(), 0);
+    
+    if (PlayerActor)
+    {
+        UE_LOG(LogAI, Log, TEXT("Companion found player: %s"), *PlayerActor->GetName());
+    }
+}
+
+// Publish player-related inputs
+void PublishPlayerInputs()
+{
+    if (!PlayerActor) return;
+    
+    float Distance = FVector::Dist(GetActorLocation(), PlayerActor->GetActorLocation());
+    float NormalizedDistance = FMath::Clamp(Distance / 5000.0f, 0.0f, 1.0f);
+    
+    Brain->SetNamedInputValue(TEXT("DistanceToPlayer"), NormalizedDistance);
+    Brain->SetNamedInputValue(TEXT("HasPlayer"), 1.0f);
+}</code></pre>
+
+<h2>Step 2: Follow Behavior</h2>
+
+<h3>Action: DA_Companion_Follow</h3>
+
+<pre><code>ActionName: "Follow"
+DisplayName: "Follow Player"
+BaseScore: 60.0
+Priority: 40
+
+Considerations:
+  1. HasPlayer
+     InputName: "HasPlayer"
+     ResponseCurve: (0,0) → (1,100)
+     Weight: 1.0
+     
+  2. DistanceToPlayer
+     InputName: "DistanceToPlayer"
+     ResponseCurve: (0,0) → (0.1,100) → (0.3,50) → (1,100)
+     Weight: 1.5
+     Comment: Follow when too close or too far
+     
+  3. CurrentCommand (Follow)
+     InputName: "Command_Follow"
+     ResponseCurve: (0,0) → (1,100)
+     Weight: 1.2
+     
+  4. PlayerMoving
+     InputName: "PlayerIsMoving"
+     ResponseCurve: (0,20) → (1,100)
+     Weight: 0.8
+
+Momentum:
+  MaxMomentum: 1.5
+  MomentumDecayTime: 2.0
+
+Replace Resistance: 1.0
+bInterruptible: true
+UnlockTime: 0.0
+
+Executor: BT_Companion_Follow</code></pre>
+
+<h3>Follow Behavior Tree</h3>
+
+<pre><code>BT_Companion_Follow:
+
+Root
+└─ Sequence
+   ├─ Get Follow Position
+   │  → Calculate position behind/beside player
+   │  → Account for follow distance
+   │  → Offset based on formation
+   ├─ Check Distance
+   │  Selector:
+   │    ├─ If distance < MinDistance (200)
+   │    │  → Move away slightly
+   │    ├─ If distance > MaxDistance (500)
+   │    │  → Move to player
+   │    └─ Else
+   │       → Idle in position
+   ├─ Move To Follow Position
+   │  AcceptanceRadius: 100
+   ├─ Face Player (optional)
+   └─ Success
+
+Follow Position Calculation:
+  FVector PlayerForward = Player->GetActorForwardVector();
+  FVector FollowOffset = -PlayerForward * FollowDistance;
+  FVector FollowPosition = PlayerLocation + FollowOffset;
+  
+  // Add lateral offset to avoid blocking
+  FollowPosition += Player->GetActorRightVector() * 100.0f;</code></pre>
+
+<h2>Step 3: Combat Assistance</h2>
+
+<h3>Action: DA_Companion_Assist</h3>
+
+<pre><code>ActionName: "Assist"
+DisplayName: "Assist Player in Combat"
+BaseScore: 75.0
+Priority: 60
+
+Considerations:
+  1. PlayerInCombat
+     InputName: "PlayerInCombat"
+     ResponseCurve: (0,0) → (1,100)
+     Weight: 1.5
+     Comment: Detect when player is fighting
+     
+  2. HasKnownEnemy
+     InputName: "HasKnownEnemy"
+     ResponseCurve: (0,0) → (1,100)
+     Weight: 1.2
+     
+  3. DistanceToPlayer
+     InputName: "DistanceToPlayer"
+     ResponseCurve: (0,100) → (0.3,100) → (0.6,50) → (1,0)
+     Weight: 1.0
+     Comment: Must be reasonably close
+     
+  4. CompanionHealth
+     InputName: "Health"
+     ResponseCurve: (0,20) → (0.3,80) → (1,100)
+     Weight: 0.8
+
+Momentum: None (reactive)
+Replace Resistance: 1.5
+bInterruptible: true
+UnlockTime: 1.0
+
+Executor: BT_Companion_Assist</code></pre>
+
+<h3>Assist Behavior Tree</h3>
+
+<pre><code>BT_Companion_Assist:
+
+Root
+└─ Selector
+   ├─ Ranged Assist (if has ranged weapon)
+   │  Sequence:
+   │    ├─ Get Player's Target
+   │    ├─ Find Flanking Position
+   │    ├─ Move To Position
+   │    └─ Attack Target
+   │
+   ├─ Melee Assist (if melee capable)
+   │  Sequence:
+   │    ├─ Get Player's Target
+   │    ├─ Approach Target
+   │    └─ Melee Attack
+   │
+   └─ Support (if support companion)
+      Sequence:
+        ├─ Check Player Health
+        ├─ If Low → Heal Player
+        └─ Else → Buff Player
+
+Player Combat Detection:
+  Check if player is:
+  - Taking damage recently
+  - Attacking enemies
+  - Has weapon drawn
+  
+  Publish: PlayerInCombat input</code></pre>
+
+<h2>Step 4: Wait Command</h2>
+
+<h3>Action: DA_Companion_Wait</h3>
+
+<pre><code>ActionName: "Wait"
+DisplayName: "Wait at Location"
+BaseScore: 70.0
+Priority: 70 (high priority when commanded)
+
+Considerations:
+  1. Command_Wait
+     InputName: "Command_Wait"
+     ResponseCurve: (0,0) → (1,100)
+     Weight: 2.0
+     Comment: Very high weight for commands
+     
+  2. HasWaitLocation
+     InputName: "HasWaitLocation"
+     ResponseCurve: (0,0) → (1,100)
+     Weight: 1.0
+
+Momentum: None
+Replace Resistance: 2.0 (hard to interrupt command)
+bInterruptible: false
+UnlockTime: -1.0 (wait until new command)
+
+Executor: BT_Companion_Wait</code></pre>
+
+<h3>Wait Behavior Tree</h3>
+
+<pre><code>BT_Companion_Wait:
+
+Root
+└─ Sequence
+   ├─ Move To Wait Location
+   │  AcceptanceRadius: 50
+   ├─ Face Original Direction
+   ├─ Loop (until command changes)
+   │  ├─ Play Idle Animation
+   │  ├─ Look Around
+   │  ├─ Wait (2-5 seconds)
+   │  └─ Check for new command
+   └─ Success when commanded to follow/assist
+
+Command Handling:
+  Player presses "Stay" button
+  → CompanionAI.IssueCommand(ECompanionCommand::Wait)
+  → Sets Command_Wait input to 1.0
+  → Wait action scores highest
+  → Companion waits at current location</code></pre>
+
+<h2>Step 5: Interaction System</h2>
+
+<h3>Action: DA_Companion_Interact</h3>
+
+<pre><code>ActionName: "Interact"
+DisplayName: "Interact with Player"
+BaseScore: 65.0
+Priority: 65
+
+Considerations:
+  1. PlayerInteracting
+     InputName: "PlayerRequestsInteraction"
+     ResponseCurve: (0,0) → (1,100)
+     Weight: 2.0
+     
+  2. DistanceToPlayer
+     InputName: "DistanceToPlayer"
+     ResponseCurve: (0,100) → (0.1,100) → (0.3,50) → (1,0)
+     Weight: 1.0
+     Comment: Must be close
+
+Momentum: None
+Replace Resistance: 1.8
+bInterruptible: false
+UnlockTime: 5.0 (prevent interaction spam)
+
+Executor: BT_Companion_Interact</code></pre>
+
+<h3>Interaction Types</h3>
+
+<pre><code>// Player presses interact button near companion
+void ACompanion::OnPlayerInteract()
+{
+    // Context-sensitive interaction
+    if (bIsInCombat)
+    {
+        // Combat context: Request assistance
+        Speak("I'll help you!");
+        IssueCommand(ECompanionCommand::Defend);
+    }
+    else if (PlayerHasLowHealth())
+    {
+        // Health context: Offer healing
+        Speak("You're hurt! Let me help.");
+        HealPlayer();
+    }
+    else if (IsNearQuestObject())
+    {
+        // Quest context: Provide information
+        Speak("This looks important!");
+        ProvideQuestHint();
+    }
+    else
+    {
+        // Default: Idle chat
+        SpeakRandomIdleLine();
+        PlayInteractionAnimation();
+    }
+    
+    LastInteractionTime = GetWorld()->GetTimeSeconds();
+}
+
+Interaction Animations:
+  - Wave
+  - Nod
+  - Pointing
+  - Salute
+  - Custom gestures</code></pre>
+
+<h2>Step 6: Guard Behavior</h2>
+
+<h3>Action: DA_Companion_Guard</h3>
+
+<pre><code>ActionName: "Guard"
+DisplayName: "Guard Player"
+BaseScore: 80.0
+Priority: 75
+
+Considerations:
+  1. PlayerThreatLevel
+     InputName: "PlayerThreatLevel"
+     ResponseCurve: (0,0) → (0.5,50) → (1,100)
+     Weight: 1.5
+     Comment: Guard when player threatened
+     
+  2. PlayerHealth
+     InputName: "PlayerHealth"
+     ResponseCurve: (0,100) → (0.3,100) → (1,20)
+     bInvertCurve: true
+     Weight: 1.2
+     Comment: Guard when player hurt
+     
+  3. EnemyCount
+     InputName: "VisibleEnemyCount"
+     ResponseCurve: (0,0) → (0.3,100) → (1,100)
+     Weight: 1.0
+
+Momentum: None
+Replace Resistance: 1.6
+bInterruptible: true
+UnlockTime: 2.0
+
+Executor: BT_Companion_Guard</code></pre>
+
+<h3>Guard Behavior Tree</h3>
+
+<pre><code>BT_Companion_Guard:
+
+Root
+└─ Parallel
+   ├─ Position Near Player
+   │  → Maintain defensive distance (200 units)
+   │  → Between player and threats
+   │
+   └─ Selector (Defensive Actions)
+      ├─ If Enemy Too Close to Player
+      │  → Intercept enemy
+      │  → Engage in melee
+      │
+      ├─ If Enemy Attacking Player
+      │  → Attack that enemy
+      │
+      ├─ If Multiple Enemies
+      │  → Area taunt/aggro
+      │
+      └─ Default
+         → Defensive stance
+         → Ready to intercept
+
+Guard Positioning:
+  FVector ToEnemy = (EnemyLocation - PlayerLocation).GetSafeNormal();
+  FVector GuardPosition = PlayerLocation + ToEnemy * GuardDistance;
+  
+  // Stand between player and threat</code></pre>
+
+<h2>Step 7: Formation System</h2>
+
+<h3>Follow Formations</h3>
+
+<pre><code>// Service: UService_FormationManager
+void CalculateFormationPosition(EFormationType Formation)
+{
+    FVector PlayerLoc = Player->GetActorLocation();
+    FVector PlayerForward = Player->GetActorForwardVector();
+    FVector PlayerRight = Player->GetActorRightVector();
+    FVector FormationPos;
+    
+    switch (Formation)
+    {
+    case EFormationType::Behind:
+        // Behind player
+        FormationPos = PlayerLoc - PlayerForward * FollowDistance;
+        break;
+        
+    case EFormationType::BesideLeft:
+        // Left side
+        FormationPos = PlayerLoc - PlayerRight * FollowDistance;
+        FormationPos -= PlayerForward * 50.0f; // Slightly behind
+        break;
+        
+    case EFormationType::BesideRight:
+        // Right side
+        FormationPos = PlayerLoc + PlayerRight * FollowDistance;
+        FormationPos -= PlayerForward * 50.0f;
+        break;
+        
+    case EFormationType::Front:
+        // Scout ahead
+        FormationPos = PlayerLoc + PlayerForward * FollowDistance;
+        break;
+    }
+    
+    Brain->SetNamedInputValue(TEXT("TargetX"), FormationPos.X);
+    Brain->SetNamedInputValue(TEXT("TargetY"), FormationPos.Y);
+    Brain->SetNamedInputValue(TEXT("TargetZ"), FormationPos.Z);
+}
+
+Formation Types:
+  Behind: Safe, default
+  BesideLeft/Right: Combat ready
+  Front: Scout, dangerous areas</code></pre>
+
+<h2>Step 8: Player Command System</h2>
+
+<h3>Command Input</h3>
+
+<pre><code>// Player Controller
+void APlayerController::Input_CompanionCommand()
+{
+    // Get companion reference
+    ACompanion* Companion = FindCompanion();
+    
+    // Command wheel or quick commands
+    switch (CommandPressed)
+    {
+    case ECommandKey::Follow:
+        Companion->IssueCommand(ECompanionCommand::Follow);
+        break;
+        
+    case ECommandKey::Wait:
+        Companion->IssueCommand(ECompanionCommand::Wait);
+        Companion->SetWaitLocation(Companion->GetActorLocation());
+        break;
+        
+    case ECommandKey::Defend:
+        Companion->IssueCommand(ECompanionCommand::Defend);
+        break;
+        
+    case ECommandKey::Interact:
+        Companion->IssueCommand(ECompanionCommand::Interact);
+        break;
+    }
+}
+
+// Companion receives command
+void ACompanion::IssueCommand(ECompanionCommand Command)
+{
+    CurrentCommand = Command;
+    
+    // Reset command inputs
+    Brain->SetNamedInputValue(TEXT("Command_Follow"), 0.0f);
+    Brain->SetNamedInputValue(TEXT("Command_Wait"), 0.0f);
+    Brain->SetNamedInputValue(TEXT("Command_Defend"), 0.0f);
+    Brain->SetNamedInputValue(TEXT("Command_Interact"), 0.0f);
+    
+    // Set active command input
+    switch (Command)
+    {
+    case ECompanionCommand::Follow:
+        Brain->SetNamedInputValue(TEXT("Command_Follow"), 1.0f);
+        break;
+    case ECompanionCommand::Wait:
+        Brain->SetNamedInputValue(TEXT("Command_Wait"), 1.0f);
+        break;
+    // etc...
+    }
+    
+    UE_LOG(LogAI, Log, TEXT("Companion received command: %d"), (int32)Command);
+}</code></pre>
+
+<h2>Step 9: Contextual Awareness</h2>
+
+<h3>Context Service</h3>
+
+<pre><code>// Service: UService_CompanionContext
+void UService_CompanionContext::TickService(float DeltaTime)
+{
+    Super::TickService(DeltaTime);
+    
+    // Detect player state
+    bool bPlayerInCombat = DetectPlayerCombat();
+    bool bPlayerMoving = Player->GetVelocity().Size() > 100.0f;
+    bool bPlayerHurt = GetPlayerHealth() < 0.5f;
+    
+    // Publish context
+    Brain->SetNamedInputValue(TEXT("PlayerInCombat"), bPlayerInCombat ? 1.0f : 0.0f);
+    Brain->SetNamedInputValue(TEXT("PlayerIsMoving"), bPlayerMoving ? 1.0f : 0.0f);
+    Brain->SetNamedInputValue(TEXT("PlayerHealth"), GetPlayerHealth());
+    
+    // Detect quest context
+    bool bNearQuestObject = CheckNearbyQuestObjects();
+    Brain->SetNamedInputValue(TEXT("NearQuestObject"), bNearQuestObject ? 1.0f : 0.0f);
+    
+    // Calculate player threat level
+    float ThreatLevel = CalculatePlayerThreat();
+    Brain->SetNamedInputValue(TEXT("PlayerThreatLevel"), ThreatLevel);
+}
+
+float CalculatePlayerThreat()
+{
+    // Enemies targeting player
+    int32 EnemiesAttacking = CountEnemiesAttackingPlayer();
+    
+    // Player health
+    float HealthFactor = 1.0f - GetPlayerHealth();
+    
+    // Combined threat
+    float Threat = FMath::Clamp(
+        (EnemiesAttacking / 5.0f) * 0.6f +
+        HealthFactor * 0.4f,
+        0.0f, 1.0f
+    );
+    
+    return Threat;
+}</code></pre>
+
+<h2>Step 10: Polish & Feedback</h2>
+
+<h3>Visual Feedback</h3>
+
+<pre><code>// Companion state indicators
+void UpdateVisualState()
+{
+    switch (CurrentCommand)
+    {
+    case ECompanionCommand::Follow:
+        // Green indicator above head
+        SetIndicatorColor(FLinearColor::Green);
+        break;
+        
+    case ECompanionCommand::Wait:
+        // Yellow indicator
+        SetIndicatorColor(FLinearColor::Yellow);
+        ShowWaitIcon();
+        break;
+        
+    case ECompanionCommand::Defend:
+        // Red indicator
+        SetIndicatorColor(FLinearColor::Red);
+        ShowDefendIcon();
+        break;
+    }
+    
+    // Combat state
+    if (bIsInCombat)
+    {
+        ShowCombatEffects();
+    }
+}
+
+Audio Feedback:
+  - Acknowledgment sounds ("On it!", "Following!")
+  - Combat callouts ("Enemy spotted!", "Engaging!")
+  - Status updates ("I'll wait here", "Covering you")
+  - Contextual dialogue</code></pre>
+
+<h2>Complete Configuration Summary</h2>
+
+<pre><code>Companion Pawn: BP_Companion
+  PlayerActor: Auto-found on BeginPlay
+  FollowDistance: 300 (adjustable)
+  CurrentCommand: Follow (default)
+  
+Services:
+  [0] PerceptionMonitor
+  [1] CompanionContext (custom)
+  [2] FormationManager (custom)
+
+Actions (6 total):
+  Follow (P:40, always available)
+  Assist (P:60, when player in combat)
+  Wait (P:70, when commanded)
+  Interact (P:65, when player requests)
+  Guard (P:75, when player threatened)
+  Idle (P:30, fallback)
+
+Commands:
+  Follow - Default behavior
+  Wait - Stay at location
+  Defend - Guard player
+  Interact - Context interaction
+
+Context Detection:
+  PlayerInCombat: Enemy engagement
+  PlayerHealth: HP percentage
+  PlayerThreatLevel: Combined threat
+  NearQuestObject: Quest proximity
+
+Result: Responsive, helpful companion AI</code></pre>
+
+<h2>Next Steps</h2>
+
+<div class="next-steps">
+  <a class="button primary" href="#/docs/example-combat-soldier">
+    <i data-lucide="crosshair"></i>
+    Combat Soldier Example
+  </a>
+  <a class="button" href="#/docs/archetype-guide">
+    <i data-lucide="layers"></i>
+    Archetype Guide
+  </a>
+</div>
+
+<h3>Related Examples</h3>
+<ul>
+  <li><a href="#/docs/example-squad-coordination"><i data-lucide="users"></i> Squad Coordination</a> - Multi-agent systems</li>
+  <li><a href="#/docs/example-stealth-guard"><i data-lucide="eye-off"></i> Stealth Guard</a> - Investigation AI</li>
+  <li><a href="#/docs/perception-setup"><i data-lucide="eye"></i> Perception Setup</a> - Configure senses</li>
+  <li><a href="#/docs/action-patterns"><i data-lucide="layers"></i> Action Patterns</a> - Design patterns</li>
+</ul>
+
+<script>lucide.createIcons();</script>
