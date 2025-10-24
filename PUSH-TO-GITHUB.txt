@@ -1,0 +1,74 @@
+===============================================
+CIN PLUGIN DOCS - GITHUB DEPLOYMENT COMMANDS
+===============================================
+
+STEP 1: Create repository on GitHub
+------------------------------------
+Go to: https://github.com/new
+Name: cin-plugin-docs (or your choice)
+Description: Complete documentation for CIN Plugin
+Visibility: Public
+DON'T initialize with README/gitignore/license
+
+
+STEP 2: Copy YOUR repository URL from GitHub
+---------------------------------------------
+It will look like:
+https://github.com/YOUR_USERNAME/cin-plugin-docs.git
+
+Replace YOUR_USERNAME with your actual GitHub username!
+
+
+STEP 3: Run these commands (one at a time)
+-------------------------------------------
+cd "C:\Users\Administrator\Documents\Unreal Projects\CIN\Documentation\Website"
+
+git remote add origin https://github.com/YOUR_USERNAME/cin-plugin-docs.git
+
+git branch -M main
+
+git push -u origin main
+
+
+STEP 4: Enable GitHub Pages
+----------------------------
+1. Go to your repository on GitHub
+2. Click "Settings" tab
+3. Click "Pages" in left sidebar
+4. Under "Source":
+   - Branch: main
+   - Folder: / (root)
+5. Click "Save"
+6. Wait 2-5 minutes
+
+
+STEP 5: Access Your Live Site
+------------------------------
+Your documentation will be live at:
+https://YOUR_USERNAME.github.io/cin-plugin-docs/
+
+(Replace YOUR_USERNAME with your actual username)
+
+
+===============================================
+TROUBLESHOOTING
+===============================================
+
+If push fails with authentication error:
+- Use GitHub Desktop: https://desktop.github.com/
+- Or set up SSH keys
+- Or use Personal Access Token
+
+If pages don't load:
+- Make sure GitHub Pages is enabled
+- Check Settings → Pages shows green "Your site is live"
+- May take 5-10 minutes on first deploy
+
+
+===============================================
+STATUS: READY TO DEPLOY!
+===============================================
+✅ 108 files committed
+✅ 38,007 lines of content
+✅ 70 comprehensive pages
+✅ Ready for immediate publication
