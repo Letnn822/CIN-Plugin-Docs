@@ -35,7 +35,9 @@ FAQ, Quick Reference, Glossary, and more
 
 ## 🚀 View Documentation
 
-**Live Site:** [https://YOUR_USERNAME.github.io/cin-plugin-docs/](https://YOUR_USERNAME.github.io/cin-plugin-docs/)
+**Live Site:** [https://letnn822.github.io/CIN-Plugin-Docs/](https://letnn822.github.io/CIN-Plugin-Docs/)
+
+**Repository:** [https://github.com/Letnn822/CIN-Plugin-Docs](https://github.com/Letnn822/CIN-Plugin-Docs)
 
 ## 🛠️ Local Development
 
