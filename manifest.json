@@ -13,9 +13,8 @@
       "Support & Reference"
     ],
     "pages": [
-      {"title":"Overview","slug":"overview","path":"content/docs/overview.html","group":"Your First AI","order":1,"time":"5 min","icon":"home"},
-      {"title":"Plugin Comparison","slug":"comparison","path":"content/docs/comparison.html","group":"Your First AI","order":2,"time":"15 min","icon":"bar-chart-2"},
-      {"title":"Installation","slug":"installation","path":"content/docs/installation.html","group":"Your First AI","order":3,"time":"8 min","icon":"download"},
+      {"title":"Overview","slug":"overview","path":"content/docs/overview.html","group":"Your First AI","order":1,"time":"10 min","icon":"home"},
+      {"title":"Installation","slug":"installation","path":"content/docs/installation.html","group":"Your First AI","order":2,"time":"8 min","icon":"download"},
       {"title":"Your First AI","slug":"first-combat-ai","path":"content/docs/first-combat-ai.html","group":"Your First AI","order":4,"time":"15 min","icon":"zap"},
       {"title":"Archetype Guide","slug":"archetype-guide","path":"content/docs/archetype-guide.html","group":"Your First AI","order":5,"time":"10 min","icon":"layers"},
       {"title":"Debug & Visualize","slug":"debug-basics","path":"content/docs/debug-basics.html","group":"Your First AI","order":6,"time":"8 min","icon":"search"},
