@@ -1,0 +1,37 @@
+<h1>Installation</h1>
+
+<p>
+  This plugin targets <strong>Unreal Engine 5.5–5.6</strong>. You can install it to your project as a standard Engine/Project plugin.
+</p>
+
+<h2>Requirements</h2>
+<ul>
+  <li>UE 5.5 or 5.6</li>
+  <li>Gameplay Tags enabled (Project Settings → Gameplay Tags)</li>
+</ul>
+
+<h2>Steps</h2>
+<ol>
+  <li>
+    <strong>Copy the plugin</strong> into your project at <code>Plugins/CFTagManager</code>.
+  </li>
+  <li>
+    <strong>Enable the plugin</strong> in <em>Edit → Plugins</em> then restart the editor if prompted.
+  </li>
+  <li>
+    <strong>Configure Gameplay Tags</strong> in <em>Project Settings → Gameplay Tags</em>.
+    Add or import your tag list and set tag sources as needed.
+  </li>
+  <li>
+    <strong>Verify</strong> by opening any Blueprint and searching for nodes in the <em>Gameplay Tags</em> category
+    like <code>Get Tags By Pattern</code> or <code>Get Root Tags</code>.
+  </li>
+</ol>
+
+<div class="callout tip">
+  <div class="icon">✅</div>
+  <div>
+    <strong>Packaging</strong>
+    <p>Nothing special is required for packaging. The plugin relies on UE's built-in Gameplay Tags system.</p>
+  </div>
+</div>

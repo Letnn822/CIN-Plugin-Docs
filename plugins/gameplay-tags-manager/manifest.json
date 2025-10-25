@@ -1,0 +1,79 @@
+{
+  "meta": {
+    "id": "gameplay-tags-manager",
+    "name": "Gameplay Tags Manager",
+    "slug": "gameplay-tags-manager",
+    "version": "0.1.0",
+    "category": "Gameplay Systems",
+    "type": "Gameplay system for managing and organizing gameplay tags",
+    "target": "UE 5.5-5.6",
+    "repo": "https://github.com/codefurnace/CFTagManager",
+    "icons": {
+      "overview": "tag",
+      "installation": "package",
+      "getting-started": "play-circle",
+      "core-features": "layers",
+      "api-reference": "code",
+      "examples": "book-open"
+    }
+  },
+  "docs": {
+    "title": "Documentation",
+    "groups": ["Introduction", "Setup", "Usage", "Reference"],
+    "pages": [
+      {
+        "slug": "overview",
+        "title": "Overview",
+        "group": "Introduction",
+        "path": "plugins/gameplay-tags-manager/content/docs/overview.html",
+        "icon": "tag"
+      },
+      {
+        "slug": "installation",
+        "title": "Installation",
+        "group": "Setup",
+        "path": "plugins/gameplay-tags-manager/content/docs/installation.html",
+        "icon": "package"
+      },
+      {
+        "slug": "getting-started",
+        "title": "Getting Started",
+        "group": "Usage",
+        "path": "plugins/gameplay-tags-manager/content/docs/getting-started.html",
+        "icon": "play-circle"
+      },
+      {
+        "slug": "core-features",
+        "title": "Core Features",
+        "group": "Usage",
+        "path": "plugins/gameplay-tags-manager/content/docs/core-features.html",
+        "icon": "layers"
+      },
+      {
+        "slug": "api-reference",
+        "title": "API Reference",
+        "group": "Reference",
+        "path": "plugins/gameplay-tags-manager/content/docs/api-reference.html",
+        "icon": "code"
+      },
+      {
+        "slug": "examples",
+        "title": "Examples",
+        "group": "Reference",
+        "path": "plugins/gameplay-tags-manager/content/docs/examples.html",
+        "icon": "book-open"
+      }
+    ]
+  },
+  "examples": {
+    "title": "Examples",
+    "pages": [
+      {
+        "slug": "examples",
+        "title": "Examples",
+        "path": "plugins/gameplay-tags-manager/content/docs/examples.html",
+        "icon": "book-open"
+      }
+    ]
+  }
+}

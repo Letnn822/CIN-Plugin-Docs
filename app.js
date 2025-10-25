@@ -1,11 +1,22 @@
 (function(){
-  const manifestUrl = 'manifest.json';
+  // Multi-plugin hub support
+  const registryUrl = 'plugins.json';
+  let registry = null;              // { plugins: [{ id, name, slug, manifest, ...}] }
+  let manifest = null;              // current plugin manifest
+  let currentPlugin = null;         // current plugin slug (e.g., 'cin' or 'gameplay-tags-manager')
+  let currentSection = 'docs';
+  let currentSlug = 'overview';
+
   const $content = document.getElementById('content');
   const $contentBody = document.getElementById('content-body') || $content;
   const $breadcrumbs = document.getElementById('breadcrumbs');
   const $sidebar = document.getElementById('sidebar-nav');
   const $filter = document.getElementById('filter');
   const $year = document.getElementById('year');
+  const $brand = document.querySelector('.brand');
+  const $logo = document.querySelector('.logo');
+  const $titleH1 = document.querySelector('.titles h1');
+  const $titleP = document.querySelector('.titles p');
   if ($year) $year.textContent = new Date().getFullYear();
 
   // Glossary tooltip system (beginner-friendly hover definitions)
@@ -161,16 +172,56 @@
     }
   }
 
-  let manifest = null;
-  let currentSection = 'docs';
-  let currentSlug = 'overview';
+  // ----- Helpers for hub/plugin modes -----
+  function findPluginBySlug(slug){
+    return registry?.plugins?.find(p=>p.slug===slug) || null;
+  }
 
+  function computeManifestUrlFor(slug){
+    // For backward compatibility, CIN continues to use root manifest.json
+    if (slug === 'cin' || !slug) return 'manifest.json';
+    const entry = findPluginBySlug(slug);
+    return entry?.manifest || `plugins/${slug}/manifest.json`;
+  }
+
+  function setBrandForHub(){
+    if ($logo) $logo.textContent = 'CF';
+    if ($titleH1) $titleH1.textContent = 'Code Furnace Plugins';
+    if ($titleP) $titleP.textContent = 'Documentation Hub';
+  }
+
+  function setBrandForPlugin(slug){
+    const entry = findPluginBySlug(slug);
+    const name = entry?.name || (slug==='cin' ? 'CIN Plugin' : 'Plugin');
+    const logoText = (slug==='cin') ? 'CIN' : (name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,3) || 'CF');
+    if ($logo) $logo.textContent = logoText;
+    if ($titleH1) $titleH1.textContent = name;
+    if ($titleP) $titleP.textContent = 'Documentation & Guides';
+  }
+
+  function showSidebar(visible){
+    const aside = document.querySelector('.sidebar');
+    if (!aside) return;
+    aside.style.display = visible ? '' : 'none';
+  }
+
+  // Routing: hub or plugin
   const routeFromHash = () => {
     const hash = location.hash.replace(/^#\/?/, '');
+    if (!hash || hash === '' || hash === 'hub') {
+      return { mode: 'hub' };
+    }
     const parts = hash.split('/');
+    if (parts[0] === 'plugins') {
+      const plugin = parts[1] || 'cin';
+      const section = parts[2] || 'docs';
+      const slug = parts[3] || null; // compute later once manifest is loaded
+      return { mode: 'plugin', plugin, section, slug };
+    }
+    // Legacy routes: #/docs/<page> → map to CIN plugin
     const section = parts[0] || 'docs';
-    const slug = parts[1] || defaultSlug(section);
-    return { section, slug };
+    const slug = parts[1] || null;
+    return { mode: 'plugin', plugin: 'cin', section, slug, legacy: true };
   };
 
   const defaultSlug = (section) => {
@@ -219,7 +270,9 @@
       if (!sec) throw new Error('Unknown section');
       const page = sec.pages.find(p=>p.slug===slug) || sec.pages[0];
       if (!page) throw new Error('Page not found');
-      document.title = `${page.title} — CIN Plugin Docs`;
+      const pluginEntry = findPluginBySlug(currentPlugin);
+      const pluginName = pluginEntry?.name || (currentPlugin==='cin' ? 'CIN Plugin' : 'Plugin');
+      document.title = `${page.title} — ${pluginName} Docs`;
       const res = await fetch(page.path, { cache: 'no-store' });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const html = await res.text();
@@ -249,17 +302,75 @@
     }
   }
 
-  function navigate(section, slug){
-    currentSection = section;
+  function renderHub(){
+    setBrandForHub();
+    showSidebar(false);
+    const plugins = registry?.plugins || [{ id: 'cin', slug: 'cin', name: 'CIN AI', category: 'AI Systems', description: 'Utility AI framework for Unreal Engine', manifest: 'manifest.json', icon: 'bot' }];
+    const cards = plugins.map(p=>{
+      const overviewHash = `#/plugins/${p.slug}/docs/overview`;
+      return `
+        <div class="journey-card">
+          <h4>${p.name}</h4>
+          <p>${p.description || ''}</p>
+          <ul>
+            <li>Category: ${p.category || ''}</li>
+            <li>Open: <a href="${overviewHash}">${overviewHash}</a></li>
+          </ul>
+          <div class="hero-cta"><a class="button primary" href="${overviewHash}">Open Docs</a></div>
+        </div>`;
+    }).join('');
+    const html = `
+      <section class="hero-modern">
+        <div class="hero-bg-modern"></div>
+        <div class="hero-content-modern">
+          <div class="hero-badge-row"><span class="badge-new">Documentation Hub</span></div>
+          <h1 class="hero-title-modern">Choose a Plugin</h1>
+          <p class="hero-subtitle-modern">Browse Code Furnace documentation collections.</p>
+        </div>
+      </section>
+      <div class="journey-cards">${cards}</div>`;
+    if ($contentBody) { $contentBody.innerHTML = html; } else { $content.innerHTML = html; }
+    document.title = 'Code Furnace — Documentation Hub';
+  }
+
+  async function loadManifestForPlugin(pluginSlug){
+    const url = computeManifestUrlFor(pluginSlug);
+    const res = await fetch(url, { cache: 'no-store' });
+    if (!res.ok) throw new Error(`Unable to load ${url} (HTTP ${res.status})`);
+    manifest = await res.json();
+  }
+
+  async function navigateRoute(state){
+    if (state.mode === 'hub'){
+      renderHub();
+      return;
+    }
+    // Plugin mode
+    currentPlugin = state.plugin || 'cin';
+    setBrandForPlugin(currentPlugin);
+    showSidebar(true);
+    try{
+      await loadManifestForPlugin(currentPlugin);
+    }catch(err){
+      $content.innerHTML = `<div class="warn">${err.message}</div>`;
+      return;
+    }
+    currentSection = state.section || 'docs';
+    const slug = state.slug || defaultSlug(currentSection);
     currentSlug = slug;
-    setActiveTab(section);
-    buildSidebar(section);
-    loadContent(section, slug);
+    // If legacy route, rewrite to canonical URL
+    if (state.legacy){
+      location.hash = `#/plugins/${currentPlugin}/${currentSection}/${currentSlug}`;
+      return;
+    }
+    setActiveTab(currentSection);
+    buildSidebar(currentSection);
+    loadContent(currentSection, currentSlug);
   }
 
   function onHashChange(){
-    const {section, slug} = routeFromHash();
-    navigate(section, slug);
+    const state = routeFromHash();
+    navigateRoute(state);
   }
 
   // Optional parallax background (pointer-based), respects reduced motion
@@ -314,7 +425,12 @@
       btn.addEventListener('click', ()=>{
         const section = btn.dataset.section;
         const slug = defaultSlug(section);
-        location.hash = `#/${section}/${slug}`;
+        if (currentPlugin){
+          location.hash = `#/plugins/${currentPlugin}/${section}/${slug}`;
+        } else {
+          // If on hub, default to CIN
+          location.hash = `#/plugins/cin/${section}/${slug}`;
+        }
       });
     });
 
@@ -323,18 +439,20 @@
       $filter.addEventListener('input', ()=>buildSidebar(currentSection));
     }
 
-    // Load manifest
-    try{
-      const res = await fetch(manifestUrl, { cache: 'no-store' });
-      manifest = await res.json();
-    }catch(err){
-      $content.innerHTML = `<div class="warn">Unable to load manifest.json. ${err.message}</div>`;
-      return;
+    // Brand click returns to hub
+    if ($brand){
+      $brand.addEventListener('click', ()=>{ location.hash = '#/'; });
     }
 
+    // Load registry (optional for single-plugin backward compatibility)
+    try{
+      const res = await fetch(registryUrl, { cache: 'no-store' });
+      if (res.ok){ registry = await res.json(); }
+    }catch(e){ /* ignore; fallback to single-plugin */ }
+
     window.addEventListener('hashchange', onHashChange);
-    const {section, slug} = routeFromHash();
-    navigate(section, slug);
+    const state = routeFromHash();
+    await navigateRoute(state);
   }
 
   init();

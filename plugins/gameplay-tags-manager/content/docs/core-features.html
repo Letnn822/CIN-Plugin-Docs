@@ -1,0 +1,38 @@
+<h1>Core Features</h1>
+
+<p>
+  Gameplay Tags Manager focuses on convenient, Blueprint-friendly utilities built on Unreal's native Gameplay Tags framework.
+</p>
+
+<h2>Hierarchy Utilities</h2>
+<ul>
+  <li><strong>Get Root Tags</strong>: Return all top-level tags (no dots).</li>
+  <li><strong>Get Child Tags</strong>: Direct or recursive descendants of a given parent tag.</li>
+  <li><strong>Get Parent Tag</strong>: Returns the parent (segment before the last dot) or invalid if already root.</li>
+  <li><strong>Get Tag Depth</strong>: Returns the hierarchy depth (root = 1).</li>
+  <li><strong>Is Leaf Tag</strong>: True if the tag has no direct children.</li>
+</ul>
+
+<h2>Runtime Query Utilities</h2>
+<ul>
+  <li><strong>Get Tags By Pattern</strong>: Wildcard search using <code>MatchesWildcard</code> (e.g., <code>Combat.*</code>).</li>
+  <li><strong>Get All Tags</strong>: Returns a <code>FGameplayTagContainer</code> of all registered tags.</li>
+  <li><strong>Does Tag Exist</strong>: Validity check using <code>FGameplayTag::IsValid()</code>.</li>
+  <li><strong>Make Tag From String</strong>: Requests an existing tag; returns invalid if it doesn't exist.</li>
+</ul>
+
+<h2>Display Helpers</h2>
+<ul>
+  <li><strong>Tag To Display String</strong>: Returns the last segment (after final dot) for UI-friendly labels.</li>
+</ul>
+
+<div class="callout tip">
+  <div class="icon">⚙️</div>
+  <div>
+    <strong>Performance</strong>
+    <p>
+      Tag queries leverage <code>UGameplayTagsManager::RequestAllGameplayTags</code> and simple string checks. For large tag sets,
+      prefer caching results you reuse across frames.
+    </p>
+  </div>
+</div>

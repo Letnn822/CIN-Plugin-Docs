@@ -1,0 +1,22 @@
+{
+  "plugins": [
+    {
+      "id": "cin",
+      "name": "CIN AI",
+      "slug": "cin",
+      "category": "AI Systems",
+      "manifest": "manifest.json",
+      "icon": "bot",
+      "description": "Utility AI framework for Unreal Engine 5.5+"
+    },
+    {
+      "id": "gameplay-tags-manager",
+      "name": "Gameplay Tags Manager",
+      "slug": "gameplay-tags-manager",
+      "category": "Gameplay Systems",
+      "manifest": "plugins/gameplay-tags-manager/manifest.json",
+      "icon": "tag",
+      "description": "Manage and organize gameplay tags with hierarchy utilities and Blueprint nodes"
+    }
+  ]
+}

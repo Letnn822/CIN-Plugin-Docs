@@ -1,0 +1,54 @@
+<h1>Getting Started</h1>
+
+<p>
+  This quick guide shows how to start using the Gameplay Tags Manager utilities in Blueprints and C++.
+</p>
+
+<h2>Blueprints</h2>
+<ol>
+  <li>Open any Blueprint (e.g., an Actor or a Utility Blueprint).</li>
+  <li>Right-click in the graph and search for the <strong>Gameplay Tags</strong> category.</li>
+  <li>Use nodes like <code>Get Tags By Pattern</code>, <code>Get Root Tags</code>, <code>Get Child Tags</code>, or <code>Tag To Display String</code>.</li>
+</ol>
+
+<div class="callout tip">
+  <div class="icon">🔍</div>
+  <div>
+    <strong>Patterns</strong>
+    <p>Use wildcard patterns such as <code>Combat.*</code> or <code>Character.Health.*</code> with <em>Get Tags By Pattern</em>.</p>
+  </div>
+</div>
+
+<h2>C++</h2>
+<pre><code>// Example usage from C++
+#include "CFTagLibrary.h"
+
+void UMySubsystem::Demo()
+{
+    // Get all root tags
+    TArray<FGameplayTag> Roots = UCFTagLibrary::GetRootTags();
+
+    // Check if a tag exists
+    FGameplayTag Health = UCFTagLibrary::MakeTagFromString(TEXT("Character.Health"));
+    const bool bHasHealth = UCFTagLibrary::DoesTagExist(Health);
+
+    // Get children (direct)
+    TArray<FGameplayTag> DirectChildren = UCFTagLibrary::GetChildTags(Health, /*bRecursive*/ false);
+
+    // Get children (recursive)
+    TArray<FGameplayTag> AllDescendants = UCFTagLibrary::GetChildTags(Health, /*bRecursive*/ true);
+
+    // Display names
+    for (const FGameplayTag& Tag : AllDescendants)
+    {
+        UE_LOG(LogTemp, Log, TEXT("%s (Depth %d)"), *UCFTagLibrary::TagToDisplayString(Tag), UCFTagLibrary::GetTagDepth(Tag));
+    }
+}
+</code></pre>
+
+<h2>Direct routing</h2>
+<p>
+  You can directly open pages via hash routes:
+  <code>#/plugins/gameplay-tags-manager/docs/overview</code>,
+  <code>#/plugins/gameplay-tags-manager/docs/installation</code>, etc.
+</p>

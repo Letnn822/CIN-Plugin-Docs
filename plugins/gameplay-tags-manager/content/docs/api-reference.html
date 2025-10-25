@@ -1,0 +1,108 @@
+<h1>API Reference</h1>
+
+<p>
+  All functions are exposed via <code>UCFTagLibrary</code> in the <em>Gameplay Tags</em> Blueprint category and are available in C++.
+  Below reflects the actual implementation in the plugin source.
+</p>
+
+<h2>Blueprint Nodes and C++ Signatures</h2>
+
+<h3>Get Tags By Pattern</h3>
+<p>
+  Returns tags that match a wildcard <code>Pattern</code> using <code>FString::MatchesWildcard</code>.
+</p>
+<pre><code>// C++
+UFUNCTION(BlueprintCallable, Category = "Gameplay Tags")
+static TArray<FGameplayTag> GetTagsByPattern(const FString& Pattern);
+
+// Example patterns: "Combat.*", "Character.Health.*"
+</code></pre>
+
+<h3>Does Tag Exist</h3>
+<p>
+  Returns true if <code>Tag.IsValid()</code>.
+</p>
+<pre><code>// C++
+UFUNCTION(BlueprintPure, Category = "Gameplay Tags")
+static bool DoesTagExist(FGameplayTag Tag);
+</code></pre>
+
+<h3>Get Child Tags</h3>
+<p>
+  Returns child tags of <code>ParentTag</code>.
+  If <code>bRecursive</code> is true, returns all descendants; otherwise only direct children (one level deeper).
+</p>
+<pre><code>// C++
+UFUNCTION(BlueprintCallable, Category = "Gameplay Tags")
+static TArray<FGameplayTag> GetChildTags(FGameplayTag ParentTag, bool bRecursive = false);
+</code></pre>
+
+<h3>Get Parent Tag</h3>
+<p>
+  Returns the parent tag (segment before the last dot) or invalid if already at root.
+</p>
+<pre><code>// C++
+UFUNCTION(BlueprintPure, Category = "Gameplay Tags")
+static FGameplayTag GetParentTag(FGameplayTag Tag);
+</code></pre>
+
+<h3>Get Root Tags</h3>
+<p>
+  Returns all top-level tags (no dots) from the registered tag set.
+</p>
+<pre><code>// C++
+UFUNCTION(BlueprintCallable, Category = "Gameplay Tags")
+static TArray<FGameplayTag> GetRootTags();
+</code></pre>
+
+<h3>Get Tag Depth</h3>
+<p>
+  Returns the depth of the tag (root = 1). Depth is the number of segments separated by dots.
+</p>
+<pre><code>// C++
+UFUNCTION(BlueprintPure, Category = "Gameplay Tags")
+static int32 GetTagDepth(FGameplayTag Tag);
+</code></pre>
+
+<h3>Is Leaf Tag</h3>
+<p>
+  Returns true if the tag has no direct children.
+</p>
+<pre><code>// C++
+UFUNCTION(BlueprintPure, Category = "Gameplay Tags")
+static bool IsLeafTag(FGameplayTag Tag);
+</code></pre>
+
+<h3>Get All Tags</h3>
+<p>
+  Returns a container of all tags as known by <code>UGameplayTagsManager</code>.
+</p>
+<pre><code>// C++
+UFUNCTION(BlueprintCallable, Category = "Gameplay Tags")
+static FGameplayTagContainer GetAllTags();
+</code></pre>
+
+<h3>Tag To Display String</h3>
+<p>
+  Returns the last segment of the tag (after the final dot) for UI-friendly labels.
+</p>
+<pre><code>// C++
+UFUNCTION(BlueprintPure, Category = "Gameplay Tags")
+static FString TagToDisplayString(FGameplayTag Tag);
+</code></pre>
+
+<h3>Make Tag From String</h3>
+<p>
+  Requests a tag by string. Returns invalid if it doesn't exist (does not create new tags).
+</p>
+<pre><code>// C++
+UFUNCTION(BlueprintCallable, Category = "Gameplay Tags")
+static FGameplayTag MakeTagFromString(const FString& TagString);
+</code></pre>
+
+<h2>Notes</h2>
+<ul>
+  <li><strong>Wildcard Matching:</strong> Uses <code>MatchesWildcard</code>. Pattern examples: <code>Combat.*</code>, <code>Character.*.Low</code>.</li>
+  <li><strong>Tag Sources:</strong> Tags come from your configured Gameplay Tag tables/sources in Project Settings.</li>
+  <li><strong>Performance:</strong> Prefer caching heavy queries (e.g., all descendants) during gameplay.</li>
+</ul>

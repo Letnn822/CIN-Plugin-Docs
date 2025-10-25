@@ -1,0 +1,43 @@
+<h1>Examples</h1>
+
+<p>
+  Practical snippets showing how to use Gameplay Tags Manager features in Blueprints and C++.
+</p>
+
+<h2>Find Tags by Wildcard Pattern</h2>
+<p>Get all tags under a category like <code>Combat.*</code>.</p>
+<pre><code>// C++
+TArray<FGameplayTag> CombatTags = UCFTagLibrary::GetTagsByPattern(TEXT("Combat.*"));
+for (const FGameplayTag& Tag : CombatTags)
+{
+    UE_LOG(LogTemp, Log, TEXT("%s"), *Tag.ToString());
+}
+</code></pre>
+
+<h2>List Root Tags</h2>
+<pre><code>// C++
+TArray<FGameplayTag> Roots = UCFTagLibrary::GetRootTags();
+</code></pre>
+
+<h2>Navigate Hierarchy</h2>
+<pre><code>// C++
+FGameplayTag Health = UCFTagLibrary::MakeTagFromString(TEXT("Character.Health"));
+FGameplayTag Parent = UCFTagLibrary::GetParentTag(Health);
+TArray<FGameplayTag> DirectChildren = UCFTagLibrary::GetChildTags(Health, /*bRecursive*/ false);
+TArray<FGameplayTag> AllDescendants = UCFTagLibrary::GetChildTags(Health, /*bRecursive*/ true);
+</code></pre>
+
+<h2>Blueprint Quick Tips</h2>
+<ul class="compact">
+  <li>Use <strong>Get Tags By Pattern</strong> to build dynamic menus (e.g., list all <code>Character.*</code> tags).</li>
+  <li>Use <strong>Tag To Display String</strong> to show a friendly label in UI widgets.</li>
+  <li>Check <strong>Does Tag Exist</strong> before operating on user-input strings.</li>
+</ul>
+
+<div class="callout warn">
+  <div class="icon">⚠️</div>
+  <div>
+    <strong>Large Tag Sets</strong>
+    <p>Cache frequently used results (e.g., descendants) in your subsystems to avoid repeating expensive queries.</p>
+  </div>
+</div>
