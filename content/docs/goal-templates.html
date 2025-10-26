@@ -185,11 +185,43 @@ void OnGoalTemplatesApplied(AActor* Agent);
   <li><strong>Operator mismatch</strong>: ensure <strong>ActivationConditions.Operator</strong> matches your parameter semantics.</li>
  </ul>
  
- <h2>Example: ICINGoal implementation + Goal Template entry</h2>
+ <h2>Example: Creating a Custom Goal</h2>
  <p>Create a simple goal by implementing <code>ICINGoal</code> on a <code>UObject</code>, then reference it from an <code>FCINGoalTemplate</code> entry in your <code>UCINGoalTemplatesDA_Base</code> asset.</p>
  
- <p><strong>C++ (minimal example)</strong></p>
- <pre><code class="language-cpp">// MyChaseGoal.h (project module)
+ <div class="code-tabs-container">
+   <div class="code-tabs-header">
+     <button class="code-tab-button" data-lang="blueprint">Blueprint</button>
+     <button class="code-tab-button" data-lang="cpp">C++</button>
+   </div>
+   
+   <div class="code-tab-content">
+     <pre><code>// Blueprint - Create goal class
+1. Right-click in Content Browser
+2. Blueprint Class → Object → Implements ICINGoal
+3. Name it "BP_ChaseGoal"
+4. Open the Blueprint
+
+// Implement ICINGoal Interface Functions
+Function GetGoalID → Return: "ChasePlayer"
+Function GetGoalName → Return: "Chase Player"
+Function GetGoalDescription → Return: "Move toward target"
+Function GetBasePriority → Return: Normal
+Function CalculatePriority → Return: 1.0
+Function IsRelevant → Return: True
+Function CanActivate → Return: True
+
+// Implement Goal Events
+Event OnGoalActivated
+  → Print String: "Started chasing player"
+  → Begin chase behavior
+  
+Event OnGoalDeactivated
+  → Print String: "Stopped chasing"
+  → Clean up chase state</code></pre>
+   </div>
+   
+   <div class="code-tab-content">
+     <pre><code class="language-cpp">// MyChaseGoal.h (project module)
  #pragma once
  #include "CoreMinimal.h"
  #include "Interfaces/ICINGoal.h"
@@ -216,10 +248,12 @@ void OnGoalTemplatesApplied(AActor* Agent);
      virtual float GetActionContribution(ICINAction* Action, ICINAgent* Agent, const FCINContextualEmbedding& Context) const override { return 0.0f; }
  };
  </code></pre>
+   </div>
+ </div>
  
  <p><strong>Goal Template entry (<code>FCINGoalTemplate</code>)</strong></p>
  <ul>
-   <li><strong>GoalClass</strong>: <code>UMyChaseGoal</code> (or a Blueprint subclass)</li>
+   <li><strong>GoalClass</strong>: <code>BP_ChaseGoal</code> or <code>UMyChaseGoal</code></li>
    <li><strong>TemplateID</strong>: <code>"ChasePlayer"</code></li>
    <li><strong>TemplateName</strong>: <code>"Chase Player"</code></li>
    <li><strong>BasePriority</strong>: <code>Normal</code>, <strong>PriorityModifier</strong>: <code>1.0</code></li>

@@ -229,8 +229,53 @@ OutOfRange:        Input < Value1 OR Input > Value2</code></pre>
      ├─ Normalize values (0-1)
      └─ Brain->SetNamedInputValue(Name, Value)</code></pre>
 
-<h3>C++ Service</h3>
-<pre><code>// MyCustomService.h
+<h3>Custom Service Example</h3>
+
+<div class="code-tabs-container">
+  <div class="code-tabs-header">
+    <button class="code-tab-button" data-lang="blueprint">Blueprint</button>
+    <button class="code-tab-button" data-lang="cpp">C++</button>
+  </div>
+  
+  <div class="code-tab-content">
+    <pre><code>// Blueprint - Health monitoring service
+1. Create Blueprint Class → Utility Service
+2. Name: "BP_HealthMonitorService"
+
+// Add Variables
+- NormalizationRange (float): 100.0
+- HealthComponent (Health Component): None
+
+// Override Event: On Service Start
+Event On Service Start
+  → Get Owning Pawn
+  → Get Component by Class (Health Component)
+  → Set HealthComponent variable
+  → Print String: "Health monitor started"
+
+// Override Event: Tick Service
+Event Tick Service (Delta Time)
+  → Branch: Is Valid (HealthComponent)?
+    True:
+      → Get Health (from HealthComponent)
+      → Divide by NormalizationRange
+      → Clamp (0.0, 1.0)
+      → Set Named Input Value (Brain, "Health", Result)
+    False:
+      → Print String: "No health component found!"
+
+// Override Event: On Service Stop
+Event On Service Stop
+  → Print String: "Health monitor stopped"
+  → Clear HealthComponent reference
+
+// Configure in Details Panel
+Min Interval: 0.2
+bEnabled: true</code></pre>
+  </div>
+  
+  <div class="code-tab-content">
+    <pre><code class="language-cpp">// MyCustomService.h
 #pragma once
 #include "UtilityAI/Public/Services/UtilityService.h"
 #include "MyCustomService.generated.h"
@@ -266,6 +311,8 @@ void UMyCustomService::TickService(float DeltaTime)
         OwningBrain->SetNamedInputValue("Health", FMath::Clamp(NormalizedHealth, 0.0f, 1.0f));
     }
 }</code></pre>
+  </div>
+</div>
 
 <h2>Service Best Practices</h2>
 

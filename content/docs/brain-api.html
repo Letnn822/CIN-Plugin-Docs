@@ -475,7 +475,37 @@ Example:
 <h2>Common Usage Patterns</h2>
 
 <h3>Basic Setup</h3>
-<pre><code>void AMyAIController::OnPossess(APawn* InPawn)
+
+<div class="code-tabs-container">
+  <div class="code-tabs-header">
+    <button class="code-tab-button" data-lang="blueprint">Blueprint</button>
+    <button class="code-tab-button" data-lang="cpp">C++</button>
+  </div>
+  
+  <div class="code-tab-content">
+    <pre><code>// Blueprint - Basic brain setup
+// In AI Controller Blueprint
+
+Event On Possess (Pawn)
+  → Call Parent: On Possess
+  
+  → Get Component by Class (Utility Brain Component)
+  → Set Brain variable
+  
+  → Add Action (Brain, AttackAction)
+  → Add Action (Brain, DefendAction)
+  
+  → Create Object from Class: Service_PerceptionMonitor
+  → Add Service (Brain, Perception Service)
+  
+  → Start Brain (Brain)
+  → Print String: "AI brain initialized!"
+
+// Or use CINQuickSetup component for automatic setup!</code></pre>
+  </div>
+  
+  <div class="code-tab-content">
+    <pre><code class="language-cpp">void AMyAIController::OnPossess(APawn* InPawn)
 {
     Super::OnPossess(InPawn);
     
@@ -493,9 +523,50 @@ Example:
     // Start brain
     Brain->StartBrain();
 }</code></pre>
+  </div>
+</div>
 
 <h3>Dynamic Behavior Adjustment</h3>
-<pre><code>void AMyAIController::OnDifficultyChanged(EDifficulty NewDifficulty)
+
+<div class="code-tabs-container">
+  <div class="code-tabs-header">
+    <button class="code-tab-button" data-lang="blueprint">Blueprint</button>
+    <button class="code-tab-button" data-lang="cpp">C++</button>
+  </div>
+  
+  <div class="code-tab-content">
+    <pre><code>// Blueprint - Adjust AI difficulty at runtime
+// Custom Event: On Difficulty Changed
+
+Event On Difficulty Changed (New Difficulty)
+  → Get Utility Brain From Pawn (Controlled Pawn)
+  → Set Brain variable
+  
+  → Switch on Enum (New Difficulty)
+    
+    Case Easy:
+      → Set Think Interval (Brain, 1.0)
+      → Nerf Action (Brain, "Attack", 0.5)
+      → Print String: "AI set to Easy"
+    
+    Case Normal:
+      → Set Think Interval (Brain, 0.5)
+      → Reset Action Score Modifier (Brain, "Attack")
+      → Print String: "AI set to Normal"
+    
+    Case Hard:
+      → Set Think Interval (Brain, 0.3)
+      → Reset All Momentum (Brain)
+      → Boost Action (Brain, "Attack", 1.5)
+      → Print String: "AI set to Hard"
+
+// Faster think = quicker reactions
+// Momentum reset = more action spam
+// Score modifiers = behavior tuning</code></pre>
+  </div>
+  
+  <div class="code-tab-content">
+    <pre><code class="language-cpp">void AMyAIController::OnDifficultyChanged(EDifficulty NewDifficulty)
 {
     UUtilityBrainComponent* Brain = GetBrain();
     
@@ -513,9 +584,50 @@ Example:
         break;
     }
 }</code></pre>
+  </div>
+</div>
 
 <h3>Event-Driven Input Updates</h3>
-<pre><code>void AMyCharacter::OnHealthChanged(float NewHealth)
+
+<div class="code-tabs-container">
+  <div class="code-tabs-header">
+    <button class="code-tab-button" data-lang="blueprint">Blueprint</button>
+    <button class="code-tab-button" data-lang="cpp">C++</button>
+  </div>
+  
+  <div class="code-tab-content">
+    <pre><code>// Blueprint - Update brain inputs on events
+// In Character Blueprint
+
+// Add Variables
+- MaxHealth (float): 100.0
+- Brain (Utility Brain Component): None
+
+// Event: Begin Play
+Event Begin Play
+  → Get Utility Brain From Pawn (Self)
+  → Set Brain variable
+
+// Event: On Health Changed
+Event On Health Changed (New Health)
+  → Branch: Is Valid (Brain)?
+    False: Return
+    
+  → Divide New Health by MaxHealth
+  → Set Named Input Value (Brain, "Health", Result)
+  
+  → Branch: New Health < (MaxHealth * 0.2)?
+    True:
+      → Set Named Input Value (Brain, "Emergency", 1.0)
+      → Print String: "CRITICAL HEALTH!"
+    False:
+      → Set Named Input Value (Brain, "Emergency", 0.0)
+
+// Event-driven = instant AI response to game events!</code></pre>
+  </div>
+  
+  <div class="code-tab-content">
+    <pre><code class="language-cpp">void AMyCharacter::OnHealthChanged(float NewHealth)
 {
     if (UUtilityBrainComponent* Brain = GetBrain())
     {
@@ -528,6 +640,8 @@ Example:
         }
     }
 }</code></pre>
+  </div>
+</div>
 
 <h2>Next Steps</h2>
 

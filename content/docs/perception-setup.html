@@ -50,13 +50,30 @@
 
 <h3>Add to AI Controller</h3>
 
-<p><strong>Blueprint:</strong></p>
-<pre><code>BP_YourAIController (AIController)
-├─ Add Component: AIPerceptionComponent
-└─ Configure senses (see below)</code></pre>
+<div class="code-tabs-container">
+  <div class="code-tabs-header">
+    <button class="code-tab-button" data-lang="blueprint">Blueprint</button>
+    <button class="code-tab-button" data-lang="cpp">C++</button>
+  </div>
+  
+  <div class="code-tab-content">
+    <pre><code>// Blueprint - Add AIPerceptionComponent
+1. Open BP_YourAIController (or create AIController Blueprint)
+2. Components Panel → Add Component
+3. Search: "AIPerception"
+4. Select: AIPerceptionComponent
+5. Component is now added!
 
-<p><strong>C++:</strong></p>
-<pre><code>// YourAIController.h
+// Next: Configure senses in Details panel (see below)
+
+Your hierarchy:
+BP_YourAIController (AIController)
+├─ AIPerceptionComponent ← Just added
+└─ Other components...</code></pre>
+  </div>
+  
+  <div class="code-tab-content">
+    <pre><code class="language-cpp">// YourAIController.h
 #include "Perception/AIPerceptionComponent.h"
 
 UPROPERTY(VisibleAnywhere, BlueprintReadOnly)
@@ -68,6 +85,8 @@ AYourAIController::AYourAIController()
     AIPerception = CreateDefaultSubobject<UAIPerceptionComponent>(TEXT("AIPerception"));
     SetPerceptionComponent(*AIPerception);
 }</code></pre>
+  </div>
+</div>
 
 <h3>Configure Sight Sense</h3>
 
@@ -181,22 +200,44 @@ AYourAIController::AYourAIController()
 
 <h3>Implement IGenericTeamAgentInterface</h3>
 
-<p><strong>Blueprint (in Pawn or Controller):</strong></p>
+<div class="code-tabs-container">
+  <div class="code-tabs-header">
+    <button class="code-tab-button" data-lang="blueprint">Blueprint</button>
+    <button class="code-tab-button" data-lang="cpp">C++</button>
+  </div>
+  
+  <div class="code-tab-content">
+    <pre><code>// Blueprint - Implement team interface
+1. Open BP_YourAIPawn or BP_YourAIController
+2. Class Settings (toolbar button)
+3. Details Panel → Interfaces section
+4. Click "Add" → Search "GenericTeamAgentInterface"
+5. Select and add it
 
-<pre><code>1. Class Settings → Interfaces → Add
-   └─ GenericTeamAgentInterface
+// Implement the interface function
+6. Event Graph → Right-click
+7. Search "Get Generic Team Id"
+8. Select "Event Get Generic Team Id" (interface event)
 
-2. Event Graph → Override Functions
-   └─ Get Generic Team Id
+// Set team ID
+9. From Return Node:
+   → Right-click → "Make GenericTeamId"
+   → Set Team ID:
+      • 0 = Player team
+      • 1 = Enemy team 1
+      • 2 = Enemy team 2
+      • etc.
 
-3. Implementation:
-   Return: Make GenericTeamId
-     └─ Team ID: 1 (enemies use 1, 2, 3...)
-                 0 (player team)</code></pre>
+// Example: Enemy AI
+Event Get Generic Team Id
+  → Make GenericTeamId (Team ID: 1)
+  → Connect to Return Value
 
-<p><strong>C++ (in Pawn or Controller):</strong></p>
-
-<pre><code>// YourPawn.h or YourAIController.h
+// Now perception knows this is an enemy!</code></pre>
+  </div>
+  
+  <div class="code-tab-content">
+    <pre><code class="language-cpp">// YourPawn.h or YourAIController.h
 #include "GenericTeamAgentInterface.h"
 
 class AYourPawn : public ACharacter, public IGenericTeamAgentInterface
@@ -246,32 +287,6 @@ FGenericTeamId AYourPawn::GetGenericTeamId() const
     <tr>
       <td>255</td>
       <td>Neutral</td>
-      <td>Civilians, wildlife</td>
-    </tr>
-  </tbody>
-</table>
-
-<h2>Step 3: Add PerceptionMonitor Service</h2>
-
-<p><strong>In your Agent Preset:</strong></p>
-
-<pre><code>DA_YourAI_Preset
-└─ Extra Services
-   └─ UService_PerceptionMonitor
-      ├─ MinInterval: 0.2 (tick 5x/second)
-      ├─ StimulusMemoryDuration: 10.0
-      ├─ CloseThreatDistance: 500.0
-      ├─ MediumThreatDistance: 1500.0
-      ├─ UnderFireWindow: 2.0
-      ├─ bPublishEnemyInputs: true
-      ├─ bPublishAllyInputs: true
-      ├─ bPublishThreatInputs: true
-      ├─ bPublishSoundInputs: true
-      └─ bPublishMemoryInputs: true</code></pre>
-
-<h2>Step 4: Emit Sounds (For Hearing)</h2>
-
-<h3>Blueprint: Report Noise Event</h3>
 
 <pre><code>// When character fires weapon, walks, etc.
 Event: On Weapon Fired

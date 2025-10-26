@@ -265,9 +265,60 @@ UService_InventoryMonitor
 
 <h3>Custom Service Example</h3>
 
-<p><strong>Create <code>UService_WeaponManager</code> in C++:</strong></p>
+<p><strong>Create Custom Weapon Service:</strong></p>
 
-<pre><code>// Service_WeaponManager.h
+<div class="code-tabs-container">
+  <div class="code-tabs-header">
+    <button class="code-tab-button" data-lang="blueprint">Blueprint</button>
+    <button class="code-tab-button" data-lang="cpp">C++</button>
+  </div>
+  
+  <div class="code-tab-content">
+    <pre><code>// Blueprint - Weapon manager service
+1. Create Blueprint Class → Utility Service
+2. Name: "BP_Service_WeaponManager"
+
+// Add Variables
+- bPublishAmmoInputs (bool): true
+- bPublishWeaponStateInputs (bool): true
+- WeaponComponent (Weapon Component): None
+
+// Override Event: Tick Service
+Event Tick Service (Delta Time)
+  → Branch: Is Valid (Brain) AND Is Valid (OwnerPawn)?
+    False: Return
+    
+  → Get Component by Class (Weapon Component)
+  → Set WeaponComponent
+  → Branch: Is Valid (WeaponComponent)?
+    False: Return
+  
+  → Branch: bPublishAmmoInputs?
+    True:
+      → Get Current Ammo (WeaponComponent)
+      → Get Max Ammo (WeaponComponent)
+      → Divide Current by Max
+      → Set Named Input Value (Brain, "AmmoCount", Result)
+      
+      → Branch: Current Ammo > 0?
+        True: Set Named Input Value (Brain, "HasAmmo", 1.0)
+        False: Set Named Input Value (Brain, "HasAmmo", 0.0)
+  
+  → Branch: bPublishWeaponStateInputs?
+    True:
+      → Is Reloading (WeaponComponent)
+      → Set Named Input Value (Brain, "IsReloading", Result as 0/1)
+      
+      → Can Fire (WeaponComponent)
+      → Set Named Input Value (Brain, "CanFire", Result as 0/1)
+
+// Configure in Details Panel
+Min Interval: 0.1
+bEnabled: true</code></pre>
+  </div>
+  
+  <div class="code-tab-content">
+    <pre><code class="language-cpp">// Service_WeaponManager.h
 #include "UtilityService.h"
 #include "Service_WeaponManager.generated.h"
 
@@ -294,7 +345,6 @@ void UService_WeaponManager::TickService(float DeltaTime)
     if (!Brain || !OwnerPawn)
         return;
     
-    // Get weapon component (your game-specific code)
     UWeaponComponent* Weapon = OwnerPawn->FindComponentByClass<UWeaponComponent>();
     if (!Weapon)
         return;
@@ -317,6 +367,8 @@ void UService_WeaponManager::TickService(float DeltaTime)
         Brain->SetNamedInputValue(TEXT("CanFire"), bCanFire ? 1.0f : 0.0f);
     }
 }</code></pre>
+  </div>
+</div>
 
 <p><strong>Add to Preset:</strong></p>
 <pre><code>DA_BaseFPSSoldier_Preset

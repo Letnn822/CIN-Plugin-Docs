@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CIN Plugin Documentation - Utility AI for Unreal Engine</title>
-  <meta name="description" content="Complete documentation for CIN Plugin - Utility AI Framework for Unreal Engine 5.5+. 71 pages, 300k+ words, 800+ examples." />
+  <title>Plugin Documentation Hub - Unreal Engine Plugins</title>
+  <meta name="description" content="Documentation hub for Unreal Engine plugins - comprehensive guides, examples, and API references." />
   <script>
     // Handle GitHub Pages SPA redirect
     (function(){
@@ -22,48 +22,85 @@
   <link rel="stylesheet" href="styles.css" />
   <meta name="theme-color" content="#0B1024" />
 </head>
-<body>
-  <header class="topbar">
-    <div class="brand">
-      <div class="logo">CIN</div>
-      <div class="titles">
-        <h1>CIN Plugin</h1>
-        <p>Documentation & Guides</p>
+<body class="hub-page">
+  <header class="hub-header">
+    <div class="hub-brand">
+      <div class="hub-logo">📚</div>
+      <div class="hub-titles">
+        <h1>Plugin Documentation Hub</h1>
+        <p>Comprehensive documentation for Unreal Engine plugins</p>
       </div>
     </div>
-    <nav class="primary-nav">
-      <button class="nav-tab" data-section="docs">Documentation</button>
-      <button class="nav-tab" data-section="examples">Guides</button>
-    </nav>
   </header>
 
-  <div class="layout">
-    <aside class="sidebar">
-      <div class="sidebar-header">
-        <input id="filter" type="search" placeholder="Filter topics..." aria-label="Filter" />
-      </div>
-      <nav id="sidebar-nav" class="sidebar-nav" aria-label="Section navigation">
-        <!-- Filled by app.js from manifest.json -->
-      </nav>
-    </aside>
+  <main class="hub-main">
+    <div class="hub-intro">
+      <h2>Select a Plugin</h2>
+      <p>Choose from our collection of professionally documented Unreal Engine plugins</p>
+    </div>
 
-    <main id="content" class="content" tabindex="-1">
-      <nav id="breadcrumbs" class="breadcrumbs" aria-label="Breadcrumb"></nav>
-      <div id="content-body">
-        <!-- Content is injected here -->
-        <div class="loading">Loading...</div>
-      </div>
-    </main>
-  </div>
+    <div class="plugin-grid" id="plugin-grid">
+      <!-- Plugins will be loaded dynamically -->
+      <div class="loading">Loading plugins...</div>
+    </div>
+  </main>
 
-  <footer class="footer">
+  <footer class="hub-footer">
     <div>
-      <strong>CIN Plugin</strong> for Unreal Engine 5.6+ — Documentation Website
+      <strong>Plugin Documentation Hub</strong> for Unreal Engine 5.5+ — Professional Documentation
     </div>
     <div>
-      © <span id="year"></span> Code Furnace. Sample combat is project-side code, plugin ships generic AI only.
+      © <span id="year"></span> Code Furnace. All plugins available on FAB Marketplace.
     </div>
   </footer>
+
+  <!-- Plugin Documentation Template (hidden, used for routing) -->
+  <div id="plugin-template" style="display: none;">
+    <header class="topbar">
+      <div class="brand">
+        <div class="logo" id="plugin-logo">PLUGIN</div>
+        <div class="titles">
+          <h1 id="plugin-title">Plugin Name</h1>
+          <p id="plugin-subtitle">Documentation & Guides</p>
+        </div>
+      </div>
+      <nav class="primary-nav">
+        <button class="nav-tab" data-section="docs">Documentation</button>
+        <button class="nav-tab" data-section="examples">Guides</button>
+      </nav>
+      <div class="hub-link">
+        <a href="#/" class="back-to-hub">← All Plugins</a>
+      </div>
+    </header>
+
+    <div class="layout">
+      <aside class="sidebar">
+        <div class="sidebar-header">
+          <input id="filter" type="search" placeholder="Filter topics..." aria-label="Filter" />
+        </div>
+        <nav id="sidebar-nav" class="sidebar-nav" aria-label="Section navigation">
+          <!-- Filled by app.js from plugin manifest -->
+        </nav>
+      </aside>
+
+      <main id="content" class="content" tabindex="-1">
+        <nav id="breadcrumbs" class="breadcrumbs" aria-label="Breadcrumb"></nav>
+        <div id="content-body">
+          <!-- Content is injected here -->
+          <div class="loading">Loading...</div>
+        </div>
+      </main>
+    </div>
+
+    <footer class="footer">
+      <div>
+        <strong id="footer-plugin-name">Plugin Name</strong> for Unreal Engine 5.6+ — Documentation Website
+      </div>
+      <div>
+        © <span class="footer-year"></span> Code Furnace. Sample code is project-side, plugin ships generic components only.
+      </div>
+    </footer>
+  </div>
 
   <script src="app.js"></script>
 </body>

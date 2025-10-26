@@ -167,11 +167,40 @@ void OnActionPackApplied(AActor* Agent);
   <li><strong>Missing ActionClass</strong>: must point to a valid action class.</li>
 </ul>
 
-<h2>Example: UCINActionBase subclass + Action Definition</h2>
+<h2>Example: Creating a Custom Action</h2>
 <p>Create a simple action by subclassing <code>UCINActionBase</code> and then reference it from an <code>FCINActionDefinition</code> entry in your <code>UCINActionPackDA_Base</code> asset.</p>
 
-<p><strong>C++ (minimal example)</strong></p>
-<pre><code class="language-cpp">// MySprintAction.h (project module)
+<div class="code-tabs-container">
+  <div class="code-tabs-header">
+    <button class="code-tab-button" data-lang="blueprint">Blueprint</button>
+    <button class="code-tab-button" data-lang="cpp">C++</button>
+  </div>
+  
+  <div class="code-tab-content">
+    <pre><code>// Blueprint - Create action class
+1. Right-click in Content Browser
+2. Blueprint Class → CINActionBase
+3. Name it "BP_SprintAction"
+4. Open the Blueprint
+
+// Implement Action Events
+Event OnActionStarted
+  → Print String: "Sprint Started"
+  → Set Max Walk Speed: 1200
+  
+Event OnActionCompleted
+  → Set Max Walk Speed: 600
+  → Call Parent Implementation
+
+// Configure Action Properties in Details Panel
+Action ID: "Sprint"
+Action Name: "Sprint"
+Action Category: Movement
+Can Execute: True (override to add conditions)</code></pre>
+  </div>
+  
+  <div class="code-tab-content">
+    <pre><code class="language-cpp">// MySprintAction.h (project module)
 #pragma once
 #include "CoreMinimal.h"
 #include "Actions/CINActionBase.h"
@@ -196,14 +225,17 @@ public:
 ECINActionResult UMySprintAction::Execute(TScriptInterface<ICINAgent> Agent, const FCINContextualEmbedding& Context, const FCINActionParams& Params)
 {
   OnActionStarted(Params);
+  // Your sprint logic here
   OnActionCompleted(ECINActionResult::Success);
   return ECINActionResult::Success;
 }
 </code></pre>
+  </div>
+</div>
 
 <p><strong>Action Pack entry (<code>FCINActionDefinition</code>)</strong></p>
 <ul>
-  <li><strong>ActionClass</strong>: <code>UMySprintAction</code> (or a Blueprint subclass of it)</li>
+  <li><strong>ActionClass</strong>: <code>BP_SprintAction</code> or <code>UMySprintAction</code></li>
   <li><strong>ActionID</strong>: <code>"Sprint"</code></li>
   <li><strong>ActionName</strong>: <code>"Sprint"</code></li>
   <li><strong>ActionCategory</strong>: <code>Movement</code></li>
@@ -215,7 +247,6 @@ ECINActionResult UMySprintAction::Execute(TScriptInterface<ICINAgent> Agent, con
   <li>(Optional) Add <strong>Tags</strong> like <code>["Movement","Sprint"]</code></li>
   <li>(Optional) Add numeric <strong>ActionParameters</strong> for tuning</li>
   <li>(Optional) Use <strong>PackPriorityModifier</strong> on the data asset to scale priorities uniformly</li>
-  <li>Tip: You can create the action as a Blueprint subclass of <code>UCINActionBase</code> and implement <em>OnActionStarted/Completed</em> events in Blueprint.</li>
   </ul>
 
 <p>See also: <a href="#/docs/role-archetypes">Role Archetypes</a>, <a href="#/docs/parameter-binding">Parameter Binding</a>, <a href="#/docs/arbitration-strategy">Arbitration Strategy</a>, <a href="#/docs/brain-runtime">Brain Runtime</a>.</p>

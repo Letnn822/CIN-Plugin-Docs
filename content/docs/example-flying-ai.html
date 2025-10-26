@@ -62,9 +62,62 @@ Variables:
 
 <h2>Step 2: Altitude Management</h2>
 
-<h3>Service: UService_AltitudeControl</h3>
+<h3>Service: Altitude Control</h3>
 
-<pre><code>void UService_AltitudeControl::TickService(float DeltaTime)
+<div class="code-tabs-container">
+  <div class="code-tabs-header">
+    <button class="code-tab-button" data-lang="blueprint">Blueprint</button>
+    <button class="code-tab-button" data-lang="cpp">C++</button>
+  </div>
+  
+  <div class="code-tab-content">
+    <pre><code>// Blueprint - Altitude control service
+1. Create Blueprint Class → Utility Service
+2. Name: "BP_Service_AltitudeControl"
+
+// Add Variables
+- MinAltitude (float): 500.0
+- MaxAltitude (float): 3000.0
+- StallSpeed (float): 200.0
+- FlyerPawn (Flying Pawn): None
+
+// Override Event: Tick Service
+Event Tick Service (Delta Time)
+  → Get Owning Pawn
+  → Cast to Flying Pawn
+  → Set FlyerPawn
+  
+  → Get Actor Location (FlyerPawn)
+  → Break Vector (Z component)
+  → Set CurrentAlt variable
+  
+  → Subtract MinAltitude from CurrentAlt
+  → Divide by (MaxAltitude - MinAltitude)
+  → Clamp (0.0, 1.0)
+  → Set NormalizedAlt
+  
+  → Set Named Input Value (Brain, "Altitude", NormalizedAlt)
+  
+  → Branch: CurrentAlt < MinAltitude?
+    True: Set Named Input Value (Brain, "TooLow", 1.0)
+    False: Set Named Input Value (Brain, "TooLow", 0.0)
+  
+  → Branch: CurrentAlt > MaxAltitude?
+    True: Set Named Input Value (Brain, "TooHigh", 1.0)
+    False: Set Named Input Value (Brain, "TooHigh", 0.0)
+  
+  → Get Current Speed (FlyerPawn)
+  → Branch: Speed < StallSpeed?
+    True: Set Named Input Value (Brain, "Stalling", 1.0)
+    False: Set Named Input Value (Brain, "Stalling", 0.0)
+
+// Configure in Details Panel
+Min Interval: 0.1
+bEnabled: true</code></pre>
+  </div>
+  
+  <div class="code-tab-content">
+    <pre><code class="language-cpp">void UService_AltitudeControl::TickService(float DeltaTime)
 {
     AFlyingPawn* Flyer = GetFlyingPawn();
     
@@ -86,6 +139,8 @@ Variables:
     bool bStalling = Flyer->CurrentSpeed < Flyer->StallSpeed;
     Brain->SetNamedInputValue(TEXT("Stalling"), bStalling ? 1.0f : 0.0f);
 }</code></pre>
+  </div>
+</div>
 
 <h2>Step 3: 3D Patrol</h2>
 

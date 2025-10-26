@@ -244,8 +244,47 @@ IsObjectMemorized(Actor) → Bool
 GetObjectSnapshot(Actor) → Snapshot
 GetDisplacementDistance(Actor) → Float</code></pre>
 
-<h3>C++ API</h3>
-<pre><code>// UEnvironmentalMemoryComponent.h
+<h3>API Reference</h3>
+
+<div class="code-tabs-container">
+  <div class="code-tabs-header">
+    <button class="code-tab-button" data-lang="blueprint">Blueprint</button>
+    <button class="code-tab-button" data-lang="cpp">C++</button>
+  </div>
+  
+  <div class="code-tab-content">
+    <pre><code>// Blueprint - Environmental Memory API
+// All functions are Blueprint Callable
+
+// Scan for objects to memorize
+Scan For Memorizable Objects
+  → Scans area and stores object positions
+  → Call periodically or on patrol waypoints
+
+// Get displaced objects
+Get Displaced Objects → Array of Actors
+  → Returns objects that have moved
+  → Use for investigation triggers
+
+// Check for suspicious changes
+Has Suspicious Changes → Boolean
+  → True if any objects displaced
+  → Use in action considerations
+
+// Get nearest changed object
+Get Nearest Changed Object → Actor
+  → Returns closest displaced object
+  → Use for investigation target
+
+// Example Usage in Action
+Action: Investigate
+  Consideration:
+    → Has Suspicious Changes
+    → Response Curve: (0,0) → (1,100)</code></pre>
+  </div>
+  
+  <div class="code-tab-content">
+    <pre><code class="language-cpp">// UEnvironmentalMemoryComponent.h
 class UEnvironmentalMemoryComponent : public UActorComponent
 {
 public:
@@ -261,6 +300,8 @@ public:
     UFUNCTION(BlueprintCallable)
     AActor* GetNearestChangedObject() const;
 };</code></pre>
+  </div>
+</div>
 
 <h2>Investigation Actions</h2>
 

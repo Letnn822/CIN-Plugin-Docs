@@ -116,7 +116,50 @@ void UService_PhaseManager::TickService(float DeltaTime)
 
 <h3>Phase Transition Effects</h3>
 
-<pre><code>void ABossPawn::TransitionToPhase(int32 NewPhase)
+<div class="code-tabs-container">
+  <div class="code-tabs-header">
+    <button class="code-tab-button" data-lang="blueprint">Blueprint</button>
+    <button class="code-tab-button" data-lang="cpp">C++</button>
+  </div>
+  
+  <div class="code-tab-content">
+    <pre><code>// Blueprint - Phase transition effects
+// Custom Function: Transition To Phase
+
+Function Transition To Phase (New Phase)
+  \u2192 Set CurrentPhase: New Phase
+  \u2192 Print String: "Boss transitioning to Phase {NewPhase}"
+  
+  \u2192 Switch on Int (New Phase)
+    
+    Case 2:
+      \u2192 Play Montage (Roar Anim Montage)
+      \u2192 Spawn Emitter at Location (Phase2 Transition VFX)
+      \u2192 Play Sound 2D (Phase2 Transition Sound)
+      
+      \u2192 Set Actor Enable Collision: false
+      \u2192 Delay: 2.0 seconds
+      \u2192 Set Actor Enable Collision: true
+      
+      \u2192 Print String: "Phase 2: Increased aggression!"
+    
+    Case 3:
+      \u2192 Play Montage (Enrage Anim Montage)
+      \u2192 Spawn Emitter at Location (Enrage VFX)
+      \u2192 Play Sound 2D (Enrage Sound)
+      
+      \u2192 Get Character Movement
+      \u2192 Get Max Walk Speed
+      \u2192 Multiply by 1.5
+      \u2192 Set Max Walk Speed
+      
+      \u2192 Print String: "Phase 3: ENRAGED!"
+
+// Call this function when health thresholds are crossed</code></pre>
+  </div>
+  
+  <div class="code-tab-content">
+    <pre><code class="language-cpp">void ABossPawn::TransitionToPhase(int32 NewPhase)
 {
     CurrentPhase = NewPhase;
     
@@ -147,6 +190,8 @@ void UService_PhaseManager::TickService(float DeltaTime)
     
     UE_LOG(LogAI, Warning, TEXT("Boss transitioned to Phase %d"), NewPhase);
 }</code></pre>
+  </div>
+</div>
 
 <h2>Step 3: Phase 1 Actions</h2>
 

@@ -91,9 +91,43 @@
   </div>
 </div>
 
-<h3>Option B: C++</h3>
+<h3>Setup Options</h3>
 
-<pre><code>// YourAIController.h
+<div class="code-tabs-container">
+  <div class="code-tabs-header">
+    <button class="code-tab-button" data-lang="blueprint">Blueprint (Recommended)</button>
+    <button class="code-tab-button" data-lang="cpp">C++</button>
+  </div>
+  
+  <div class="code-tab-content">
+    <pre><code>// Blueprint - Create AI Controller (EASIEST)
+1. Right-click in Content Browser
+2. Blueprint Class → AIController
+3. Name: "BP_MyAIController"
+4. Open the Blueprint
+
+// Add Components (in Components panel)
+5. Add Component → Utility Brain Component
+6. Add Component → AI Perception Component
+7. Add Component → CIN Quick Setup Component
+
+// Configure CIN Quick Setup (in Details)
+8. Agent Type: BaseCombat (or your choice)
+9. bAuto Initialize: true
+10. bEnable Debug Visualization: true (optional)
+
+// That's it! The QuickSetup component handles everything:
+// - Creates brain
+// - Applies archetype
+// - Sets up perception
+// - Configures team
+// - Starts AI on possession
+
+// Use this controller for your AI pawns</code></pre>
+  </div>
+  
+  <div class="code-tab-content">
+    <pre><code class="language-cpp">// YourAIController.h
 #include "AIController.h"
 #include "UtilityBrainComponent.h"
 #include "Perception/AIPerceptionComponent.h"
@@ -128,6 +162,8 @@ AYourAIController::AYourAIController()
     // Create quick setup
     QuickSetup = CreateDefaultSubobject&lt;UCINQuickSetupComponent&gt;(TEXT("QuickSetup"));
 }</code></pre>
+  </div>
+</div>
 
 <hr/>
 

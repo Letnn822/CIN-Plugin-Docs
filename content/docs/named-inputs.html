@@ -285,8 +285,40 @@ Event TickService(DeltaTime)
   ├─ Clamp to 0-1
   └─ Brain->SetNamedInputValue("Health", Normalized)</code></pre>
 
-<h3>C++ Service</h3>
-<pre><code>void UMyService::TickService(float DeltaTime)
+<h3>Publishing Named Inputs</h3>
+
+<div class="code-tabs-container">
+  <div class="code-tabs-header">
+    <button class="code-tab-button" data-lang="blueprint">Blueprint</button>
+    <button class="code-tab-button" data-lang="cpp">C++</button>
+  </div>
+  
+  <div class="code-tab-content">
+    <pre><code>// Blueprint - Publish health as named input
+// In Service Blueprint or Component Tick
+
+Event Tick Service (Delta Time)
+  → Branch: Is Valid (OwningBrain) AND Is Valid (CachedPawn)?
+    False: Return
+    
+  → Get Component by Class (Health Component)
+  → Branch: Is Valid?
+    False: Return
+    
+  → Get Health (from Health Component)
+  → Get Max Health (from Health Component)
+  → Divide Health by Max Health
+  → Clamp (0.0, 1.0)
+  → Set Normalized variable
+  
+  → Set Named Input Value (OwningBrain, "Health", Normalized)
+  
+// Now all actions can use "Health" input!
+// Remember: Always normalize to 0-1 range</code></pre>
+  </div>
+  
+  <div class="code-tab-content">
+    <pre><code class="language-cpp">void UMyService::TickService(float DeltaTime)
 {
     if (!OwningBrain || !CachedPawn) return;
     
@@ -301,6 +333,8 @@ Event TickService(DeltaTime)
     // Publish
     OwningBrain->SetNamedInputValue(TEXT("Health"), Normalized);
 }</code></pre>
+  </div>
+</div>
 
 <h2>How Actions Read Inputs</h2>
 

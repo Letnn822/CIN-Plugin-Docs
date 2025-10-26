@@ -357,7 +357,42 @@ Usage:
 
 <h3>Minimal Service Template</h3>
 
-<pre><code>// MyCustomService.h
+<div class="code-tabs-container">
+  <div class="code-tabs-header">
+    <button class="code-tab-button" data-lang="blueprint">Blueprint</button>
+    <button class="code-tab-button" data-lang="cpp">C++</button>
+  </div>
+  
+  <div class="code-tab-content">
+    <pre><code>// Blueprint - Create minimal service
+1. Right-click in Content Browser
+2. Blueprint Class → Utility Service
+3. Name: "BP_MyCustomService"
+4. Open the Blueprint
+
+// Add Variables
+- SomeParameter (float): 100.0
+
+// Configure in Details Panel
+Service Name: "MyCustomService"
+Min Interval: 0.5
+bEnabled: true
+
+// Override Event: Initialize Service
+Event Initialize Service (Brain)
+  → Print String: "MyCustomService initialized"
+  → Store Brain reference
+
+// Override Event: Tick Service
+Event Tick Service (Delta Time)
+  → Calculate Some Value (your custom logic)
+  → Set Named Input Value (Brain, "MyInput", Value)
+  
+// That's it! Service will run every 0.5 seconds</code></pre>
+  </div>
+  
+  <div class="code-tab-content">
+    <pre><code class="language-cpp">// MyCustomService.h
 #pragma once
 #include "UtilityService.h"
 #include "MyCustomService.generated.h"
@@ -403,10 +438,53 @@ void UMyCustomService::TickService(float DeltaTime)
     float Value = CalculateSomeValue();
     OwningBrain->SetNamedInputValue(TEXT("MyInput"), Value);
 }</code></pre>
+  </div>
+</div>
 
 <h3>Service with Conditions</h3>
 
-<pre><code>UCLASS()
+<div class="code-tabs-container">
+  <div class="code-tabs-header">
+    <button class="code-tab-button" data-lang="blueprint">Blueprint</button>
+    <button class="code-tab-button" data-lang="cpp">C++</button>
+  </div>
+  
+  <div class="code-tab-content">
+    <pre><code>// Blueprint - Conditional service
+1. Create Blueprint Class → Utility Service
+2. Name: "BP_ConditionalService"
+
+// Add Variables
+- StartConditions (Array of Service Condition)
+- bStopWhenConditionsFail (bool): true
+
+// Configure Start Conditions in Details Panel
+Start Conditions:
+  [0]:
+    Input Name: "Health"
+    Condition Type: Less Than
+    Threshold Value: 0.5
+    
+// Override Event: On Service Start
+Event On Service Start
+  → Print String: "Service activated!"
+  → Initialize your tracking logic
+
+// Override Event: On Service Stop
+Event On Service Stop
+  → Print String: "Service deactivated!"
+  → Cleanup your tracking logic
+
+// Override Event: Tick Service
+Event Tick Service (Delta Time)
+  → Your service logic here
+  → Only runs while conditions are met!
+
+// Service auto-starts/stops based on conditions</code></pre>
+  </div>
+  
+  <div class="code-tab-content">
+    <pre><code class="language-cpp">UCLASS()
 class UMyConditionalService : public UUtilityService
 {
     GENERATED_BODY()
@@ -441,10 +519,54 @@ void UMyConditionalService::TickService(float DeltaTime)
     Super::TickService(DeltaTime);
     // Only runs while conditions met
 }</code></pre>
+  </div>
+</div>
 
 <h3>Service with Event Handling</h3>
 
-<pre><code>UCLASS()
+<div class="code-tabs-container">
+  <div class="code-tabs-header">
+    <button class="code-tab-button" data-lang="blueprint">Blueprint</button>
+    <button class="code-tab-button" data-lang="cpp">C++</button>
+  </div>
+  
+  <div class="code-tab-content">
+    <pre><code>// Blueprint - Event-driven service
+1. Create Blueprint Class → Utility Service
+2. Name: "BP_EventService"
+
+// Add Variables
+- PawnReference (Pawn): None
+
+// Override Event: Initialize Service
+Event Initialize Service (Brain)
+  → Get Owning Pawn (from Brain)
+  → Set PawnReference
+  
+  → Bind Event to On Take Any Damage
+    Event: OnDamageTaken (create custom event below)
+    Target: PawnReference
+
+// Create Custom Event: OnDamageTaken
+Event OnDamageTaken (Damaged Actor, Damage, Damage Type, Instigated By, Damage Causer)
+  → Set Named Input Value (Brain, "UnderFire", 1.0)
+  
+  → Divide Damage by 100.0
+  → Set Named Input Value (Brain, "RecentDamage", Result)
+  
+  → Print String: "Took {Damage} damage!"
+
+// Override Event: Uninitialize Service
+Event Uninitialize Service
+  → Unbind Event from On Take Any Damage
+    Target: PawnReference
+  → Call Parent: Uninitialize Service
+
+// Event-driven = instant response, no polling!</code></pre>
+  </div>
+  
+  <div class="code-tab-content">
+    <pre><code class="language-cpp">UCLASS()
 class UMyEventService : public UUtilityService
 {
     GENERATED_BODY()
@@ -487,6 +609,8 @@ void UMyEventService::OnDamageTaken(AActor* DamagedActor, float Damage,
     OwningBrain->SetNamedInputValue(TEXT("UnderFire"), 1.0f);
     OwningBrain->SetNamedInputValue(TEXT("RecentDamage"), Damage / 100.0f);
 }</code></pre>
+  </div>
+</div>
 
 <h2>Performance Best Practices</h2>
 

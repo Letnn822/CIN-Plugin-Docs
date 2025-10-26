@@ -288,9 +288,69 @@ Result:
 
 <h2>Creating Custom Services</h2>
 
-<h3>C++ Service Example</h3>
+<h3>Creating Custom Services</h3>
 
-<pre><code>// MyCustomService.h
+<div class="code-tabs-container">
+  <div class="code-tabs-header">
+    <button class="code-tab-button" data-lang="blueprint">Blueprint</button>
+    <button class="code-tab-button" data-lang="cpp">C++</button>
+  </div>
+  
+  <div class="code-tab-content">
+    <pre><code>// Blueprint - Create custom service
+1. Right-click in Content Browser
+2. Blueprint Class → Utility Service
+3. Name: "BP_CustomService"
+4. Open the Blueprint
+
+// Add Variables
+- ScanRadius (float): 1000.0
+- bPublishDebugInfo (bool): false
+- CachedValue (float): 0.0
+
+// Override Event: On Service Start
+Event On Service Start
+  → Get Owning Pawn
+  → Print String: "MyService started for {PawnName}"
+  → Initialize your state
+  → Cache references
+
+// Override Event: Tick Service
+Event Tick Service (Delta Time)
+  → Branch: Is Valid (Brain) AND Is Valid (Owning Pawn)?
+    True:
+      → Calculate Something (your custom logic)
+      → Set CachedValue
+      → Set Named Input Value (Brain, "MyCustomInput", CachedValue)
+      
+      → Branch: bPublishDebugInfo?
+        True:
+          → Get Debug Value (your logic)
+          → Set Named Input Value (Brain, "MyDebugValue", Result)
+    False:
+      → Print String: "Brain or Pawn invalid!"
+
+// Override Event: On Service Stop
+Event On Service Stop
+  → Print String: "MyService stopped"
+  → Cleanup logic:
+    • Clear cached references
+    • Reset state
+    • Stop any timers
+
+// Configure in Details Panel
+Service Name: "CustomService"
+Min Interval: 0.5
+bEnabled: true
+Scan Radius: 1000.0
+bPublish Debug Info: false
+
+// Add to Agent Preset
+Extra Services: BP_CustomService</code></pre>
+  </div>
+  
+  <div class="code-tab-content">
+    <pre><code class="language-cpp">// MyCustomService.h
 #include "UtilityService.h"
 #include "MyCustomService.generated.h"
 
@@ -300,16 +360,10 @@ class YOURGAME_API UMyCustomService : public UUtilityService
     GENERATED_BODY()
     
 protected:
-    // Called when service starts (conditions met)
     virtual void OnServiceStart() override;
-    
-    // Called every MinInterval seconds
     virtual void TickService(float DeltaTime) override;
-    
-    // Called when service stops (conditions fail)
     virtual void OnServiceStop() override;
     
-    // Configuration properties
     UPROPERTY(EditAnywhere, Category = "Settings")
     float ScanRadius = 1000.0f;
     
@@ -321,8 +375,6 @@ protected:
 void UMyCustomService::OnServiceStart()
 {
     Super::OnServiceStart();
-    
-    // Initialize service state
     UE_LOG(LogTemp, Log, TEXT("MyService started for %s"), 
            *GetNameSafe(OwnerPawn));
 }
@@ -334,13 +386,9 @@ void UMyCustomService::TickService(float DeltaTime)
     if (!Brain || !OwnerPawn)
         return;
     
-    // Gather information
     float SomeValue = CalculateSomething();
-    
-    // Publish as NamedInput
     Brain->SetNamedInputValue(TEXT("MyCustomInput"), SomeValue);
     
-    // Optional: Debug output
     if (bPublishDebugInfo)
     {
         Brain->SetNamedInputValue(TEXT("MyDebugValue"), DebugValue);
@@ -350,24 +398,10 @@ void UMyCustomService::TickService(float DeltaTime)
 void UMyCustomService::OnServiceStop()
 {
     Super::OnServiceStop();
-    
-    // Cleanup
     UE_LOG(LogTemp, Log, TEXT("MyService stopped"));
 }</code></pre>
-
-<h3>Blueprint Service (Limited)</h3>
-
-<p>While you can't create full services in Blueprint, you can:</p>
-
-<pre><code>// In your AI Controller or Pawn Blueprint
-Event Tick
-  Get Utility Brain Component
-  Set Named Input Value
-    Name: "CustomInput"
-    Value: (your calculation)
-
-// This works but is less efficient than C++ services
-// Use C++ services for production</code></pre>
+  </div>
+</div>
 
 <h2>Service Best Practices</h2>
 

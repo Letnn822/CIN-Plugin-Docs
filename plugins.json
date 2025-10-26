@@ -1,0 +1,81 @@
+{
+  "plugins": [
+    {
+      "id": "cin",
+      "name": "CIN Plugin",
+      "shortName": "CIN",
+      "description": "Complete Utility AI framework for Unreal Engine 5.5+",
+      "version": "1.0.0",
+      "category": "AI & Behavior",
+      "tags": ["AI", "Utility AI", "Behavior", "Combat", "Squad"],
+      "logo": "CIN",
+      "color": "#4F46E5",
+      "status": "stable",
+      "marketplaceUrl": "https://fab.com/cin-plugin",
+      "githubUrl": "https://github.com/Letnn822/CIN-Plugin-Docs",
+      "manifestPath": "plugins/cin/manifest.json",
+      "contentPath": "plugins/cin/content/",
+      "stats": {
+        "pages": 70,
+        "words": "300k+",
+        "examples": "800+",
+        "diagrams": "260+"
+      },
+      "features": [
+        "70 comprehensive pages",
+        "300,000+ words of technical content", 
+        "800+ code examples (Blueprint + C++)",
+        "260+ diagrams and tables",
+        "Complete archetype system",
+        "Advanced scoring features",
+        "Squad coordination",
+        "Perception integration"
+      ],
+      "lastUpdated": "2025-10-24"
+    }
+  ],
+  "categories": [
+    {
+      "id": "ai-behavior",
+      "name": "AI & Behavior",
+      "description": "Artificial intelligence and behavior systems",
+      "icon": "brain"
+    },
+    {
+      "id": "gameplay",
+      "name": "Gameplay Systems", 
+      "description": "Core gameplay mechanics and systems",
+      "icon": "gamepad-2"
+    },
+    {
+      "id": "ui-ux",
+      "name": "UI & UX",
+      "description": "User interface and experience tools",
+      "icon": "layout"
+    },
+    {
+      "id": "graphics",
+      "name": "Graphics & Rendering",
+      "description": "Visual effects and rendering enhancements",
+      "icon": "image"
+    },
+    {
+      "id": "audio",
+      "name": "Audio & Sound",
+      "description": "Audio processing and sound systems",
+      "icon": "volume-2"
+    },
+    {
+      "id": "networking",
+      "name": "Networking & Multiplayer",
+      "description": "Network programming and multiplayer systems",
+      "icon": "wifi"
+    },
+    {
+      "id": "tools",
+      "name": "Development Tools",
+      "description": "Editor extensions and development utilities",
+      "icon": "tool"
+    }
+  ]
+}

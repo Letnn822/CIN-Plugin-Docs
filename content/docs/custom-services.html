@@ -48,11 +48,53 @@
 
 <h2>Minimal Service Example</h2>
 
-<h3>Step 1: Create Header File</h3>
+<p>Create a custom service that monitors player distance and publishes inputs to the brain.</p>
 
-<p><code>Source/YourGame/Public/AI/Services/MyCustomService.h</code></p>
+<div class="code-tabs-container">
+  <div class="code-tabs-header">
+    <button class="code-tab-button" data-lang="blueprint">Blueprint</button>
+    <button class="code-tab-button" data-lang="cpp">C++</button>
+  </div>
+  
+  <div class="code-tab-content">
+    <pre><code>// Blueprint - Create custom service
+1. Right-click in Content Browser
+2. Blueprint Class → Utility Service
+3. Name it "BP_PlayerDistanceService"
+4. Open the Blueprint
 
-<pre><code>#pragma once
+// Add Variables (in My Blueprint panel)
+- DetectionRadius (float): 1500.0
+- bPublishDistanceInput (bool): true
+
+// Override Event: Initialize Service
+Event Initialize Service
+  → Print String: "Player Distance Service initialized"
+  → Store Brain reference for later use
+
+// Override Event: Tick Service
+Event Tick Service (Delta Time)
+  → Get Owner (from Brain)
+  → Cast to Pawn
+  → Get Player Pawn (Index 0)
+  → Get Distance To (Player Pawn)
+  → Divide by Detection Radius
+  → Clamp (0.0, 1.0)
+  → Set Named Input Value (Brain, "DistanceToPlayer", Result)
+  
+  → Branch: Distance < Detection Radius?
+    True: Set Named Input Value (Brain, "PlayerInRange", 1.0)
+    False: Set Named Input Value (Brain, "PlayerInRange", 0.0)
+
+// Configure in Details Panel
+Service Name: "PlayerDistanceService"
+Min Interval: 0.5
+bEnabled: true</code></pre>
+  </div>
+  
+  <div class="code-tab-content">
+    <pre><code class="language-cpp">// MyCustomService.h
+#pragma once
 
 #include "CoreMinimal.h"
 #include "UtilityService.h"
@@ -70,40 +112,32 @@ public:
     UMyCustomService();
     
 protected:
-    // Service lifecycle overrides
     virtual void InitializeService(UUtilityBrainComponent* InBrain) override;
     virtual void TickService(float DeltaTime) override;
     
-    // Configuration
     UPROPERTY(EditAnywhere, Category = "Custom Service")
     float DetectionRadius = 1500.0f;
     
     UPROPERTY(EditAnywhere, Category = "Custom Service")
     bool bPublishDistanceInput = true;
-};</code></pre>
+};
 
-<h3>Step 2: Implement Source File</h3>
-
-<p><code>Source/YourGame/Private/AI/Services/MyCustomService.cpp</code></p>
-
-<pre><code>#include "AI/Services/MyCustomService.h"
+// MyCustomService.cpp
+#include "AI/Services/MyCustomService.h"
 #include "UtilityBrainComponent.h"
 #include "GameFramework/Pawn.h"
 #include "Kismet/GameplayStatics.h"
 
 UMyCustomService::UMyCustomService()
 {
-    // Service configuration
     ServiceName = TEXT("MyCustomService");
-    MinInterval = 0.5f; // Run twice per second
+    MinInterval = 0.5f;
     bEnabled = true;
 }
 
 void UMyCustomService::InitializeService(UUtilityBrainComponent* InBrain)
 {
     Super::InitializeService(InBrain);
-    
-    // One-time setup
     UE_LOG(LogTemp, Log, TEXT("MyCustomService initialized"));
 }
 
@@ -111,36 +145,33 @@ void UMyCustomService::TickService(float DeltaTime)
 {
     Super::TickService(DeltaTime);
     
-    // Get AI pawn
     APawn* AIPawn = Cast<APawn>(OwningBrain->GetOwner());
     if (!AIPawn) return;
     
-    // Find player
     APawn* PlayerPawn = UGameplayStatics::GetPlayerPawn(GetWorld(), 0);
     if (!PlayerPawn) return;
     
-    // Calculate distance
     float Distance = FVector::Dist(AIPawn->GetActorLocation(), 
                                    PlayerPawn->GetActorLocation());
     
-    // Publish normalized distance
     if (bPublishDistanceInput)
     {
         float NormalizedDistance = FMath::Clamp(Distance / DetectionRadius, 0.0f, 1.0f);
         OwningBrain->SetNamedInputValue(TEXT("DistanceToPlayer"), NormalizedDistance);
     }
     
-    // Publish boolean for "in range"
     bool bInRange = Distance < DetectionRadius;
     OwningBrain->SetNamedInputValue(TEXT("PlayerInRange"), bInRange ? 1.0f : 0.0f);
 }</code></pre>
+  </div>
+</div>
 
-<h3>Step 3: Add to Agent Preset</h3>
+<h3>Add to Agent Preset</h3>
 
 <p>In your <code>DA_AgentPreset</code> asset:</p>
 
 <pre><code>Extra Services:
-  + MyCustomService
+  + BP_PlayerDistanceService (or MyCustomService)
     Detection Radius: 1500.0
     Publish Distance Input: true
     Min Interval: 0.5</code></pre>
@@ -149,7 +180,45 @@ void UMyCustomService::TickService(float DeltaTime)
 
 <h3>Service with Conditions</h3>
 
-<pre><code>// Header
+<div class="code-tabs-container">
+  <div class="code-tabs-header">
+    <button class="code-tab-button" data-lang="blueprint">Blueprint</button>
+    <button class="code-tab-button" data-lang="cpp">C++</button>
+  </div>
+  
+  <div class="code-tab-content">
+    <pre><code>// Blueprint - Conditional service
+1. Create Blueprint Class → Utility Service
+2. Name: "BP_ConditionalService"
+
+// Add Variables
+- StartConditions (Array of Service Condition)
+- bStopWhenConditionsFail (bool): true
+
+// Configure Start Conditions in Details Panel
+Start Conditions:
+  [0]:
+    Input Name: "Health"
+    Condition Type: Less Than
+    Threshold Value: 0.5
+    
+// Override Event: On Service Start
+Event On Service Start
+  → Print String: "Service activated by conditions!"
+  → Initialize Tracking (your custom logic)
+  → Store initial state
+
+// Override Event: On Service Stop
+Event On Service Stop
+  → Print String: "Service deactivated!"
+  → Cleanup Tracking (your custom logic)
+  → Reset state
+
+// The service will automatically start/stop based on conditions</code></pre>
+  </div>
+  
+  <div class="code-tab-content">
+    <pre><code class="language-cpp">// Header
 UCLASS()
 class UMyConditionalService : public UUtilityService
 {
@@ -172,8 +241,6 @@ void UMyConditionalService::OnServiceStart()
 {
     Super::OnServiceStart();
     UE_LOG(LogTemp, Log, TEXT("Service activated by conditions!"));
-    
-    // Setup state when service starts
     InitializeTracking();
 }
 
@@ -181,14 +248,52 @@ void UMyConditionalService::OnServiceStop()
 {
     Super::OnServiceStop();
     UE_LOG(LogTemp, Log, TEXT("Service deactivated!"));
-    
-    // Cleanup when service stops
     CleanupTracking();
 }</code></pre>
+  </div>
+</div>
 
 <h3>Service with Cached Data</h3>
 
-<pre><code>UCLASS()
+<div class="code-tabs-container">
+  <div class="code-tabs-header">
+    <button class="code-tab-button" data-lang="blueprint">Blueprint</button>
+    <button class="code-tab-button" data-lang="cpp">C++</button>
+  </div>
+  
+  <div class="code-tab-content">
+    <pre><code>// Blueprint - Caching service for performance
+1. Create Blueprint Class → Utility Service
+2. Name: "BP_EnemyCachingService"
+
+// Add Variables
+- CachedEnemies (Array of Actor)
+- TimeSinceLastFullScan (float): 0.0
+- FullScanInterval (float): 2.0
+- EnemyClass (Actor Class Reference): BP_Enemy
+
+// Override Event: Tick Service
+Event Tick Service (Delta Time)
+  → Add (TimeSinceLastFullScan + Delta Time)
+  → Set TimeSinceLastFullScan
+  
+  → Branch: TimeSinceLastFullScan >= FullScanInterval?
+    True:
+      → Clear (CachedEnemies array)
+      → Get All Actors Of Class (EnemyClass)
+      → Set CachedEnemies (result)
+      → Set TimeSinceLastFullScan: 0.0
+      → Print String: "Full enemy scan performed"
+  
+  → Get Length (CachedEnemies)
+  → Convert to Float
+  → Set Named Input Value (Brain, "EnemyCount", Result)
+
+// This avoids expensive GetAllActors every tick!</code></pre>
+  </div>
+  
+  <div class="code-tab-content">
+    <pre><code class="language-cpp">UCLASS()
 class UMyCachingService : public UUtilityService
 {
     GENERATED_BODY()
@@ -197,7 +302,6 @@ protected:
     virtual void TickService(float DeltaTime) override;
     
 private:
-    // Cached data to avoid recomputation
     UPROPERTY()
     TArray<AActor*> CachedEnemies;
     
@@ -213,23 +317,69 @@ void UMyCachingService::TickService(float DeltaTime)
     
     TimeSinceLastFullScan += DeltaTime;
     
-    // Full scan periodically
     if (TimeSinceLastFullScan >= FullScanInterval)
     {
         CachedEnemies.Empty();
-        // Expensive operation - find all enemies
         UGameplayStatics::GetAllActorsOfClass(GetWorld(), AEnemyClass, CachedEnemies);
         TimeSinceLastFullScan = 0.0f;
     }
     
-    // Use cached data every tick
     int32 EnemyCount = CachedEnemies.Num();
     OwningBrain->SetNamedInputValue(TEXT("EnemyCount"), (float)EnemyCount);
 }</code></pre>
+  </div>
+</div>
 
 <h3>Service with Event Handling</h3>
 
-<pre><code>UCLASS()
+<div class="code-tabs-container">
+  <div class="code-tabs-header">
+    <button class="code-tab-button" data-lang="blueprint">Blueprint</button>
+    <button class="code-tab-button" data-lang="cpp">C++</button>
+  </div>
+  
+  <div class="code-tab-content">
+    <pre><code>// Blueprint - Event-driven service
+1. Create Blueprint Class → Utility Service
+2. Name: "BP_DamageMonitorService"
+
+// Add Variables
+- LastDamageTime (float): 0.0
+- PawnReference (Pawn): None
+
+// Override Event: Initialize Service
+Event Initialize Service (Brain)
+  → Get Owner (from Brain)
+  → Cast to Pawn
+  → Set PawnReference
+  
+  → Bind Event to On Take Any Damage
+    Event: OnDamageTaken (create custom event)
+    Target: PawnReference
+
+// Create Custom Event: OnDamageTaken
+Event OnDamageTaken (Damaged Actor, Damage, Damage Type, Instigated By, Damage Causer)
+  → Get Game Time In Seconds
+  → Set LastDamageTime
+  
+  → Set Named Input Value (Brain, "UnderFire", 1.0)
+  
+  → Divide Damage by 100.0
+  → Set Named Input Value (Brain, "RecentDamage", Result)
+  
+  → Print String: "Took damage: {Damage}"
+
+// Override Event: Uninitialize Service
+Event Uninitialize Service
+  → Unbind Event from On Take Any Damage
+    Target: PawnReference
+  → Call Parent: Uninitialize Service
+
+// Event-driven = immediate response, no polling!</code></pre>
+  </div>
+  
+  <div class="code-tab-content">
+    <pre><code class="language-cpp">UCLASS()
 class UMyEventDrivenService : public UUtilityService
 {
     GENERATED_BODY()
@@ -250,7 +400,6 @@ void UMyEventDrivenService::InitializeService(UUtilityBrainComponent* InBrain)
 {
     Super::InitializeService(InBrain);
     
-    // Subscribe to damage events
     if (APawn* Pawn = Cast<APawn>(InBrain->GetOwner()))
     {
         Pawn->OnTakeAnyDamage.AddDynamic(this, &UMyEventDrivenService::OnDamageTaken);
@@ -259,12 +408,10 @@ void UMyEventDrivenService::InitializeService(UUtilityBrainComponent* InBrain)
 
 void UMyEventDrivenService::UninitializeService()
 {
-    // Unsubscribe from events
     if (APawn* Pawn = Cast<APawn>(OwningBrain->GetOwner()))
     {
         Pawn->OnTakeAnyDamage.RemoveDynamic(this, &UMyEventDrivenService::OnDamageTaken);
     }
-    
     Super::UninitializeService();
 }
 
@@ -273,11 +420,11 @@ void UMyEventDrivenService::OnDamageTaken(AActor* DamagedActor, float Damage,
                                           AController* InstigatedBy, AActor* DamageCauser)
 {
     LastDamageTime = GetWorld()->GetTimeSeconds();
-    
-    // Immediately update brain
     OwningBrain->SetNamedInputValue(TEXT("UnderFire"), 1.0f);
     OwningBrain->SetNamedInputValue(TEXT("RecentDamage"), Damage / 100.0f);
 }</code></pre>
+  </div>
+</div>
 
 <h2>Real-World Examples</h2>
 

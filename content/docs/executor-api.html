@@ -243,9 +243,70 @@ StopExecution():
 
 <h2>Creating Custom Executors</h2>
 
-<h3>C++ Custom Executor Template</h3>
+<h3>Custom Executor Template</h3>
 
-<pre><code>// MyCustomExecutor.h
+<div class="code-tabs-container">
+  <div class="code-tabs-header">
+    <button class="code-tab-button" data-lang="blueprint">Blueprint</button>
+    <button class="code-tab-button" data-lang="cpp">C++</button>
+  </div>
+  
+  <div class="code-tab-content">
+    <pre><code>// Blueprint - Create custom executor
+1. Right-click in Content Browser
+2. Blueprint Class → Utility Action Executor Blueprint
+3. Name: "BP_Executor_MyAction"
+4. Open the Blueprint
+
+// Add Variables
+- ExecutionDuration (float): 1.0
+- ElapsedTime (float): 0.0
+- OwningActor (Actor): None
+- OwningBrain (Utility Brain Component): None
+
+// Override Event: On Execute
+Event On Execute (Owner, Brain)
+  → Set OwningActor: Owner
+  → Set OwningBrain: Brain
+  → Set ElapsedTime: 0.0
+  → Print String: "Executor started"
+  
+  → Your custom logic here:
+    • Start animation
+    • Fire events
+    • Begin async operations
+
+// Override Event: On Tick Execute
+Event On Tick Execute (Delta Time)
+  → Add ElapsedTime + Delta Time
+  → Set ElapsedTime
+  
+  → Branch: ElapsedTime >= ExecutionDuration?
+    True:
+      → Mark Complete (Success)
+      → Print String: "Execution complete!"
+    False:
+      → Continue execution
+      → Update progress (optional)
+
+// Override Event: On Stop Execution
+Event On Stop Execution
+  → Print String: "Execution stopped"
+  → Cleanup logic:
+    • Stop animations
+    • Cancel async operations
+    • Reset state
+  → Mark Complete (Aborted)
+
+// Configure in Details Panel
+Execution Duration: 1.0
+
+// Use in Action Asset
+Action → Executor: BP_Executor_MyAction</code></pre>
+  </div>
+  
+  <div class="code-tab-content">
+    <pre><code class="language-cpp">// MyCustomExecutor.h
 #pragma once
 #include "UtilityActionExecutor.h"
 #include "MyCustomExecutor.generated.h"
@@ -256,11 +317,9 @@ class MYGAME_API UMyCustomExecutor : public UUtilityActionExecutor
     GENERATED_BODY()
     
 public:
-    // Configuration properties
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Execution")
     float ExecutionDuration = 1.0f;
     
-    // Implement interface
     virtual void Execute(AActor* Owner, UUtilityBrainComponent* Brain) override;
     virtual void TickExecute(float DeltaTime) override;
     virtual void StopExecution() override;
@@ -281,9 +340,6 @@ void UMyCustomExecutor::Execute(AActor* Owner, UUtilityBrainComponent* Brain)
     OwningBrain = Brain;
     ElapsedTime = 0.0f;
     CurrentStatus = EExecutionStatus::Running;
-    
-    // Your custom logic here
-    // Example: Start animation, fire event, etc.
 }
 
 void UMyCustomExecutor::TickExecute(float DeltaTime)
@@ -293,7 +349,6 @@ void UMyCustomExecutor::TickExecute(float DeltaTime)
     
     ElapsedTime += DeltaTime;
     
-    // Update logic
     if (ElapsedTime >= ExecutionDuration)
     {
         CurrentStatus = EExecutionStatus::Succeeded;
@@ -303,7 +358,6 @@ void UMyCustomExecutor::TickExecute(float DeltaTime)
 void UMyCustomExecutor::StopExecution()
 {
     CurrentStatus = EExecutionStatus::Aborted;
-    // Cleanup logic
 }
 
 bool UMyCustomExecutor::IsExecutionComplete() const
@@ -317,26 +371,8 @@ EExecutionStatus UMyCustomExecutor::GetExecutionStatus() const
 {
     return CurrentStatus;
 }</code></pre>
-
-<h3>Blueprint Custom Executor</h3>
-
-<pre><code>1. Create Blueprint (parent: UtilityActionExecutor_Blueprint)
-2. Name: BP_Executor_MyAction
-3. Implement events:
-
-Event OnExecute
-  → Store references
-  → Initialize state
-  → Begin execution
-
-Event OnTickExecute
-  → Update each frame
-  → Check completion
-  → Call Mark Complete when done
-
-Event OnStopExecution
-  → Cleanup
-  → Stop any async operations</code></pre>
+  </div>
+</div>
 
 <h2>Common Executor Patterns</h2>
 

@@ -405,7 +405,55 @@ struct FServiceCondition
 
 <h3>Custom Service with Conditions</h3>
 
-<pre><code>// MyCustomService.h
+<div class="code-tabs-container">
+  <div class="code-tabs-header">
+    <button class="code-tab-button" data-lang="blueprint">Blueprint</button>
+    <button class="code-tab-button" data-lang="cpp">C++</button>
+  </div>
+  
+  <div class="code-tab-content">
+    <pre><code>// Blueprint - Conditional service
+1. Create Blueprint Class → Utility Service
+2. Name: "BP_ConditionalService"
+
+// Add Variables
+- StartConditions (Array of Service Condition)
+- bStopWhenConditionsFail (bool): true
+
+// Configure Start Conditions in Details Panel
+Start Conditions:
+  [0]:
+    Input Name: "Health"
+    Condition Type: Less Than
+    Threshold Value: 0.5
+  [1]:
+    Input Name: "InCombat"
+    Condition Type: Greater Than
+    Threshold Value: 0.5
+
+// Override Event: On Service Start
+Event On Service Start
+  → Print String: "Service activated!"
+  → Initialize your tracking
+  → Setup state
+
+// Override Event: Tick Service
+Event Tick Service (Delta Time)
+  → Process Data (your custom logic)
+  → Publish inputs
+  → Only runs while conditions met!
+
+// Override Event: On Service Stop
+Event On Service Stop
+  → Print String: "Service deactivated!"
+  → Cleanup tracking
+  → Reset state
+
+// Service automatically starts/stops based on conditions!</code></pre>
+  </div>
+  
+  <div class="code-tab-content">
+    <pre><code class="language-cpp">// MyCustomService.h
 UCLASS()
 class UMyCustomService : public UUtilityService
 {
@@ -427,26 +475,22 @@ protected:
 void UMyCustomService::OnServiceStart()
 {
     Super::OnServiceStart();
-    
-    // Service just activated - setup
     UE_LOG(LogAI, Log, TEXT("Service started!"));
 }
 
 void UMyCustomService::TickService(float DeltaTime)
 {
     Super::TickService(DeltaTime);
-    
-    // Service is active - do work
     ProcessData();
 }
 
 void UMyCustomService::OnServiceStop()
 {
     Super::OnServiceStop();
-    
-    // Service just deactivated - cleanup
     UE_LOG(LogAI, Log, TEXT("Service stopped!"));
 }</code></pre>
+  </div>
+</div>
 
 <h2>Debugging Service Conditions</h2>
 

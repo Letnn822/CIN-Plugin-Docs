@@ -690,10 +690,127 @@ body::after{
   .benefit-grid,.use-case-grid{grid-template-columns:1fr}
 }
 
+/* Tabbed Code Examples */
+.code-tabs-container {
+  margin: 28px 0;
+  background: var(--bg-code);
+  border: 2px solid rgba(0, 229, 255, 0.25);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(0, 229, 255, 0.1);
+}
+
+.code-tabs-header {
+  display: flex;
+  gap: 0;
+  background: var(--bg-tertiary);
+  border-bottom: 2px solid rgba(0, 229, 255, 0.25);
+  padding: 0;
+}
+
+.code-tab-button {
+  appearance: none;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  padding: 14px 24px;
+  font-size: 14px;
+  font-weight: 700;
+  font-family: var(--font-body);
+  cursor: pointer;
+  transition: all 0.3s var(--ease-out-expo);
+  position: relative;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.code-tab-button:last-child {
+  border-right: none;
+}
+
+.code-tab-button::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--gradient-primary);
+  transform: scaleX(0);
+  transition: transform 0.3s var(--ease-out-expo);
+}
+
+.code-tab-button:hover {
+  background: rgba(0, 229, 255, 0.08);
+  color: var(--cf-cyan);
+}
+
+.code-tab-button.active {
+  color: var(--cf-cyan);
+  background: rgba(0, 229, 255, 0.12);
+  text-shadow: 0 0 8px rgba(0, 229, 255, 0.3);
+}
+
+.code-tab-button.active::after {
+  transform: scaleX(1);
+}
+
+.code-tab-content {
+  display: none;
+  animation: fadeIn 0.3s var(--ease-out-expo);
+}
+
+.code-tab-content.active {
+  display: block;
+}
+
+.code-tab-content pre {
+  margin: 0;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.code-tab-content pre code {
+  padding: 24px 28px;
+}
+
+/* Language badges */
+.code-tab-button .lang-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  margin-left: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 6px;
+  background: rgba(0, 229, 255, 0.15);
+  color: var(--cf-cyan);
+}
+
+.code-tab-button.active .lang-badge {
+  background: rgba(0, 229, 255, 0.3);
+}
+
+/* Blueprint-first styling */
+.code-tab-button[data-lang="blueprint"] {
+  order: -1;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* Respect reduced motion */
 @media (prefers-reduced-motion: reduce){
   *{animation-duration:0.01s!important;transition-duration:0.01s!important}
   body::before, body::after{transform:none!important}
   .arch-box:hover,.journey-card:hover,.button:hover{transform:none!important}
   .sidebar,.topbar,.content{animation:none!important}
+  .code-tab-content{animation:none!important}
 }
