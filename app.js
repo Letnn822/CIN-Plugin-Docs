@@ -55,8 +55,8 @@
         showLoadingState();
 
         const normalizedPath = normalizePath(path);
-        // Ensure we don't have double slashes in the path
-        const cleanPath = normalizedPath.replace(/\/+/g, '');
+        // Normalize path - remove duplicate slashes and trim leading/trailing slashes
+        const cleanPath = normalizedPath.replace(/\/+/g, '/').replace(/^\/|\/$/g, '');
         // Remove any trailing 'index' from the path
         const finalPath = cleanPath.replace(/\/index$/, '');
         const filePath = `${finalPath || 'index'}.html`; 
@@ -146,9 +146,14 @@
     function updateActiveNav(currentPath) {
         document.querySelectorAll('nav a').forEach(link => {
             const linkPath = normalizePath(link.getAttribute('href').replace(/^#/, ''));
-            const isActive = linkPath === currentPath ||
-                (currentPath.startsWith(linkPath) && linkPath !== '');
+            const isActive = linkPath === currentPath || 
+                (currentPath.endsWith(linkPath) && 
+                 (linkPath.length > 0 && currentPath.endsWith('/' + linkPath)));
             link.classList.toggle('active', isActive);
+            
+            if (CONFIG.debug && isActive) {
+                console.log('Active nav item:', { linkPath, currentPath });
+            }
         });
     }
 
@@ -180,20 +185,19 @@
      */
     function showErrorPage(path, filePath, error) {
         DOM.mainContent.innerHTML = `
-      <div class="warn">
-        <h2>Page Not Found</h2>
-        <p>The requested page could not be found at: <code>${path}</code></p>
-        <p><a href="#${CONFIG.defaultRoute}" class="button">Return to documentation home</a></p>
-        ${CONFIG.debug ? `
-        <div class="debug-info">
-          <h3>Debug Information</h3>
-          <p><strong>Path:</strong> ${path}</p>
-          <p><strong>File:</strong> ${filePath}</p>
-          <p><strong>Error:</strong> ${error.message}</p>
-        </div>
-        ` : ''}
-      </div>
-    `;
+            <div class="warn">
+                <h2>Page Not Found</h2>
+                <p>We couldn't find the page you're looking for.</p>
+                <p><a href="#${CONFIG.defaultRoute}" class="button">Return to Documentation Home</a></p>
+                ${CONFIG.debug ? `
+                <div class="debug-info">
+                    <h3>Debug Information</h3>
+                    <p><strong>Path:</strong> ${path}</p>
+                    <p><strong>File:</strong> ${filePath}</p>
+                    <p><strong>Error:</strong> ${error.message}</p>
+                    <p><strong>Current URL:</strong> ${window.location.href}</p>
+                </div>` : ''}
+            </div>`;
     }
 
     /**
