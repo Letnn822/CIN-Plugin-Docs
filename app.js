@@ -3,14 +3,13 @@
     const DOM = {
         body: document.body,
         mainContent: document.querySelector('main') || document.body,
-        year: document.getElementById('year'),
         footerYears: document.querySelectorAll('.footer-year')
     };
 
     // Configuration
     const CONFIG = {
-        defaultRoute: 'docs',
-        contentPath: 'content',
+        defaultRoute: 'plugins/cin/docs',
+        contentPath: '',  // Path is now relative to the HTML file
         debug: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
     };
 
@@ -18,51 +17,33 @@
      * Initialize the application
      */
     function init() {
-        // Set current year in footer
-        if (DOM.year) {
-            DOM.year.textContent = new Date().getFullYear();
-        }
-
-        // Initialize event listeners
-        const handleNavigation = () => navigate();
-        window.addEventListener('hashchange', handleNavigation);
-        window.addEventListener('load', handleNavigation);
-
-        // Initial navigation
-        navigate();
-    }
-
-    /**
-     * Handle navigation based on URL hash
-     */
-    function navigate() {
-        const hash = window.location.hash.slice(1) || CONFIG.defaultRoute;
-        const normalizedHash = normalizePath(hash);
-
-        // Handle root path - redirect to default route
-        if (!normalizedHash || normalizedHash === '/') {
-            updateHash(CONFIG.defaultRoute);
-            return;
-        }
-
-        // Handle anchor links
-        if (hash.startsWith('#')) {
-            const anchorId = hash.substring(1);
-            const anchor = document.getElementById(anchorId);
-            if (anchor) {
+{{ ... }}
                 smoothScroll(anchor);
                 return;
             }
         }
 
-        // Handle documentation pages
-        if (normalizedHash === 'docs') {
-            loadPage('docs/index');
-        } else if (normalizedHash.startsWith('docs/')) {
-            loadPage(normalizedHash);
-        } else {
-            // Try to load as a direct path under docs/
-            loadPage(`docs/${normalizedHash}`);
+        // Handle plugin documentation routes
+        const pluginMatch = normalizedHash.match(/^plugins\/([^\/]+)(\/docs(\/.*)?)?/);
+        
+        if (pluginMatch) {
+            const [_, pluginId, , pagePath = ''] = pluginMatch;
+            const cleanPath = pagePath.replace(/^\//, '');
+            loadPage(`plugins/${pluginId}/docs/${cleanPath || 'index'}`);
+        } 
+        // Legacy docs path support
+        else if (normalizedHash === 'docs' || normalizedHash.startsWith('docs/')) {
+            // Redirect to the CIN plugin docs
+            const docPath = normalizedHash.replace(/^docs\/?/, '');
+            updateHash(`plugins/cin/docs/${docPath}`);
+        } 
+        // Default to CIN plugin docs
+        else if (normalizedHash) {
+            loadPage(`plugins/cin/docs/${normalizedHash}`);
+        } 
+        // Fallback to CIN plugin docs home
+        else {
+            updateHash('plugins/cin/docs');
         }
     }
 
@@ -75,8 +56,10 @@
 
         const normalizedPath = normalizePath(path);
         // Ensure we don't have double slashes in the path
-        const cleanPath = normalizedPath.replace(/\/+/g, '/');
-        const filePath = `${CONFIG.contentPath}/${cleanPath}.html`; 
+        const cleanPath = normalizedPath.replace(/\/+/g, '');
+        // Remove any trailing 'index' from the path
+        const finalPath = cleanPath.replace(/\/index$/, '');
+        const filePath = `${finalPath || 'index'}.html`; 
         
         if (CONFIG.debug) {
             console.log('Loading page:', { path, normalizedPath, cleanPath, filePath });
