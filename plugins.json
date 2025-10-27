@@ -1,0 +1,10 @@
+[
+  {
+    "id": "cin",
+    "name": "CIN Plugin",
+    "description": "Comprehensive AI system for Unreal Engine with advanced behavior trees, EQS, and environmental awareness.",
+    "version": "1.0.0",
+    "author": "Your Name",
+    "repository": "https://github.com/Letnn822/CIN-Plugin"
+  }
+]
