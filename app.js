@@ -16,16 +16,30 @@
   }
   
   function navigate() {
-    const hash = window.location.hash.slice(1) || '/';
-    const parts = hash.split('/').filter(Boolean);
+    let hash = window.location.hash.slice(1) || '/';
     
-    // Handle direct page loading
-    if (hash.startsWith('/docs/') || hash === '/') {
-      loadPage(hash);
+    // Handle root path - redirect to docs home
+    if (hash === '/' || hash === '') {
+      hash = 'docs';
+      window.location.hash = `#${hash}`;
+      return;
+    }
+    
+    // Handle docs path
+    if (hash.startsWith('docs') || hash.startsWith('/docs')) {
+      // Remove any leading slashes for consistency
+      let docPath = hash.replace(/^\/+/, '');
+      
+      // If it's just 'docs', load the docs home
+      if (docPath === 'docs') {
+        docPath = 'docs/index';
+      }
+      
+      loadPage(docPath);
     } else if (hash.startsWith('#')) {
       // Handle anchor links
       const anchor = document.getElementById(hash.substring(1));
-      if (anchor) anchor.scrollIntoView();
+      if (anchor) anchor.scrollIntoView({ behavior: 'smooth' });
     }
   }
 
@@ -38,8 +52,14 @@
     const mainContent = document.querySelector('main') || document.body;
     mainContent.innerHTML = '<div class="loading">Loading documentation...</div>';
     
+    // Normalize path - ensure it doesn't have leading/trailing slashes or .html
+    let normalizedPath = path.replace(/^\/+|\/+$|\.html$/g, '');
+    
+    // Build the correct file path
+    const filePath = `content/${normalizedPath}.html`;
+    
     // Load the content
-    fetch(`content${path}.html`, { cache: 'no-store' })
+    fetch(filePath, { cache: 'no-store' })
       .then(response => {
         if (!response.ok) throw new Error('Page not found');
         return response.text();
@@ -61,10 +81,18 @@
       })
       .catch(error => {
         console.error('Failed to load page:', error);
+        console.log('Attempted to load:', path);
         mainContent.innerHTML = `
           <div class="warn">
             <h2>Page Not Found</h2>
-            <p>The requested page could not be loaded. <a href="#/">Return to documentation home</a></p>
+            <p>The requested page could not be found at: <code>${path}</code></p>
+            <p><a href="#docs">Return to documentation home</a></p>
+            <p>If you believe this is an error, please check the URL or <a href="#docs/contributing">report an issue</a>.</p>
+            <div style="margin-top: 20px; padding: 10px; background: #f8f8f8; border: 1px solid #ddd;">
+              <strong>Debug Info:</strong><br>
+              Path: ${path}<br>
+              Attempted to load: ${filePath}
+            </div>
           </div>
         `;
       });
