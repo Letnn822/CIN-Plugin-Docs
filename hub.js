@@ -220,32 +220,36 @@
     var basePath = window.location.pathname.replace(/\/[^/]*$/, '');
     if (basePath.endsWith('/')) basePath = basePath.slice(0, -1);
     
-    // Build the full path to plugins.json (with cache-busting)
-    var pluginsPath = (basePath ? basePath + '/plugins.json' : 'plugins.json') + '?v=' + Date.now();
+    // Build candidate paths for plugins.json (with cache-busting)
+    var cacheBust = '?v=' + Date.now();
+    var candidates = [
+      (basePath ? basePath + '/plugins.json' : 'plugins.json') + cacheBust,
+      '/Plugins-Docs/plugins.json' + cacheBust,
+      'plugins.json' + cacheBust,
+      window.location.origin + '/Plugins-Docs/plugins.json' + cacheBust,
+      'https://raw.githubusercontent.com/Letnn822/Plugins-Docs/gh-pages/plugins.json'
+    ];
     
-    // Load plugins list
-    console.log('Fetching plugins.json from:', pluginsPath);
-    fetch(pluginsPath)
-      .then(function(response) {
-        console.log('Response status:', response.status, response.statusText);
-        console.log('Response headers:', response.headers);
-        if (!response.ok) {
-          throw new Error('Failed to load plugins.json: ' + response.status + ' ' + response.statusText);
-        }
-        return response.json();
-      })
+    function fetchFirst(paths) {
+      if (!paths || !paths.length) return Promise.reject(new Error('No plugin sources available'));
+      var next = paths[0];
+      console.log('Trying plugins.json at:', next);
+      return fetch(next, { cache: 'no-store' }).then(function(resp){
+        if (!resp.ok) throw new Error('HTTP ' + resp.status + ' at ' + next);
+        return resp.json();
+      }).catch(function(err){
+        console.warn('Failed source:', next, err.message);
+        return fetchFirst(paths.slice(1));
+      });
+    }
+    
+    // Load plugins list with fallback
+    fetchFirst(candidates)
       .then(function(data) {
-        console.log('Loaded data:', data);
-        console.log('Data type:', typeof data, 'Is array:', Array.isArray(data));
-        
+        console.log('Loaded plugins.json:', data);
         // Ensure we have an array
         var plugins = Array.isArray(data) ? data : [data];
-        console.log('Plugins to render:', plugins);
-        
-        if (plugins.length === 0) {
-          throw new Error('No plugins found in plugins.json');
-        }
-        
+        if (!plugins.length) throw new Error('No plugins found in plugins.json');
         renderPlugins(plugins);
       })
       .catch(function(error) {
@@ -261,8 +265,7 @@
               '<div style="padding: 40px; text-align: center; color: rgba(255,255,255,0.6);">',
               '  <h3 style="color: rgba(255,255,255,0.9); margin-bottom: 16px;">Failed to load plugins</h3>',
               '  <p style="margin-bottom: 8px;">' + (error.message || 'Unknown error') + '</p>',
-              '  <p style="font-size: 14px; opacity: 0.7;">Attempted to load from: ' + pluginsPath + '</p>',
-              '  <p style="font-size: 13px; margin-top: 16px;">Check the browser console (F12) for more details.</p>',
+              '  <p style="font-size: 14px; opacity: 0.7;">Unable to load plugins.json from any source.</p>',
               '</div>'
             ].join('\n');
           }
