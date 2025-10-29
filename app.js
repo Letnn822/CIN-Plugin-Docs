@@ -187,6 +187,7 @@
   function initializeHub() {
     console.log('=== initializeHub() called ===');
     console.log('Document ready state:', document.readyState);
+    console.log('Current location:', window.location.href);
     
     // Show loading message
     var pluginGrid = document.getElementById('plugin-grid');
@@ -194,15 +195,22 @@
     
     if (pluginGrid) {
       console.log('Setting loading message...');
-      pluginGrid.innerHTML = '<div class="loading">Loading plugins...</div>';
+      pluginGrid.innerHTML = '<div class="loading hub-loading"><div class="hub-spinner"></div><p>Loading plugins...</p></div>';
     } else {
       console.error('plugin-grid element not found in the DOM');
       return; // Exit if the container doesn't exist
     }
     
+    // Determine the base path for GitHub Pages
+    var basePath = window.location.pathname.replace(/\/[^/]*$/, '');
+    if (basePath.endsWith('/')) basePath = basePath.slice(0, -1);
+    
+    // Build the full path to plugins.json
+    var pluginsPath = basePath ? basePath + '/plugins.json' : 'plugins.json';
+    
     // Load plugins list
-    console.log('Fetching plugins.json...');
-    fetch('plugins.json')
+    console.log('Fetching plugins.json from:', pluginsPath);
+    fetch(pluginsPath)
       .then(function(response) {
         console.log('Response status:', response.status, response.statusText);
         if (!response.ok) {
