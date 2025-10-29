@@ -1,6 +1,6 @@
-# CIN Plugin Documentation
+# Multi-Plugin Documentation Hub
 
-**Complete documentation website for CIN Plugin - Utility AI Framework for Unreal Engine 5.5+**
+**Professional documentation hub for Unreal Engine plugins - Starting with CIN Plugin (Utility AI Framework)**
 
 ## 📚 Content
 

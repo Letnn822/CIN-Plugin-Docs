@@ -2,9 +2,9 @@
   {
     "id": "cin",
     "name": "CIN Plugin",
-    "description": "Comprehensive AI system for Unreal Engine with advanced behavior trees, EQS, and environmental awareness.",
+    "description": "Professional Utility AI framework for Unreal Engine 5.5+. Build intelligent game AI in 15 minutes with 98 comprehensive pages, 800+ code examples, and production-ready archetypes. Features squad coordination, perception systems, task momentum, and Blueprint-first workflows.",
     "version": "1.0.0",
-    "author": "Your Name",
+    "author": "Code Furnace",
     "repository": "https://github.com/Letnn822/CIN-Plugin"
   }
 ]

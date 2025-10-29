@@ -4,41 +4,79 @@
   
   // Simple Documentation Router
   var $body = document.body;
+  var debug = true;
   
   // Update footer years
   var $footerYears = document.querySelectorAll('.footer-year');
   var $year = document.getElementById('year');
   if ($year) $year.textContent = new Date().getFullYear();
+  
+  // Debug logging
+  function log() {
+    if (debug && console && console.log) {
+      var args = [];
+      for (var i = 0; i < arguments.length; i++) {
+        args.push(arguments[i]);
+      }
+      console.log.apply(console, args);
+    }
+  }
 
   // Navigation function
   function navigate() {
-    var hash = window.location.hash.slice(1) || '/';
-    
-    // Handle root path - redirect to hub
-    if (hash === '/' || hash === '') {
-      window.location.href = 'index.html';
-      return;
-    }
-    
-    // Handle plugin documentation routes
-    var pluginMatch = hash.match(/^plugins\/([^/]+)(?:\/docs(?:\/(.*))?)?/);
-    
-    if (pluginMatch) {
-      var pluginId = pluginMatch[1];
-      var pagePath = pluginMatch[2] || 'overview';
-      loadPage('content/plugins/' + pluginId + '/docs/' + pagePath);
-    } 
-    // Handle legacy /docs/ paths
-    else if (hash.indexOf('docs/') === 0) {
-      loadPage('content/docs/' + hash.replace('docs/', ''));
-    }
-    // Handle direct content paths
-    else if (hash.indexOf('content/') === 0) {
-      loadPage(hash);
-    }
-    // Try to load as a direct path under content/docs/
-    else {
-      loadPage('content/docs/' + hash);
+    try {
+      var hash = window.location.hash.slice(1) || '/';
+      
+      // Handle root path - redirect to hub
+      if (hash === '/' || hash === '') {
+        window.location.href = 'index.html';
+        return;
+      }
+      
+      // Handle plugin documentation routes: #/plugins/{id}/docs/{page}
+      var pluginMatch = hash.match(/^\/plugins\/([^/]+)\/docs\/(.+)$/);
+      
+      if (pluginMatch) {
+        var pluginId = pluginMatch[1];
+        var pagePath = pluginMatch[2];
+        
+        // For CIN plugin, map to existing content/docs/ location
+        if (pluginId === 'cin') {
+          loadPage('content/docs/' + pagePath);
+        } else {
+          // For other plugins, use plugin-specific path
+          loadPage('content/plugins/' + pluginId + '/docs/' + pagePath);
+        }
+      } 
+      // Handle plugin overview: #/plugins/{id}/docs or #/plugins/{id}
+      else if (hash.match(/^\/plugins\/([^/]+)(?:\/docs)?$/)) {
+        var match = hash.match(/^\/plugins\/([^/]+)/);
+        var pluginId = match[1];
+        
+        // Redirect to overview page
+        if (pluginId === 'cin') {
+          loadPage('content/docs/overview');
+        } else {
+          loadPage('content/plugins/' + pluginId + '/docs/overview');
+        }
+      }
+      // Handle legacy /docs/ paths
+      else if (hash.indexOf('/docs/') === 0) {
+        loadPage('content/docs/' + hash.replace('/docs/', ''));
+      }
+      else if (hash.indexOf('docs/') === 0) {
+        loadPage('content/docs/' + hash.replace('docs/', ''));
+      }
+      // Handle direct content paths
+      else if (hash.indexOf('content/') === 0) {
+        loadPage(hash);
+      }
+      // Try to load as a direct path under content/docs/
+      else {
+        loadPage('content/docs/' + hash);
+      }
+    } catch (error) {
+      console.error('Error in navigate():', error);
     }
   }
 
@@ -147,18 +185,29 @@
 
   // Initialize the hub page
   function initializeHub() {
-    console.log('Initializing hub page...');
+    console.log('=== initializeHub() called ===');
+    console.log('Document ready state:', document.readyState);
     
     // Show loading message
     var pluginGrid = document.getElementById('plugin-grid');
+    console.log('Plugin grid element:', pluginGrid);
+    
     if (pluginGrid) {
+      console.log('Setting loading message...');
       pluginGrid.innerHTML = '<div class="loading">Loading plugins...</div>';
+    } else {
+      console.error('plugin-grid element not found in the DOM');
+      return; // Exit if the container doesn't exist
     }
     
     // Load plugins list
+    console.log('Fetching plugins.json...');
     fetch('plugins.json')
       .then(function(response) {
-        if (!response.ok) throw new Error('Failed to load plugins.json');
+        console.log('Response status:', response.status, response.statusText);
+        if (!response.ok) {
+          throw new Error('Failed to load plugins.json: ' + response.status);
+        }
         return response.json();
       })
       .then(function(plugins) {
@@ -184,21 +233,56 @@
     var pluginGrid = document.getElementById('plugin-grid');
     if (!pluginGrid) return;
     
+    // Update stats in header
+    var pluginCount = document.getElementById('plugin-count');
+    if (pluginCount) {
+      pluginCount.textContent = plugins.length;
+    }
+    
+    // Calculate total pages (for CIN plugin, we know it has 98 pages)
+    var totalPages = 0;
+    plugins.forEach(function(plugin) {
+      // For now, assume CIN has 98 pages, others will add later
+      if (plugin.id === 'cin') {
+        totalPages += 98;
+      }
+    });
+    
+    var pageCount = document.getElementById('page-count');
+    if (pageCount) {
+      pageCount.textContent = totalPages + '+';
+    }
+    
     // Clear loading message
     pluginGrid.innerHTML = '';
     
     // Add each plugin to the grid
-    plugins.forEach(function(plugin) {
+    plugins.forEach(function(plugin, index) {
       var pluginCard = document.createElement('div');
       pluginCard.className = 'plugin-card';
+      pluginCard.style.animationDelay = (index * 0.1 + 0.1) + 's';
+      
       pluginCard.innerHTML = [
         '<h3>' + (plugin.name || 'Unnamed Plugin') + '</h3>',
         '<p>' + (plugin.description || 'No description available.') + '</p>',
-        '<a href="#/plugins/' + (plugin.id || '') + '/docs/overview" class="button">View Documentation</a>'
+        '<a href="#/plugins/' + (plugin.id || '') + '/docs/overview" class="button">',
+        '  <span>View Documentation</span>',
+        '  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">',
+        '    <line x1="5" y1="12" x2="19" y2="12"></line>',
+        '    <polyline points="12 5 19 12 12 19"></polyline>',
+        '  </svg>',
+        '</a>'
       ].join('\n');
       
       pluginGrid.appendChild(pluginCard);
     });
+    
+    // Re-initialize Lucide icons if available
+    if (typeof lucide !== 'undefined' && lucide.createIcons) {
+      setTimeout(function() {
+        lucide.createIcons();
+      }, 100);
+    }
   }
   
   // Initialize the app based on the current page

@@ -23,36 +23,71 @@
   <meta name="theme-color" content="#0B1024" />
 </head>
 <body class="hub-page">
-  <header class="hub-header">
-    <div class="hub-brand">
-      <div class="hub-logo">📚</div>
-      <div class="hub-titles">
-        <h1>Plugin Documentation Hub</h1>
-        <p>Comprehensive documentation for Unreal Engine plugins</p>
+  <!-- Animated Background -->
+  <div class="hub-bg-animated">
+    <div class="hub-gradient-orb hub-orb-1"></div>
+    <div class="hub-gradient-orb hub-orb-2"></div>
+    <div class="hub-gradient-orb hub-orb-3"></div>
+    <div class="hub-grid-overlay"></div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="hub-content-wrapper">
+    <header class="hub-header">
+      <div class="hub-brand">
+        <div class="hub-logo-wrapper">
+          <div class="hub-logo-icon">📚</div>
+          <div class="hub-logo-glow"></div>
+        </div>
+        <div class="hub-titles">
+          <h1 class="hub-title">Plugin Documentation Hub</h1>
+          <p class="hub-subtitle">Professional documentation for Unreal Engine plugins</p>
+          <div class="hub-stats">
+            <span class="hub-stat"><i data-lucide="package"></i> <span id="plugin-count">...</span> Plugins</span>
+            <span class="hub-stat"><i data-lucide="book-open"></i> <span id="page-count">...</span> Pages</span>
+            <span class="hub-stat"><i data-lucide="code"></i> Production Ready</span>
+          </div>
+        </div>
       </div>
-    </div>
-  </header>
+    </header>
 
-  <main class="hub-main">
-    <div class="hub-intro">
-      <h2>Select a Plugin</h2>
-      <p>Choose from our collection of professionally documented Unreal Engine plugins</p>
-    </div>
+    <main class="hub-main">
+      <div class="hub-intro">
+        <h2 class="hub-section-title">
+          <span class="hub-title-accent">Discover</span> Your Plugin
+        </h2>
+        <p class="hub-section-subtitle">Choose from our collection of professionally documented Unreal Engine plugins</p>
+      </div>
 
-    <div class="plugin-grid" id="plugin-grid">
-      <!-- Plugins will be loaded dynamically -->
-      <div class="loading">Loading plugins...</div>
-    </div>
-  </main>
+      <div class="plugin-grid" id="plugin-grid">
+        <!-- Plugins will be loaded dynamically -->
+        <div class="loading hub-loading">
+          <div class="hub-spinner"></div>
+          <p>Loading plugins...</p>
+        </div>
+      </div>
+    </main>
 
-  <footer class="hub-footer">
-    <div>
-      <strong>Plugin Documentation Hub</strong> for Unreal Engine 5.5+ — Professional Documentation
-    </div>
-    <div>
-      © <span id="year"></span> Code Furnace. All plugins available on FAB Marketplace.
-    </div>
-  </footer>
+    <footer class="hub-footer">
+      <div class="hub-footer-content">
+        <div class="hub-footer-brand">
+          <strong>Plugin Documentation Hub</strong>
+          <p>Unreal Engine 5.5+ • Professional Documentation</p>
+        </div>
+        <div class="hub-footer-links">
+          <a href="https://github.com/Letnn822" target="_blank" class="hub-footer-link">
+            <i data-lucide="github"></i> GitHub
+          </a>
+          <a href="#" class="hub-footer-link">
+            <i data-lucide="shopping-bag"></i> FAB Marketplace
+          </a>
+        </div>
+        <div class="hub-footer-copy">
+          © <span id="year"></span> Code Furnace. All rights reserved.
+        </div>
+      </div>
+    </footer>
+  </div>
 
   <!-- Plugin Documentation Template (hidden, used for routing) -->
   <div id="plugin-template" style="display: none;">
@@ -102,6 +137,14 @@
     </footer>
   </div>
 
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    // Initialize Lucide icons after they load
+    if (typeof lucide !== 'undefined') {
+      lucide.createIcons();
+    }
+  </script>
   <script src="app.js"></script>
 </body>
 </html>
