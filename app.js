@@ -22,6 +22,18 @@
     }
   }
 
+  // Built-in fallback plugins list (used if plugins.json fails to load)
+  var DEFAULT_PLUGINS = [
+    {
+      id: 'cin',
+      name: 'CIN Plugin',
+      description: 'Professional Utility AI framework for Unreal Engine 5.5+. Build intelligent game AI in 15 minutes with 98 comprehensive pages, 800+ code examples, and production-ready archetypes. Features squad coordination, perception systems, task momentum, and Blueprint-first workflows.',
+      version: '1.0.0',
+      author: 'Code Furnace',
+      repository: 'https://github.com/Letnn822/CIN-Plugin'
+    }
+  ];
+
   // Navigation function
   function navigate() {
     try {
@@ -208,8 +220,8 @@
     var basePath = window.location.pathname.replace(/\/[^/]*$/, '');
     if (basePath.endsWith('/')) basePath = basePath.slice(0, -1);
     
-    // Build the full path to plugins.json
-    var pluginsPath = basePath ? basePath + '/plugins.json' : 'plugins.json';
+    // Build the full path to plugins.json (with cache-busting)
+    var pluginsPath = (basePath ? basePath + '/plugins.json' : 'plugins.json') + '?v=' + Date.now();
     
     // Load plugins list
     console.log('Fetching plugins.json from:', pluginsPath);
@@ -239,15 +251,21 @@
       .catch(function(error) {
         console.error('Error loading plugins:', error);
         console.error('Error stack:', error.stack);
-        if (pluginGrid) {
-          pluginGrid.innerHTML = [
-            '<div style="padding: 40px; text-align: center; color: rgba(255,255,255,0.6);">',
-            '  <h3 style="color: rgba(255,255,255,0.9); margin-bottom: 16px;">Failed to load plugins</h3>',
-            '  <p style="margin-bottom: 8px;">' + (error.message || 'Unknown error') + '</p>',
-            '  <p style="font-size: 14px; opacity: 0.7;">Attempted to load from: ' + pluginsPath + '</p>',
-            '  <p style="font-size: 13px; margin-top: 16px;">Check the browser console (F12) for more details.</p>',
-            '</div>'
-          ].join('\n');
+        // Fallback: render built-in list so the hub remains usable
+        console.warn('Falling back to DEFAULT_PLUGINS...');
+        try {
+          renderPlugins(DEFAULT_PLUGINS);
+        } catch (e) {
+          if (pluginGrid) {
+            pluginGrid.innerHTML = [
+              '<div style="padding: 40px; text-align: center; color: rgba(255,255,255,0.6);">',
+              '  <h3 style="color: rgba(255,255,255,0.9); margin-bottom: 16px;">Failed to load plugins</h3>',
+              '  <p style="margin-bottom: 8px;">' + (error.message || 'Unknown error') + '</p>',
+              '  <p style="font-size: 14px; opacity: 0.7;">Attempted to load from: ' + pluginsPath + '</p>',
+              '  <p style="font-size: 13px; margin-top: 16px;">Check the browser console (F12) for more details.</p>',
+              '</div>'
+            ].join('\n');
+          }
         }
       });
   }
