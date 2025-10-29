@@ -180,7 +180,10 @@
   // Check if we're on the hub page
   function isHubPage() {
     var path = window.location.pathname;
-    return path.endsWith('index.html') || path === '/' || path === '';
+    var filename = path.split('/').pop();
+    console.log('isHubPage check - pathname:', path, 'filename:', filename);
+    // Check if we're on index.html or root path (with or without trailing slash)
+    return filename === 'index.html' || filename === '' || path.endsWith('/');
   }
 
   // Initialize the hub page
@@ -213,23 +216,36 @@
     fetch(pluginsPath)
       .then(function(response) {
         console.log('Response status:', response.status, response.statusText);
+        console.log('Response headers:', response.headers);
         if (!response.ok) {
-          throw new Error('Failed to load plugins.json: ' + response.status);
+          throw new Error('Failed to load plugins.json: ' + response.status + ' ' + response.statusText);
         }
         return response.json();
       })
-      .then(function(plugins) {
-        console.log('Loaded plugins:', plugins);
+      .then(function(data) {
+        console.log('Loaded data:', data);
+        console.log('Data type:', typeof data, 'Is array:', Array.isArray(data));
+        
+        // Ensure we have an array
+        var plugins = Array.isArray(data) ? data : [data];
+        console.log('Plugins to render:', plugins);
+        
+        if (plugins.length === 0) {
+          throw new Error('No plugins found in plugins.json');
+        }
+        
         renderPlugins(plugins);
       })
       .catch(function(error) {
         console.error('Error loading plugins:', error);
+        console.error('Error stack:', error.stack);
         if (pluginGrid) {
           pluginGrid.innerHTML = [
-            '<div class="warn">',
-            '  <h3>Failed to load plugins</h3>',
-            '  <p>' + (error.message || 'Unknown error') + '</p>',
-            '  <p>Please check the console for more details.</p>',
+            '<div style="padding: 40px; text-align: center; color: rgba(255,255,255,0.6);">',
+            '  <h3 style="color: rgba(255,255,255,0.9); margin-bottom: 16px;">Failed to load plugins</h3>',
+            '  <p style="margin-bottom: 8px;">' + (error.message || 'Unknown error') + '</p>',
+            '  <p style="font-size: 14px; opacity: 0.7;">Attempted to load from: ' + pluginsPath + '</p>',
+            '  <p style="font-size: 13px; margin-top: 16px;">Check the browser console (F12) for more details.</p>',
             '</div>'
           ].join('\n');
         }
@@ -238,9 +254,16 @@
   
   // Render plugins in the grid
   function renderPlugins(plugins) {
-    var pluginGrid = document.getElementById('plugin-grid');
-    if (!pluginGrid) return;
+    console.log('=== renderPlugins() called ===');
+    console.log('Plugins to render:', plugins);
     
+    var pluginGrid = document.getElementById('plugin-grid');
+    if (!pluginGrid) {
+      console.error('plugin-grid element not found in renderPlugins');
+      return;
+    }
+    
+    console.log('Updating plugin count...');
     // Update stats in header
     var pluginCount = document.getElementById('plugin-count');
     if (pluginCount) {
@@ -261,6 +284,7 @@
       pageCount.textContent = totalPages + '+';
     }
     
+    console.log('Clearing loading message and rendering', plugins.length, 'plugin cards...');
     // Clear loading message
     pluginGrid.innerHTML = '';
     
@@ -283,12 +307,18 @@
       ].join('\n');
       
       pluginGrid.appendChild(pluginCard);
+      console.log('Added plugin card:', plugin.id);
     });
+    
+    console.log('=== Plugin rendering complete! ===');
+    console.log('Total cards rendered:', plugins.length);
     
     // Re-initialize Lucide icons if available
     if (typeof lucide !== 'undefined' && lucide.createIcons) {
+      console.log('Re-initializing Lucide icons...');
       setTimeout(function() {
         lucide.createIcons();
+        console.log('Lucide icons initialized');
       }, 100);
     }
   }
