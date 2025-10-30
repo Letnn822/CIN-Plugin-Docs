@@ -519,8 +519,8 @@ body::after{
 
 /* Modern Hero Section */
 .hero-modern{position:relative;padding:80px 48px;margin:0 0 80px;overflow:hidden;border-radius:24px;background:linear-gradient(135deg,rgba(0,229,255,0.08),rgba(157,78,221,0.08));border:2px solid rgba(0,229,255,0.3);box-shadow:0 20px 60px rgba(0,0,0,0.4),inset 0 1px 0 rgba(255,255,255,0.08),0 0 60px rgba(0,229,255,0.1)}
-.hero-bg-modern{position:absolute;inset:0;background:radial-gradient(circle at 30% 50%,rgba(0,229,255,0.06),transparent 50%),radial-gradient(circle at 70% 50%,rgba(157,78,221,0.06),transparent 50%);z-index:0;animation:none;opacity:0.8}
-@keyframes pulse{from{opacity:0.8}to{opacity:0.8}}
+.hero-bg-modern{position:absolute;inset:0;background:radial-gradient(circle at 30% 50%,rgba(0,229,255,0.1),transparent 50%),radial-gradient(circle at 70% 50%,rgba(157,78,221,0.1),transparent 50%);z-index:0;animation:pulse 16s cubic-bezier(0.4, 0, 0.2, 1) infinite alternate}
+@keyframes pulse{0%{opacity:0.6}50%{opacity:0.8}100%{opacity:0.6}}
 .hero-content-modern{position:relative;z-index:1;text-align:center;max-width:800px;margin:0 auto}
 .hero-badge-row{display:flex;gap:12px;justify-content:center;margin-bottom:24px;flex-wrap:wrap}
 .badge-new{display:inline-flex;align-items:center;padding:8px 20px;border-radius:999px;font-size:13px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;background:rgba(0,229,255,0.15);color:var(--cf-cyan);border:1px solid rgba(0,229,255,0.3);box-shadow:0 4px 12px rgba(0,229,255,0.2),inset 0 1px 0 rgba(255,255,255,0.1);transition:all 0.3s ease}
@@ -556,8 +556,8 @@ body::after{
 .step-info p{margin:0 0 12px;font-size:15px;color:var(--text-bright);line-height:1.6;font-weight:400}
 .step-info code{font-size:13px;background:rgba(0,229,255,0.1);padding:2px 8px;border-radius:6px;color:var(--cf-cyan)}
 .step-time{display:inline-block;padding:4px 12px;background:rgba(0,229,255,0.15);color:var(--cf-cyan);border-radius:999px;font-size:12px;font-weight:700}
-.path-arrow{font-size:32px;color:var(--cf-cyan);font-weight:700;animation:none;opacity:0.6}
-@keyframes arrowPulse{0%,100%{transform:translateX(0);opacity:0.6}50%{transform:translateX(0);opacity:0.6}}
+.path-arrow{font-size:32px;color:var(--cf-cyan);font-weight:700;animation:arrowPulse 4s cubic-bezier(0.4, 0, 0.2, 1) infinite}
+@keyframes arrowPulse{0%,100%{transform:translateX(0);opacity:0.5}50%{transform:translateX(4px);opacity:0.8}}
 .path-footer{text-align:center}
 .link-arrow{color:var(--cf-cyan);font-size:16px;font-weight:600;text-decoration:none;display:inline-flex;align-items:center;gap:8px;transition:all 0.3s ease}
 .link-arrow:hover{gap:12px;text-decoration:underline}
@@ -843,50 +843,57 @@ body::after{
 .hub-gradient-orb {
   position: absolute;
   border-radius: 50%;
-  filter: blur(80px);
-  opacity: 0.15;
-  animation: float 60s ease-in-out infinite;
+  filter: blur(100px);
+  opacity: 0.18;
+  animation: float 90s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  will-change: transform;
 }
 
 .hub-orb-1 {
   width: 600px;
   height: 600px;
-  background: radial-gradient(circle, rgba(0, 229, 255, 0.15) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(0, 229, 255, 0.2) 0%, transparent 70%);
   top: -200px;
   left: -200px;
   animation-delay: 0s;
-  animation-duration: 50s;
+  animation-duration: 100s;
 }
 
 .hub-orb-2 {
   width: 500px;
   height: 500px;
-  background: radial-gradient(circle, rgba(138, 43, 226, 0.15) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(138, 43, 226, 0.18) 0%, transparent 70%);
   top: 50%;
   right: -150px;
-  animation-delay: -7s;
-  animation-duration: 60s;
+  animation-delay: -33s;
+  animation-duration: 120s;
 }
 
 .hub-orb-3 {
   width: 450px;
   height: 450px;
-  background: radial-gradient(circle, rgba(255, 0, 128, 0.12) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(255, 0, 128, 0.15) 0%, transparent 70%);
   bottom: -100px;
   left: 30%;
-  animation-delay: -14s;
-  animation-duration: 70s;
+  animation-delay: -66s;
+  animation-duration: 140s;
 }
 
 @keyframes float {
-  0%, 100% {
+  0% {
     transform: translate(0, 0) scale(1);
   }
-  33% {
-    transform: translate(60px, -40px) scale(1.05);
+  25% {
+    transform: translate(30px, -20px) scale(1.02);
   }
-  66% {
-    transform: translate(-40px, 60px) scale(0.95);
+  50% {
+    transform: translate(50px, 10px) scale(1.03);
+  }
+  75% {
+    transform: translate(-20px, 30px) scale(0.98);
+  }
+  100% {
+    transform: translate(0, 0) scale(1);
   }
 }
 
@@ -902,12 +909,12 @@ body::after{
     linear-gradient(90deg, rgba(0, 229, 255, 0.03) 1px, transparent 1px);
   background-size: 50px 50px;
   opacity: 0.3;
-  animation: gridPulse 10s ease-in-out infinite;
+  animation: gridPulse 20s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
 
 @keyframes gridPulse {
   0%, 100% { opacity: 0.15; }
-  50% { opacity: 0.15; }
+  50% { opacity: 0.25; }
 }
 
 /* Content Wrapper */
@@ -974,21 +981,20 @@ body::after{
   transform: translate(-50%, -50%);
   width: 150px;
   height: 150px;
-  background: radial-gradient(circle, rgba(0, 229, 255, 0.12) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(0, 229, 255, 0.2) 0%, transparent 70%);
   border-radius: 50%;
-  animation: none;
-  opacity: 0.4;
+  animation: glowPulse 8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
   z-index: 1;
 }
 
 @keyframes glowPulse {
   0%, 100% {
-    opacity: 0.4;
+    opacity: 0.35;
     transform: translate(-50%, -50%) scale(1);
   }
   50% {
-    opacity: 0.4;
-    transform: translate(-50%, -50%) scale(1);
+    opacity: 0.55;
+    transform: translate(-50%, -50%) scale(1.05);
   }
 }
 
@@ -1009,8 +1015,7 @@ body::after{
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-size: 200% auto;
-  animation: none;
-  background-position: 0% 50%;
+  animation: gradientShift 15s linear infinite;
   letter-spacing: -0.02em;
   margin: 0;
 }
@@ -1051,9 +1056,9 @@ body::after{
 }
 
 .hub-stat:hover {
-  background: rgba(0, 229, 255, 0.08);
-  border-color: rgba(0, 229, 255, 0.3);
-  transform: none;
+  background: rgba(0, 229, 255, 0.1);
+  border-color: rgba(0, 229, 255, 0.4);
+  transform: translateY(-1px);
 }
 
 .hub-stat i {
