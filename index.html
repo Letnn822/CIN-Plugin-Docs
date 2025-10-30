@@ -150,7 +150,21 @@
       lucide.createIcons();
     }
   </script>
-  <!-- Use hub.js to avoid any stale CDN caches on app.js -->
-  <script src="hub.js?v=20251029"></script>
+  <!-- Robust loader: try hub.js then fall back to app.js (cache-busted) -->
+  <script>
+    (function(){
+      function append(src){ var s=document.createElement('script'); s.src=src; s.defer=true; document.body.appendChild(s); }
+      var v='?v=' + Date.now();
+      var hLoaded=false;
+      var s=document.createElement('script');
+      s.src='hub.js'+v;
+      s.defer=true;
+      s.onload=function(){ hLoaded=true; };
+      s.onerror=function(){ append('app.js'+v); };
+      document.body.appendChild(s);
+      // Safety net: if hub.js neither loads nor errors (weird caches), try app.js after 2s
+      setTimeout(function(){ if(!hLoaded) append('app.js'+v); }, 2000);
+    })();
+  </script>
 </body>
 </html>
