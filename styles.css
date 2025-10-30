@@ -519,8 +519,8 @@ body::after{
 
 /* Modern Hero Section */
 .hero-modern{position:relative;padding:80px 48px;margin:0 0 80px;overflow:hidden;border-radius:24px;background:linear-gradient(135deg,rgba(0,229,255,0.08),rgba(157,78,221,0.08));border:2px solid rgba(0,229,255,0.3);box-shadow:0 20px 60px rgba(0,0,0,0.4),inset 0 1px 0 rgba(255,255,255,0.08),0 0 60px rgba(0,229,255,0.1)}
-.hero-bg-modern{position:absolute;inset:0;background:radial-gradient(circle at 30% 50%,rgba(0,229,255,0.08),transparent 50%),radial-gradient(circle at 70% 50%,rgba(157,78,221,0.08),transparent 50%);z-index:0;animation:pulse 12s ease-in-out infinite alternate}
-@keyframes pulse{from{opacity:0.3}to{opacity:0.5}}
+.hero-bg-modern{position:absolute;inset:0;background:radial-gradient(circle at 30% 50%,rgba(0,229,255,0.06),transparent 50%),radial-gradient(circle at 70% 50%,rgba(157,78,221,0.06),transparent 50%);z-index:0;animation:none;opacity:0.8}
+@keyframes pulse{from{opacity:0.8}to{opacity:0.8}}
 .hero-content-modern{position:relative;z-index:1;text-align:center;max-width:800px;margin:0 auto}
 .hero-badge-row{display:flex;gap:12px;justify-content:center;margin-bottom:24px;flex-wrap:wrap}
 .badge-new{display:inline-flex;align-items:center;padding:8px 20px;border-radius:999px;font-size:13px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;background:rgba(0,229,255,0.15);color:var(--cf-cyan);border:1px solid rgba(0,229,255,0.3);box-shadow:0 4px 12px rgba(0,229,255,0.2),inset 0 1px 0 rgba(255,255,255,0.1);transition:all 0.3s ease}
@@ -556,8 +556,8 @@ body::after{
 .step-info p{margin:0 0 12px;font-size:15px;color:var(--text-bright);line-height:1.6;font-weight:400}
 .step-info code{font-size:13px;background:rgba(0,229,255,0.1);padding:2px 8px;border-radius:6px;color:var(--cf-cyan)}
 .step-time{display:inline-block;padding:4px 12px;background:rgba(0,229,255,0.15);color:var(--cf-cyan);border-radius:999px;font-size:12px;font-weight:700}
-.path-arrow{font-size:32px;color:var(--cf-cyan);font-weight:700;animation:arrowPulse 3s ease-in-out infinite}
-@keyframes arrowPulse{0%,100%{transform:translateX(0);opacity:0.4}50%{transform:translateX(6px);opacity:0.7}}
+.path-arrow{font-size:32px;color:var(--cf-cyan);font-weight:700;animation:none;opacity:0.6}
+@keyframes arrowPulse{0%,100%{transform:translateX(0);opacity:0.6}50%{transform:translateX(0);opacity:0.6}}
 .path-footer{text-align:center}
 .link-arrow{color:var(--cf-cyan);font-size:16px;font-weight:600;text-decoration:none;display:inline-flex;align-items:center;gap:8px;transition:all 0.3s ease}
 .link-arrow:hover{gap:12px;text-decoration:underline}
@@ -844,8 +844,8 @@ body::after{
   position: absolute;
   border-radius: 50%;
   filter: blur(80px);
-  opacity: 0.2;
-  animation: float 40s ease-in-out infinite;
+  opacity: 0.15;
+  animation: float 60s ease-in-out infinite;
 }
 
 .hub-orb-1 {
@@ -906,8 +906,8 @@ body::after{
 }
 
 @keyframes gridPulse {
-  0%, 100% { opacity: 0.2; }
-  50% { opacity: 0.1; }
+  0%, 100% { opacity: 0.15; }
+  50% { opacity: 0.15; }
 }
 
 /* Content Wrapper */
@@ -974,20 +974,21 @@ body::after{
   transform: translate(-50%, -50%);
   width: 150px;
   height: 150px;
-  background: radial-gradient(circle, rgba(0, 229, 255, 0.15) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(0, 229, 255, 0.12) 0%, transparent 70%);
   border-radius: 50%;
-  animation: glowPulse 6s ease-in-out infinite;
+  animation: none;
+  opacity: 0.4;
   z-index: 1;
 }
 
 @keyframes glowPulse {
   0%, 100% {
-    opacity: 0.3;
+    opacity: 0.4;
     transform: translate(-50%, -50%) scale(1);
   }
   50% {
-    opacity: 0.5;
-    transform: translate(-50%, -50%) scale(1.1);
+    opacity: 0.4;
+    transform: translate(-50%, -50%) scale(1);
   }
 }
 
@@ -1008,7 +1009,8 @@ body::after{
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-size: 200% auto;
-  animation: gradientShift 8s linear infinite;
+  animation: none;
+  background-position: 0% 50%;
   letter-spacing: -0.02em;
   margin: 0;
 }
@@ -1049,9 +1051,9 @@ body::after{
 }
 
 .hub-stat:hover {
-  background: rgba(0, 229, 255, 0.1);
-  border-color: rgba(0, 229, 255, 0.4);
-  transform: translateY(-2px);
+  background: rgba(0, 229, 255, 0.08);
+  border-color: rgba(0, 229, 255, 0.3);
+  transform: none;
 }
 
 .hub-stat i {
