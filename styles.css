@@ -519,7 +519,7 @@ body::after{
 
 /* Modern Hero Section */
 .hero-modern{position:relative;padding:80px 48px;margin:0 0 80px;overflow:hidden;border-radius:24px;background:linear-gradient(135deg,rgba(0,229,255,0.08),rgba(157,78,221,0.08));border:2px solid rgba(0,229,255,0.3);box-shadow:0 20px 60px rgba(0,0,0,0.4),inset 0 1px 0 rgba(255,255,255,0.08),0 0 60px rgba(0,229,255,0.1)}
-.hero-bg-modern{position:absolute;inset:0;background:radial-gradient(circle at 30% 50%,rgba(0,229,255,0.1),transparent 50%),radial-gradient(circle at 70% 50%,rgba(157,78,221,0.1),transparent 50%);z-index:0;animation:pulse 16s cubic-bezier(0.4, 0, 0.2, 1) infinite alternate}
+.hero-bg-modern{position:absolute;inset:0;background:radial-gradient(circle at 30% 50%,rgba(0,229,255,0.1),transparent 50%),radial-gradient(circle at 70% 50%,rgba(157,78,221,0.1),transparent 50%);z-index:0;animation:pulse 28s cubic-bezier(0.4, 0, 0.2, 1) infinite alternate}
 @keyframes pulse{0%{opacity:0.6}50%{opacity:0.8}100%{opacity:0.6}}
 .hero-content-modern{position:relative;z-index:1;text-align:center;max-width:800px;margin:0 auto}
 .hero-badge-row{display:flex;gap:12px;justify-content:center;margin-bottom:24px;flex-wrap:wrap}
@@ -845,7 +845,7 @@ body::after{
   border-radius: 50%;
   filter: blur(100px);
   opacity: 0.18;
-  animation: float 150s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  animation: float 240s cubic-bezier(0.4, 0, 0.2, 1) infinite;
   will-change: transform;
 }
 
@@ -856,7 +856,7 @@ body::after{
   top: -200px;
   left: -200px;
   animation-delay: 0s;
-  animation-duration: 180s;
+  animation-duration: 300s;
 }
 
 .hub-orb-2 {
@@ -865,8 +865,8 @@ body::after{
   background: radial-gradient(circle, rgba(138, 43, 226, 0.18) 0%, transparent 70%);
   top: 50%;
   right: -150px;
-  animation-delay: -60s;
-  animation-duration: 200s;
+  animation-delay: -120s;
+  animation-duration: 340s;
 }
 
 .hub-orb-3 {
@@ -875,8 +875,8 @@ body::after{
   background: radial-gradient(circle, rgba(255, 0, 128, 0.15) 0%, transparent 70%);
   bottom: -100px;
   left: 30%;
-  animation-delay: -120s;
-  animation-duration: 220s;
+  animation-delay: -180s;
+  animation-duration: 380s;
 }
 
 @keyframes float {
@@ -884,13 +884,13 @@ body::after{
     transform: translate(0, 0) scale(1);
   }
   25% {
-    transform: translate(30px, -20px) scale(1.02);
+    transform: translate(15px, -10px) scale(1.01);
   }
   50% {
-    transform: translate(50px, 10px) scale(1.03);
+    transform: translate(20px, 6px) scale(1.015);
   }
   75% {
-    transform: translate(-20px, 30px) scale(0.98);
+    transform: translate(-12px, 15px) scale(0.995);
   }
   100% {
     transform: translate(0, 0) scale(1);
@@ -909,12 +909,12 @@ body::after{
     linear-gradient(90deg, rgba(0, 229, 255, 0.03) 1px, transparent 1px);
   background-size: 50px 50px;
   opacity: 0.3;
-  animation: gridPulse 20s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  animation: gridPulse 30s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
 
 @keyframes gridPulse {
-  0%, 100% { opacity: 0.15; }
-  50% { opacity: 0.25; }
+  0%, 100% { opacity: 0.12; }
+  50% { opacity: 0.18; }
 }
 
 /* Content Wrapper */
@@ -955,6 +955,9 @@ body::after{
 .hub-logo-wrapper {
   position: relative;
   display: inline-block;
+  animation: logoFloat 10s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  will-change: transform;
+  transform: translateZ(0);
 }
 
 .hub-logo-icon {
@@ -962,7 +965,7 @@ body::after{
   height: 180px;
   position: relative;
   z-index: 2;
-  animation: logoFloat 6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  display: block;
   filter: drop-shadow(0 0 30px rgba(255, 0, 110, 0.6));
   object-fit: contain;
 }
@@ -972,7 +975,7 @@ body::after{
     transform: translateY(0px) rotate(0deg);
   }
   50% {
-    transform: translateY(-8px) rotate(2deg);
+    transform: translateY(-6px) rotate(1deg);
   }
 }
 
@@ -1017,7 +1020,7 @@ body::after{
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-size: 200% auto;
-  animation: gradientShift 25s linear infinite;
+  animation: gradientShift 35s linear infinite;
   letter-spacing: -0.02em;
   margin: 0;
 }
