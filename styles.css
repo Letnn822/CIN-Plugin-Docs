@@ -845,7 +845,7 @@ body::after{
   border-radius: 50%;
   filter: blur(100px);
   opacity: 0.18;
-  animation: float 90s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  animation: float 150s cubic-bezier(0.4, 0, 0.2, 1) infinite;
   will-change: transform;
 }
 
@@ -856,7 +856,7 @@ body::after{
   top: -200px;
   left: -200px;
   animation-delay: 0s;
-  animation-duration: 100s;
+  animation-duration: 180s;
 }
 
 .hub-orb-2 {
@@ -865,8 +865,8 @@ body::after{
   background: radial-gradient(circle, rgba(138, 43, 226, 0.18) 0%, transparent 70%);
   top: 50%;
   right: -150px;
-  animation-delay: -33s;
-  animation-duration: 120s;
+  animation-delay: -60s;
+  animation-duration: 200s;
 }
 
 .hub-orb-3 {
@@ -875,8 +875,8 @@ body::after{
   background: radial-gradient(circle, rgba(255, 0, 128, 0.15) 0%, transparent 70%);
   bottom: -100px;
   left: 30%;
-  animation-delay: -66s;
-  animation-duration: 140s;
+  animation-delay: -120s;
+  animation-duration: 220s;
 }
 
 @keyframes float {
@@ -958,12 +958,12 @@ body::after{
 }
 
 .hub-logo-icon {
-  width: 120px;
-  height: 120px;
+  width: 180px;
+  height: 180px;
   position: relative;
   z-index: 2;
-  animation: logoFloat 3s ease-in-out infinite;
-  filter: drop-shadow(0 0 20px rgba(0, 229, 255, 0.5));
+  animation: logoFloat 6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  filter: drop-shadow(0 0 30px rgba(255, 0, 110, 0.6));
   object-fit: contain;
 }
 
@@ -972,7 +972,7 @@ body::after{
     transform: translateY(0px) rotate(0deg);
   }
   50% {
-    transform: translateY(-10px) rotate(5deg);
+    transform: translateY(-8px) rotate(2deg);
   }
 }
 
@@ -981,11 +981,11 @@ body::after{
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 150px;
-  height: 150px;
-  background: radial-gradient(circle, rgba(0, 229, 255, 0.2) 0%, transparent 70%);
+  width: 220px;
+  height: 220px;
+  background: radial-gradient(circle, rgba(255, 0, 110, 0.25) 0%, transparent 70%);
   border-radius: 50%;
-  animation: glowPulse 8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  animation: glowPulse 12s cubic-bezier(0.4, 0, 0.2, 1) infinite;
   z-index: 1;
 }
 
@@ -1017,7 +1017,7 @@ body::after{
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-size: 200% auto;
-  animation: gradientShift 15s linear infinite;
+  animation: gradientShift 25s linear infinite;
   letter-spacing: -0.02em;
   margin: 0;
 }
