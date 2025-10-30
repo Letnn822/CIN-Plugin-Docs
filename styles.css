@@ -808,11 +808,12 @@ body::after{
 
 /* Respect reduced motion */
 @media (prefers-reduced-motion: reduce){
-  *{animation-duration:0.01s!important;transition-duration:0.01s!important}
+  /* Stop motion entirely instead of speeding it up */
+  *, *::before, *::after{animation:none!important;transition:none!important}
+  html{scroll-behavior:auto!important}
   body::before, body::after{transform:none!important}
   .arch-box:hover,.journey-card:hover,.button:hover{transform:none!important}
-  .sidebar,.topbar,.content{animation:none!important}
-  .code-tab-content{animation:none!important}
+  .sidebar,.topbar,.content,.code-tab-content{animation:none!important}
 }
 
 /* ============================================
@@ -986,7 +987,12 @@ body::after{
   transform: translate(-50%, -50%);
   width: 220px;
   height: 220px;
-  background: radial-gradient(circle, rgba(255, 0, 110, 0.25) 0%, transparent 70%);
+  background: radial-gradient(
+    circle,
+    rgba(0, 229, 255, 0.32) 0%,           /* cyan core */
+    rgba(157, 78, 221, 0.20) 40%,         /* purple halo */
+    transparent 72%
+  );
   border-radius: 50%;
   animation: glowPulse 12s cubic-bezier(0.4, 0, 0.2, 1) infinite;
   z-index: 1;

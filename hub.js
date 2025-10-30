@@ -346,12 +346,15 @@
   
   // Initialize the app based on the current page
   function initializeApp() {
-    if (isHubPage()) {
+    // Always listen for hash changes so hub can route into docs
+    window.addEventListener('hashchange', navigate);
+
+    var hash = window.location.hash;
+    if (isHubPage() && (!hash || hash === '#/' || hash === '#')) {
+      // No route -> render hub
       initializeHub();
     } else {
-      // Initialize the SPA router for documentation pages
-      window.addEventListener('hashchange', navigate);
-      window.addEventListener('load', navigate);
+      // Route present (or non-hub) -> navigate immediately
       navigate();
     }
   }
